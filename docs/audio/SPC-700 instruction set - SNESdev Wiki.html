@@ -1,0 +1,3532 @@
+<!DOCTYPE html>
+<html class="client-nojs" lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<title>SPC-700 instruction set - SNESdev Wiki</title>
+<script>document.documentElement.className="client-js";RLCONF={"wgBreakFrames":false,"wgSeparatorTransformTable":["",""],"wgDigitTransformTable":["",""],"wgDefaultDateFormat":"dmy","wgMonthNames":["","January","February","March","April","May","June","July","August","September","October","November","December"],"wgRequestId":"aiV7j_1Dy5MHfzrJwD1BFwAAAIw","wgCanonicalNamespace":"","wgCanonicalSpecialPageName":false,"wgNamespaceNumber":0,"wgPageName":"SPC-700_instruction_set","wgTitle":"SPC-700 instruction set","wgCurRevisionId":1386,"wgRevisionId":1386,"wgArticleId":112,"wgIsArticle":true,"wgIsRedirect":false,"wgAction":"view","wgUserName":null,"wgUserGroups":["*"],"wgCategories":["Sound"],"wgPageViewLanguage":"en","wgPageContentLanguage":"en","wgPageContentModel":"wikitext","wgRelevantPageName":"SPC-700_instruction_set","wgRelevantArticleId":112,"wgIsProbablyEditable":false,"wgRelevantPageIsProbablyEditable":false,"wgRestrictionEdit":[],"wgRestrictionMove":[],"wgCheckUserClientHintsHeadersJsApi":["brands","architecture","bitness","fullVersionList","mobile","model","platform","platformVersion"]};
+RLSTATE={"site.styles":"ready","user.styles":"ready","user":"ready","user.options":"loading","skins.monobook.styles":"ready","jquery.tablesorter.styles":"ready"};RLPAGEMODULES=["site","mediawiki.page.ready","jquery.tablesorter","mediawiki.toc","skins.monobook.scripts","ext.checkUser.clientHints"];</script>
+<script>(RLQ=window.RLQ||[]).push(function(){mw.loader.impl(function(){return["user.options@12s5i",function($,jQuery,require,module){mw.user.tokens.set({"patrolToken":"+\\","watchToken":"+\\","csrfToken":"+\\"});
+}];});});</script>
+<link rel="stylesheet" href="/w/load.php?lang=en&amp;modules=jquery.tablesorter.styles%7Cskins.monobook.styles&amp;only=styles&amp;skin=monobook">
+<script async="" src="/w/load.php?lang=en&amp;modules=startup&amp;only=scripts&amp;raw=1&amp;skin=monobook"></script>
+<meta name="ResourceLoaderDynamicStyles" content="">
+<link rel="stylesheet" href="/w/load.php?lang=en&amp;modules=site.styles&amp;only=styles&amp;skin=monobook">
+<meta name="generator" content="MediaWiki 1.45.1">
+<meta name="robots" content="max-image-preview:standard">
+<meta name="format-detection" content="telephone=no">
+<meta name="description" content="The Sony SPC-700 CPU is part of the S-SMP sound processor of the SNES. It runs at 1.024 MHz, and behaves similarly to a 6502 with some extensions.">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, minimum-scale=0.25, maximum-scale=5.0">
+<link rel="search" type="application/opensearchdescription+xml" href="/w/rest.php/v1/search" title="SNESdev Wiki (en)">
+<link rel="EditURI" type="application/rsd+xml" href="https://snes.nesdev.org/w/api.php?action=rsd">
+<link rel="license" href="https://creativecommons.org/publicdomain/zero/1.0/">
+<link rel="alternate" type="application/atom+xml" title="SNESdev Wiki Atom feed" href="/w/index.php?title=Special:RecentChanges&amp;feed=atom">
+	<meta property="og:type" content="article">
+
+	<meta property="og:site_name" content="SNESdev Wiki">
+
+	<meta property="og:title" content="SPC-700 instruction set">
+
+	<meta property="og:description" content="The Sony SPC-700 CPU is part of the S-SMP sound processor of the SNES. It runs at 1.024 MHz, and behaves similarly to a 6502 with some extensions.">
+
+	<meta property="og:url" content="https://snes.nesdev.org/wiki/SPC-700_instruction_set">
+
+</head>
+<body class="mediawiki ltr sitedir-ltr mw-hide-empty-elt ns-0 ns-subject page-SPC-700_instruction_set rootpage-SPC-700_instruction_set skin-monobook action-view skin--responsive"><div id="globalWrapper">
+	<div id="column-content">
+		<div id="content" class="mw-body" role="main">
+			<a id="top"></a>
+			<div id="siteNotice"></div>
+			<div class="mw-indicators">
+			</div>
+			<h1 id="firstHeading" class="firstHeading mw-first-heading"><span class="mw-page-title-main">SPC-700 instruction set</span></h1>
+			<div id="bodyContent" class="monobook-body">
+				<div id="siteSub">From SNESdev Wiki</div>
+				<div id="contentSub" ><div id="mw-content-subtitle"></div></div>
+				
+				<div id="jump-to-nav"></div><a href="#column-one" class="mw-jump-link">Jump to navigation</a><a href="#searchInput" class="mw-jump-link">Jump to search</a>
+				<!-- start content -->
+				<div id="mw-content-text" class="mw-body-content"><div class="mw-content-ltr mw-parser-output" lang="en" dir="ltr"><p>The Sony SPC-700 CPU is part of the <a href="/wiki/S-SMP" title="S-SMP">S-SMP</a> sound processor of the SNES. It runs at 1.024 MHz, and behaves similarly to a 6502 with some extensions.
+</p>
+<div id="toc" class="toc" role="navigation" aria-labelledby="mw-toc-heading"><input type="checkbox" role="button" id="toctogglecheckbox" class="toctogglecheckbox" style="display:none" /><div class="toctitle" lang="en" dir="ltr"><h2 id="mw-toc-heading">Contents</h2><span class="toctogglespan"><label class="toctogglelabel" for="toctogglecheckbox"></label></span></div>
+<ul>
+<li class="toclevel-1 tocsection-1"><a href="#Architecture"><span class="tocnumber">1</span> <span class="toctext">Architecture</span></a>
+<ul>
+<li class="toclevel-2 tocsection-2"><a href="#Registers"><span class="tocnumber">1.1</span> <span class="toctext">Registers</span></a></li>
+<li class="toclevel-2 tocsection-3"><a href="#Addressing_Modes"><span class="tocnumber">1.2</span> <span class="toctext">Addressing Modes</span></a></li>
+<li class="toclevel-2 tocsection-4"><a href="#Differences_from_the_6502"><span class="tocnumber">1.3</span> <span class="toctext">Differences from the 6502</span></a>
+<ul>
+<li class="toclevel-3 tocsection-5"><a href="#Removed_from_SPC700"><span class="tocnumber">1.3.1</span> <span class="toctext">Removed from SPC700</span></a></li>
+<li class="toclevel-3 tocsection-6"><a href="#New_to_SPC700"><span class="tocnumber">1.3.2</span> <span class="toctext">New to SPC700</span></a></li>
+<li class="toclevel-3 tocsection-7"><a href="#Changed_in_SPC700"><span class="tocnumber">1.3.3</span> <span class="toctext">Changed in SPC700</span></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toclevel-1 tocsection-8"><a href="#Instructions"><span class="tocnumber">2</span> <span class="toctext">Instructions</span></a></li>
+<li class="toclevel-1 tocsection-9"><a href="#Links"><span class="tocnumber">3</span> <span class="toctext">Links</span></a></li>
+</ul>
+</div>
+
+<div class="mw-heading mw-heading2"><h2 id="Architecture">Architecture</h2></div>
+<p>The SPC-700 has a 16-bit address space, and a similar set of registers to the 6502.
+</p>
+<div class="mw-heading mw-heading3"><h3 id="Registers">Registers</h3></div>
+<ul><li><b>A</b> - 8-bit accumulator</li>
+<li><b>X</b> - 8-bit index</li>
+<li><b>Y</b> - 8-bit index</li>
+<li><b>YA</b> - 16-bit pair of A (lsb) and Y (msb).</li>
+<li><b>PC</b> - program counter</li>
+<li><b>SP</b> - stack pointer</li>
+<li><b>PSW</b> - program status word: <tt>NVPBHIZC</tt>
+<ul><li><b>N</b> - negative flag (high bit of result was set)</li>
+<li><b>V</b> - overflow flag (signed overflow indication)</li>
+<li><b>P</b> - direct page flag (moves the direct page to $0100 if set)</li>
+<li><b>H</b> - half-carry flag (carry between low and high nibble)</li>
+<li><b>I</b> - interrupt enable (unused: the S-SMP has no attached interrupts)</li>
+<li><b>Z</b> - zero flag (set if last result was zero)</li>
+<li><b>C</b> - carry flag</li></ul></li></ul>
+<div class="mw-heading mw-heading3"><h3 id="Addressing_Modes">Addressing Modes</h3></div>
+<ul><li>imm - 8-bit immediate value</li>
+<li>dp - 8-bit direct page offset ($0000 + dp or $0100 + dp)</li>
+<li>!abs - 16-bit absolute address</li>
+<li>rel - relative offset in two's complement</li>
+<li>(i) - direct-page relative index (P * $100 + i)</li>
+<li>(i)+ - direct-page relative index with post-increment (i is incremented after read)</li>
+<li>[addr]+i - indirect indexed (add index after 16-bit lookup)</li>
+<li>[addr+i] - indexed indirect (add index before 16-bit lookup)</li></ul>
+<div class="mw-heading mw-heading3"><h3 id="Differences_from_the_6502">Differences from the 6502</h3></div>
+<div class="mw-heading mw-heading4"><h4 id="Removed_from_SPC700">Removed from SPC700</h4></div>
+<ul><li>Decimal mode is missing; instead, <tt>DAA</tt> and <tt>DAS</tt> instructions which use the added half-carry flag are provided.</li>
+<li>The indirect <i>non</i>-indexed variant of <tt>JMP</tt>.</li>
+<li>The <tt>LDX abs, Y</tt> and <tt>LDY abs, X</tt> instructions.</li>
+<li>The <tt>BIT</tt> instruction.</li>
+<li><tt>abs, X</tt> modes in read-modify-write instructions: <tt>INC</tt>, <tt>DEC</tt>, <tt>ASL</tt>, <tt>LSR</tt>, <tt>ROL</tt>, <tt>ROR</tt>. (The <tt>zp, X</tt> and <tt>abs</tt> modes are available).</li></ul>
+<div class="mw-heading mw-heading4"><h4 id="New_to_SPC700">New to SPC700</h4></div>
+<ul><li>The direct page can be moved to $0100. (Rarely used.)</li>
+<li>16-bit operations, using either the direct page or the new 16-bit register YA:
+<ul><li><tt>MOVW</tt>, <tt>ADDW</tt>, <tt>SUBW</tt>, <tt>CMPW</tt>, <tt>INCW</tt>, <tt>DECW</tt>.</li>
+<li><tt>MUL</tt>, <tt>DIV</tt>: multiply/divide instructions.</li></ul></li>
+<li><tt>CBNE</tt>, <tt>DBNZ</tt>: loop instructions.</li>
+<li><tt>PCALL</tt>, <tt>TCALL</tt>: abbreviated call instructions for the high page of memory.</li>
+<li><tt>SET1</tt>, <tt>NOT1</tt>, <tt>MOV1</tt>, <tt>AND1</tt>, <tt>OR1</tt>, <tt>EOR1</tt>: single-bit operations on the lower 8KB of memory.</li>
+<li><tt>XCN A</tt>: nibble exchange.</li></ul>
+<p>New addressing modes:
+</p>
+<ul><li>Load/store, arithmetic and boolean operations have added the following modes:
+<ul><li>Direct page &lt;- Immediate: <tt>MOV dp, #imm</tt></li>
+<li>Direct page &lt;- Direct page: <tt>AND dp, dp</tt></li>
+<li>A &lt;- Direct page pointer in X: <tt>OR A, (X)</tt></li>
+<li>Direct page pointer in X &lt;- Direct page pointer in Y: <tt>EOR (X), (Y)</tt></li></ul></li>
+<li>Load/store operations have added these additional modes:
+<ul><li>Direct page pointer in X, post-increment: <tt>MOV (X)+</tt></li></ul></li></ul>
+<p>Note that some features, despite not being available in the original 6502, have been previously introduced by the 65C02:
+</p>
+<ul><li><tt>BBC</tt>, <tt>BBS</tt>: branch on an individual bit set/clear in direct page locations.</li>
+<li><tt>BRA</tt>: branch always.</li>
+<li><tt>INC</tt>, <tt>DEC</tt> for the accumulator.</li>
+<li><tt>RMB</tt>, <tt>SMB</tt>: set/clear an individual bit in direct page locations.</li>
+<li>The indirect indexed variant of <tt>JMP</tt>.</li>
+<li>The ability to directly push and pop <tt>X</tt> and <tt>Y</tt>.</li></ul>
+<div class="mw-heading mw-heading4"><h4 id="Changed_in_SPC700">Changed in SPC700</h4></div>
+<ul><li>Interrupt status flag is enable, not disable. (Not important for SNES: there is no IRQ.)</li>
+<li>The cycle timings of many instructions are slightly different.</li>
+<li><tt>POP</tt> instructions do not modify flags (except <tt>POP PSW</tt>).</li>
+<li><tt>CALL</tt> places the address of the next instruction on the stack, rather than a pre-increment (-1) address like the 6502. <tt>RET</tt> similarly does not have a post-increment for the popped address.</li>
+<li><tt>TSET1</tt> and <tt>TCLR1</tt> don't work like <tt>TSB</tt> and <tt>TRB</tt> on the 65C02: instead of using a bit test to set Z, the N/Z flags are set using an equality test.</li></ul>
+<div class="mw-heading mw-heading2"><h2 id="Instructions">Instructions</h2></div>
+<p>Official instruction names and syntax for SPC-700 instruction were provided by Sony. However, because of its architectural similarity to 6502, some prefer to rename and remap them using a 6502 style syntax. Both are provided here.
+</p><p>Sony instruction convention puts the destination on the left, source on the right (Intel syntax).
+</p><p>Cycles in this table are 1.024 MHz CPU cycles. Each one is equal to 2 clocks of the 2.048 MHz S-SMP.
+</p>
+<table class="wikitable sortable">
+<caption>SPC-700 Instruction Set
+</caption>
+<tbody><tr>
+<th>Instruction
+</th>
+<th>6502-Style
+</th>
+<th>Opcode
+</th>
+<th>Bytes
+</th>
+<th>Cycles
+</th>
+<th>Flags
+</th>
+<th>Notes
+</th></tr>
+<tr>
+<td colspan="7">. <b>8-bit move memory to register</b>
+</td></tr>
+<tr>
+<td><tt>MOV A, #imm</tt>
+</td>
+<td><tt>LDA #imm</tt>
+</td>
+<td><tt>E8</tt>
+</td>
+<td>2
+</td>
+<td>2
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>MOV A, (X)</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>E6</tt>
+</td>
+<td>1
+</td>
+<td>3
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>MOV A, (X)+</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>BF</tt>
+</td>
+<td>1
+</td>
+<td>4
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>X++ after read
+</td></tr>
+<tr>
+<td><tt>MOV A, dp</tt>
+</td>
+<td><tt>LDA dp</tt>
+</td>
+<td><tt>E4</tt>
+</td>
+<td>2
+</td>
+<td>3
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>MOV A, dp+X</tt>
+</td>
+<td><tt>LDA dp, X</tt>
+</td>
+<td><tt>F4</tt>
+</td>
+<td>2
+</td>
+<td>4
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>MOV A, !abs</tt>
+</td>
+<td><tt>LDA abs</tt>
+</td>
+<td><tt>E5</tt>
+</td>
+<td>3
+</td>
+<td>4
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>MOV A, !abs+X</tt>
+</td>
+<td><tt>LDA abs, X</tt>
+</td>
+<td><tt>F5</tt>
+</td>
+<td>3
+</td>
+<td>5
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>MOV A, !abs+Y</tt>
+</td>
+<td><tt>LDA abs, Y</tt>
+</td>
+<td><tt>F6</tt>
+</td>
+<td>3
+</td>
+<td>5
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>MOV A, [dp+X]</tt>
+</td>
+<td><tt>LDA (dp, X)</tt>
+</td>
+<td><tt>E7</tt>
+</td>
+<td>2
+</td>
+<td>6
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>MOV A, [dp]+Y</tt>
+</td>
+<td><tt>LDA (dp), Y</tt>
+</td>
+<td><tt>F7</tt>
+</td>
+<td>2
+</td>
+<td>6
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>MOV X, #imm</tt>
+</td>
+<td><tt>LDX #imm</tt>
+</td>
+<td><tt>CD</tt>
+</td>
+<td>2
+</td>
+<td>2
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>MOV X, dp</tt>
+</td>
+<td><tt>LDX dp</tt>
+</td>
+<td><tt>F8</tt>
+</td>
+<td>2
+</td>
+<td>3
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>MOV X, dp+Y</tt>
+</td>
+<td><tt>LDX dp, Y</tt>
+</td>
+<td><tt>F9</tt>
+</td>
+<td>2
+</td>
+<td>4
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>MOV X, !abs</tt>
+</td>
+<td><tt>LDX abs</tt>
+</td>
+<td><tt>E9</tt>
+</td>
+<td>3
+</td>
+<td>4
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>MOV Y, #imm</tt>
+</td>
+<td><tt>LDY #imm</tt>
+</td>
+<td><tt>8D</tt>
+</td>
+<td>2
+</td>
+<td>2
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>MOV Y, dp</tt>
+</td>
+<td><tt>LDY dp</tt>
+</td>
+<td><tt>EB</tt>
+</td>
+<td>2
+</td>
+<td>3
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>MOV Y, dp+X</tt>
+</td>
+<td><tt>LDY dp, X</tt>
+</td>
+<td><tt>FB</tt>
+</td>
+<td>2
+</td>
+<td>4
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>MOV Y, !abs</tt>
+</td>
+<td><tt>LDY abs</tt>
+</td>
+<td><tt>EC</tt>
+</td>
+<td>3
+</td>
+<td>4
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td colspan="7">. <b>8-bit move register to memory</b>
+</td></tr>
+<tr>
+<td><tt>MOV (X), A</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>C6</tt>
+</td>
+<td>1
+</td>
+<td>4
+</td>
+<td><tt>........</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>MOV (X)+, A</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>AF</tt>
+</td>
+<td>1
+</td>
+<td>4
+</td>
+<td><tt>........</tt>
+</td>
+<td>X++ after read
+</td></tr>
+<tr>
+<td><tt>MOV dp, A</tt>
+</td>
+<td><tt>STA dp</tt>
+</td>
+<td><tt>C4</tt>
+</td>
+<td>2
+</td>
+<td>4
+</td>
+<td><tt>........</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>MOV dp+X, A</tt>
+</td>
+<td><tt>STA dp, X</tt>
+</td>
+<td><tt>D4</tt>
+</td>
+<td>2
+</td>
+<td>5
+</td>
+<td><tt>........</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>MOV !abs, A</tt>
+</td>
+<td><tt>STA abs</tt>
+</td>
+<td><tt>C5</tt>
+</td>
+<td>3
+</td>
+<td>5
+</td>
+<td><tt>........</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>MOV !abs+X, A</tt>
+</td>
+<td><tt>STA abs, X</tt>
+</td>
+<td><tt>D5</tt>
+</td>
+<td>3
+</td>
+<td>6
+</td>
+<td><tt>........</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>MOV !abs+Y, A</tt>
+</td>
+<td><tt>STA abs, Y</tt>
+</td>
+<td><tt>D6</tt>
+</td>
+<td>3
+</td>
+<td>6
+</td>
+<td><tt>........</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>MOV [dp+X], A</tt>
+</td>
+<td><tt>STA (dp, X)</tt>
+</td>
+<td><tt>C7</tt>
+</td>
+<td>2
+</td>
+<td>7
+</td>
+<td><tt>........</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>MOV [dp]+Y, A</tt>
+</td>
+<td><tt>STA (dp), Y</tt>
+</td>
+<td><tt>D7</tt>
+</td>
+<td>2
+</td>
+<td>7
+</td>
+<td><tt>........</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>MOV dp, X</tt>
+</td>
+<td><tt>STX dp</tt>
+</td>
+<td><tt>D8</tt>
+</td>
+<td>2
+</td>
+<td>4
+</td>
+<td><tt>........</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>MOV dp+Y, X</tt>
+</td>
+<td><tt>STX dp, Y</tt>
+</td>
+<td><tt>D9</tt>
+</td>
+<td>2
+</td>
+<td>5
+</td>
+<td><tt>........</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>MOV !abs, X</tt>
+</td>
+<td><tt>STX abs</tt>
+</td>
+<td><tt>C9</tt>
+</td>
+<td>3
+</td>
+<td>5
+</td>
+<td><tt>........</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>MOV dp, Y</tt>
+</td>
+<td><tt>STY dp</tt>
+</td>
+<td><tt>CB</tt>
+</td>
+<td>2
+</td>
+<td>4
+</td>
+<td><tt>........</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>MOV dp+X, Y</tt>
+</td>
+<td><tt>STY dp, X</tt>
+</td>
+<td><tt>DB</tt>
+</td>
+<td>2
+</td>
+<td>5
+</td>
+<td><tt>........</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>MOV !abs, Y</tt>
+</td>
+<td><tt>STY abs</tt>
+</td>
+<td><tt>CC</tt>
+</td>
+<td>3
+</td>
+<td>5
+</td>
+<td><tt>........</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td colspan="7">. <b>8-bit move register to register / special direct page moves</b>
+</td></tr>
+<tr>
+<td><tt>MOV A, X</tt>
+</td>
+<td><tt>TXA</tt>
+</td>
+<td><tt>7D</tt>
+</td>
+<td>1
+</td>
+<td>2
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>MOV A, Y</tt>
+</td>
+<td><tt>TYA</tt>
+</td>
+<td><tt>DD</tt>
+</td>
+<td>1
+</td>
+<td>2
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>MOV X, A</tt>
+</td>
+<td><tt>TAX</tt>
+</td>
+<td><tt>5D</tt>
+</td>
+<td>1
+</td>
+<td>2
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>MOV Y, A</tt>
+</td>
+<td><tt>TAY</tt>
+</td>
+<td><tt>FD</tt>
+</td>
+<td>1
+</td>
+<td>2
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>MOV X, SP</tt>
+</td>
+<td><tt>TSX</tt>
+</td>
+<td><tt>9D</tt>
+</td>
+<td>1
+</td>
+<td>2
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>MOV SP, X</tt>
+</td>
+<td><tt>TXS</tt>
+</td>
+<td><tt>BD</tt>
+</td>
+<td>1
+</td>
+<td>2
+</td>
+<td><tt>........</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>MOV dp, dp</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>FA</tt>
+</td>
+<td>3
+</td>
+<td>5
+</td>
+<td><tt>........</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>MOV dp, #imm</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>8F</tt>
+</td>
+<td>3
+</td>
+<td>5
+</td>
+<td><tt>........</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td colspan="7">. <b>8-bit arithmetic</b>
+</td></tr>
+<tr>
+<td><tt>ADC A, #imm</tt>
+</td>
+<td><tt>ADC #imm</tt>
+</td>
+<td><tt>88</tt>
+</td>
+<td>2
+</td>
+<td>2
+</td>
+<td><tt>NV..H.ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>ADC A, (X)</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>86</tt>
+</td>
+<td>1
+</td>
+<td>3
+</td>
+<td><tt>NV..H.ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>ADC A, dp</tt>
+</td>
+<td><tt>ADC dp</tt>
+</td>
+<td><tt>84</tt>
+</td>
+<td>2
+</td>
+<td>3
+</td>
+<td><tt>NV..H.ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>ADC A, dp+X</tt>
+</td>
+<td><tt>ADC dp, X</tt>
+</td>
+<td><tt>94</tt>
+</td>
+<td>2
+</td>
+<td>4
+</td>
+<td><tt>NV..H.ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>ADC A, !abs</tt>
+</td>
+<td><tt>ADC abs</tt>
+</td>
+<td><tt>85</tt>
+</td>
+<td>3
+</td>
+<td>4
+</td>
+<td><tt>NV..H.ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>ADC A, !abs+X</tt>
+</td>
+<td><tt>ADC abs, X</tt>
+</td>
+<td><tt>95</tt>
+</td>
+<td>3
+</td>
+<td>5
+</td>
+<td><tt>NV..H.ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>ADC A, !abs+Y</tt>
+</td>
+<td><tt>ADC abs, Y</tt>
+</td>
+<td><tt>96</tt>
+</td>
+<td>3
+</td>
+<td>5
+</td>
+<td><tt>NV..H.ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>ADC A, [dp+X]</tt>
+</td>
+<td><tt>ADC (dp, X)</tt>
+</td>
+<td><tt>87</tt>
+</td>
+<td>2
+</td>
+<td>6
+</td>
+<td><tt>NV..H.ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>ADC A, [dp]+Y</tt>
+</td>
+<td><tt>ADC (dp), Y</tt>
+</td>
+<td><tt>97</tt>
+</td>
+<td>2
+</td>
+<td>6
+</td>
+<td><tt>NV..H.ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>ADC (X), (Y)</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>99</tt>
+</td>
+<td>1
+</td>
+<td>5
+</td>
+<td><tt>NV..H.ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>ADC dp, dp</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>89</tt>
+</td>
+<td>3
+</td>
+<td>6
+</td>
+<td><tt>NV..H.ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>ADC dp, #imm</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>98</tt>
+</td>
+<td>3
+</td>
+<td>5
+</td>
+<td><tt>NV..H.ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>SBC A, #imm</tt>
+</td>
+<td><tt>SBC #imm</tt>
+</td>
+<td><tt>A8</tt>
+</td>
+<td>2
+</td>
+<td>2
+</td>
+<td><tt>NV..H.ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>SBC A, (X)</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>A6</tt>
+</td>
+<td>1
+</td>
+<td>3
+</td>
+<td><tt>NV..H.ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>SBC A, dp</tt>
+</td>
+<td><tt>SBC dp</tt>
+</td>
+<td><tt>A4</tt>
+</td>
+<td>2
+</td>
+<td>3
+</td>
+<td><tt>NV..H.ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>SBC A, dp+X</tt>
+</td>
+<td><tt>SBC dp, X</tt>
+</td>
+<td><tt>B4</tt>
+</td>
+<td>2
+</td>
+<td>4
+</td>
+<td><tt>NV..H.ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>SBC A, !abs</tt>
+</td>
+<td><tt>SBC abs</tt>
+</td>
+<td><tt>A5</tt>
+</td>
+<td>3
+</td>
+<td>4
+</td>
+<td><tt>NV..H.ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>SBC A, !abs+X</tt>
+</td>
+<td><tt>SBC abs, X</tt>
+</td>
+<td><tt>B5</tt>
+</td>
+<td>3
+</td>
+<td>5
+</td>
+<td><tt>NV..H.ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>SBC A, !abs+Y</tt>
+</td>
+<td><tt>SBC abs, Y</tt>
+</td>
+<td><tt>B6</tt>
+</td>
+<td>3
+</td>
+<td>5
+</td>
+<td><tt>NV..H.ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>SBC A, [dp+X]</tt>
+</td>
+<td><tt>SBC (dp, X)</tt>
+</td>
+<td><tt>A7</tt>
+</td>
+<td>2
+</td>
+<td>6
+</td>
+<td><tt>NV..H.ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>SBC A, [dp]+Y</tt>
+</td>
+<td><tt>SBC (dp), Y</tt>
+</td>
+<td><tt>B7</tt>
+</td>
+<td>2
+</td>
+<td>6
+</td>
+<td><tt>NV..H.ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>SBC (X), (Y)</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>B9</tt>
+</td>
+<td>1
+</td>
+<td>5
+</td>
+<td><tt>NV..H.ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>SBC dp, dp</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>A9</tt>
+</td>
+<td>3
+</td>
+<td>6
+</td>
+<td><tt>NV..H.ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>SBC dp, #imm</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>B8</tt>
+</td>
+<td>3
+</td>
+<td>5
+</td>
+<td><tt>NV..H.ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>CMP A, #imm</tt>
+</td>
+<td><tt>CMP #imm</tt>
+</td>
+<td><tt>68</tt>
+</td>
+<td>2
+</td>
+<td>2
+</td>
+<td><tt>N.....ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>CMP A, (X)</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>66</tt>
+</td>
+<td>1
+</td>
+<td>3
+</td>
+<td><tt>N.....ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>CMP A, dp</tt>
+</td>
+<td><tt>CMP dp</tt>
+</td>
+<td><tt>64</tt>
+</td>
+<td>2
+</td>
+<td>3
+</td>
+<td><tt>N.....ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>CMP A, dp+X</tt>
+</td>
+<td><tt>CMP dp, X</tt>
+</td>
+<td><tt>74</tt>
+</td>
+<td>2
+</td>
+<td>4
+</td>
+<td><tt>N.....ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>CMP A, !abs</tt>
+</td>
+<td><tt>CMP abs</tt>
+</td>
+<td><tt>65</tt>
+</td>
+<td>3
+</td>
+<td>4
+</td>
+<td><tt>N.....ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>CMP A, !abs+X</tt>
+</td>
+<td><tt>CMP abs, X</tt>
+</td>
+<td><tt>75</tt>
+</td>
+<td>3
+</td>
+<td>5
+</td>
+<td><tt>N.....ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>CMP A, !abs+Y</tt>
+</td>
+<td><tt>CMP abs, Y</tt>
+</td>
+<td><tt>76</tt>
+</td>
+<td>3
+</td>
+<td>5
+</td>
+<td><tt>N.....ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>CMP A, [dp+X]</tt>
+</td>
+<td><tt>CMP (dp, X)</tt>
+</td>
+<td><tt>67</tt>
+</td>
+<td>2
+</td>
+<td>6
+</td>
+<td><tt>N.....ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>CMP A, [dp]+Y</tt>
+</td>
+<td><tt>CMP (dp), Y</tt>
+</td>
+<td><tt>77</tt>
+</td>
+<td>2
+</td>
+<td>6
+</td>
+<td><tt>N.....ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>CMP (X), (Y)</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>79</tt>
+</td>
+<td>1
+</td>
+<td>5
+</td>
+<td><tt>N.....ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>CMP dp, dp</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>69</tt>
+</td>
+<td>3
+</td>
+<td>6
+</td>
+<td><tt>N.....ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>CMP dp, #imm</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>78</tt>
+</td>
+<td>3
+</td>
+<td>5
+</td>
+<td><tt>N.....ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>CMP X, #imm</tt>
+</td>
+<td><tt>CPX #imm</tt>
+</td>
+<td><tt>C8</tt>
+</td>
+<td>2
+</td>
+<td>2
+</td>
+<td><tt>N.....ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>CMP X, dp</tt>
+</td>
+<td><tt>CPX dp</tt>
+</td>
+<td><tt>3E</tt>
+</td>
+<td>2
+</td>
+<td>3
+</td>
+<td><tt>N.....ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>CMP X, !abs</tt>
+</td>
+<td><tt>CPX abs</tt>
+</td>
+<td><tt>1E</tt>
+</td>
+<td>3
+</td>
+<td>4
+</td>
+<td><tt>N.....ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>CMP Y, #imm</tt>
+</td>
+<td><tt>CPY #imm</tt>
+</td>
+<td><tt>AD</tt>
+</td>
+<td>2
+</td>
+<td>2
+</td>
+<td><tt>N.....ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>CMP Y, dp</tt>
+</td>
+<td><tt>CPY dp</tt>
+</td>
+<td><tt>7E</tt>
+</td>
+<td>2
+</td>
+<td>3
+</td>
+<td><tt>N.....ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>CMP Y, !abs</tt>
+</td>
+<td><tt>CPY abs</tt>
+</td>
+<td><tt>5E</tt>
+</td>
+<td>3
+</td>
+<td>4
+</td>
+<td><tt>N.....ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td colspan="7">. <b>8-bit boolean logic</b>
+</td></tr>
+<tr>
+<td><tt>AND A, #imm</tt>
+</td>
+<td><tt>AND #imm</tt>
+</td>
+<td><tt>28</tt>
+</td>
+<td>2
+</td>
+<td>2
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>AND A, (X)</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>26</tt>
+</td>
+<td>1
+</td>
+<td>3
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>AND A, dp</tt>
+</td>
+<td><tt>AND dp</tt>
+</td>
+<td><tt>24</tt>
+</td>
+<td>2
+</td>
+<td>3
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>AND A, dp+X</tt>
+</td>
+<td><tt>AND dp, X</tt>
+</td>
+<td><tt>34</tt>
+</td>
+<td>2
+</td>
+<td>4
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>AND A, !abs</tt>
+</td>
+<td><tt>AND abs</tt>
+</td>
+<td><tt>25</tt>
+</td>
+<td>3
+</td>
+<td>4
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>AND A, !abs+X</tt>
+</td>
+<td><tt>AND abs, X</tt>
+</td>
+<td><tt>35</tt>
+</td>
+<td>3
+</td>
+<td>5
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>AND A, !abs+Y</tt>
+</td>
+<td><tt>AND abs, Y</tt>
+</td>
+<td><tt>36</tt>
+</td>
+<td>3
+</td>
+<td>5
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>AND A, [dp+X]</tt>
+</td>
+<td><tt>AND (dp, X)</tt>
+</td>
+<td><tt>27</tt>
+</td>
+<td>2
+</td>
+<td>6
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>AND A, [dp]+Y</tt>
+</td>
+<td><tt>AND (dp), Y</tt>
+</td>
+<td><tt>37</tt>
+</td>
+<td>2
+</td>
+<td>6
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>AND (X), (Y)</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>39</tt>
+</td>
+<td>1
+</td>
+<td>5
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>AND dp, dp</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>29</tt>
+</td>
+<td>3
+</td>
+<td>6
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>AND dp, #imm</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>38</tt>
+</td>
+<td>3
+</td>
+<td>5
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>OR A, #imm</tt>
+</td>
+<td><tt>ORA #imm</tt>
+</td>
+<td><tt>08</tt>
+</td>
+<td>2
+</td>
+<td>2
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>OR A, (X)</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>06</tt>
+</td>
+<td>1
+</td>
+<td>3
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>OR A, dp</tt>
+</td>
+<td><tt>ORA dp</tt>
+</td>
+<td><tt>04</tt>
+</td>
+<td>2
+</td>
+<td>3
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>OR A, dp+X</tt>
+</td>
+<td><tt>ORA dp, X</tt>
+</td>
+<td><tt>14</tt>
+</td>
+<td>2
+</td>
+<td>4
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>OR A, !abs</tt>
+</td>
+<td><tt>ORA abs</tt>
+</td>
+<td><tt>05</tt>
+</td>
+<td>3
+</td>
+<td>4
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>OR A, !abs+X</tt>
+</td>
+<td><tt>ORA abs, X</tt>
+</td>
+<td><tt>15</tt>
+</td>
+<td>3
+</td>
+<td>5
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>OR A, !abs+Y</tt>
+</td>
+<td><tt>ORA abs, Y</tt>
+</td>
+<td><tt>16</tt>
+</td>
+<td>3
+</td>
+<td>5
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>OR A, [dp+X]</tt>
+</td>
+<td><tt>ORA (dp, X)</tt>
+</td>
+<td><tt>07</tt>
+</td>
+<td>2
+</td>
+<td>6
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>OR A, [dp]+Y</tt>
+</td>
+<td><tt>ORA (dp), Y</tt>
+</td>
+<td><tt>17</tt>
+</td>
+<td>2
+</td>
+<td>6
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>OR (X), (Y)</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>19</tt>
+</td>
+<td>1
+</td>
+<td>5
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>OR dp, dp</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>09</tt>
+</td>
+<td>3
+</td>
+<td>6
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>OR dp, #imm</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>18</tt>
+</td>
+<td>3
+</td>
+<td>5
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>EOR A, #imm</tt>
+</td>
+<td><tt>EOR #imm</tt>
+</td>
+<td><tt>48</tt>
+</td>
+<td>2
+</td>
+<td>2
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>EOR A, (X)</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>46</tt>
+</td>
+<td>1
+</td>
+<td>3
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>EOR A, dp</tt>
+</td>
+<td><tt>EOR dp</tt>
+</td>
+<td><tt>44</tt>
+</td>
+<td>2
+</td>
+<td>3
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>EOR A, dp+X</tt>
+</td>
+<td><tt>EOR dp, X</tt>
+</td>
+<td><tt>54</tt>
+</td>
+<td>2
+</td>
+<td>4
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>EOR A, !abs</tt>
+</td>
+<td><tt>EOR abs</tt>
+</td>
+<td><tt>45</tt>
+</td>
+<td>3
+</td>
+<td>4
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>EOR A, !abs+X</tt>
+</td>
+<td><tt>EOR abs, X</tt>
+</td>
+<td><tt>55</tt>
+</td>
+<td>3
+</td>
+<td>5
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>EOR A, !abs+Y</tt>
+</td>
+<td><tt>EOR abs, Y</tt>
+</td>
+<td><tt>56</tt>
+</td>
+<td>3
+</td>
+<td>5
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>EOR A, [dp+X]</tt>
+</td>
+<td><tt>EOR (dp, X)</tt>
+</td>
+<td><tt>47</tt>
+</td>
+<td>2
+</td>
+<td>6
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>EOR A, [dp]+Y</tt>
+</td>
+<td><tt>EOR (dp), Y</tt>
+</td>
+<td><tt>57</tt>
+</td>
+<td>2
+</td>
+<td>6
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>EOR (X), (Y)</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>59</tt>
+</td>
+<td>1
+</td>
+<td>5
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>EOR dp, dp</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>49</tt>
+</td>
+<td>3
+</td>
+<td>6
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>EOR dp, #imm</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>58</tt>
+</td>
+<td>3
+</td>
+<td>5
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td colspan="7">. <b>8-bit increment / decrement</b>
+</td></tr>
+<tr>
+<td><tt>INC A</tt>
+</td>
+<td><tt>INC</tt>
+</td>
+<td><tt>BC</tt>
+</td>
+<td>1
+</td>
+<td>2
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>INC dp</tt>
+</td>
+<td><tt>INC dp</tt>
+</td>
+<td><tt>AB</tt>
+</td>
+<td>2
+</td>
+<td>4
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>INC dp+X</tt>
+</td>
+<td><tt>INC dp, X</tt>
+</td>
+<td><tt>BB</tt>
+</td>
+<td>2
+</td>
+<td>5
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>INC !abs</tt>
+</td>
+<td><tt>INC abs</tt>
+</td>
+<td><tt>AC</tt>
+</td>
+<td>3
+</td>
+<td>5
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>INC X</tt>
+</td>
+<td><tt>INX</tt>
+</td>
+<td><tt>3D</tt>
+</td>
+<td>1
+</td>
+<td>2
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>INC Y</tt>
+</td>
+<td><tt>INY</tt>
+</td>
+<td><tt>FC</tt>
+</td>
+<td>1
+</td>
+<td>2
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>DEC A</tt>
+</td>
+<td><tt>DEC</tt>
+</td>
+<td><tt>9C</tt>
+</td>
+<td>1
+</td>
+<td>2
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>DEC dp</tt>
+</td>
+<td><tt>DEC dp</tt>
+</td>
+<td><tt>8B</tt>
+</td>
+<td>2
+</td>
+<td>4
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>DEC dp+X</tt>
+</td>
+<td><tt>DEC dp, X</tt>
+</td>
+<td><tt>9B</tt>
+</td>
+<td>2
+</td>
+<td>5
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>DEC !abs</tt>
+</td>
+<td><tt>DEC abs</tt>
+</td>
+<td><tt>8C</tt>
+</td>
+<td>3
+</td>
+<td>5
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>DEC X</tt>
+</td>
+<td><tt>DEX</tt>
+</td>
+<td><tt>1D</tt>
+</td>
+<td>1
+</td>
+<td>2
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>DEC Y</tt>
+</td>
+<td><tt>DEY</tt>
+</td>
+<td><tt>DC</tt>
+</td>
+<td>1
+</td>
+<td>2
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td colspan="7">. <b>8-bit shift / rotation</b>
+</td></tr>
+<tr>
+<td><tt>ASL A</tt>
+</td>
+<td><tt>ASL</tt>
+</td>
+<td><tt>1C</tt>
+</td>
+<td>1
+</td>
+<td>2
+</td>
+<td><tt>N.....ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>ASL dp</tt>
+</td>
+<td><tt>ASL dp</tt>
+</td>
+<td><tt>0B</tt>
+</td>
+<td>2
+</td>
+<td>4
+</td>
+<td><tt>N.....ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>ASL dp+X</tt>
+</td>
+<td><tt>ASL dp, X</tt>
+</td>
+<td><tt>1B</tt>
+</td>
+<td>2
+</td>
+<td>5
+</td>
+<td><tt>N.....ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>ASL !abs</tt>
+</td>
+<td><tt>ASL abs</tt>
+</td>
+<td><tt>0C</tt>
+</td>
+<td>3
+</td>
+<td>5
+</td>
+<td><tt>N.....ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>LSR A</tt>
+</td>
+<td><tt>LSR</tt>
+</td>
+<td><tt>5C</tt>
+</td>
+<td>1
+</td>
+<td>2
+</td>
+<td><tt>N.....ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>LSR dp</tt>
+</td>
+<td><tt>LSR dp</tt>
+</td>
+<td><tt>4B</tt>
+</td>
+<td>2
+</td>
+<td>4
+</td>
+<td><tt>N.....ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>LSR dp+X</tt>
+</td>
+<td><tt>LSR dp, X</tt>
+</td>
+<td><tt>5B</tt>
+</td>
+<td>2
+</td>
+<td>5
+</td>
+<td><tt>N.....ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>LSR !abs</tt>
+</td>
+<td><tt>LSR abs</tt>
+</td>
+<td><tt>4C</tt>
+</td>
+<td>3
+</td>
+<td>5
+</td>
+<td><tt>N.....ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>ROL A</tt>
+</td>
+<td><tt>ROL</tt>
+</td>
+<td><tt>3C</tt>
+</td>
+<td>1
+</td>
+<td>2
+</td>
+<td><tt>N.....ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>ROL dp</tt>
+</td>
+<td><tt>ROL dp</tt>
+</td>
+<td><tt>2B</tt>
+</td>
+<td>2
+</td>
+<td>4
+</td>
+<td><tt>N.....ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>ROL dp+X</tt>
+</td>
+<td><tt>ROL dp, X</tt>
+</td>
+<td><tt>3B</tt>
+</td>
+<td>2
+</td>
+<td>5
+</td>
+<td><tt>N.....ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>ROL !abs</tt>
+</td>
+<td><tt>ROL abs</tt>
+</td>
+<td><tt>2C</tt>
+</td>
+<td>3
+</td>
+<td>5
+</td>
+<td><tt>N.....ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>ROR A</tt>
+</td>
+<td><tt>ROR</tt>
+</td>
+<td><tt>7C</tt>
+</td>
+<td>1
+</td>
+<td>2
+</td>
+<td><tt>N.....ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>ROR dp</tt>
+</td>
+<td><tt>ROR dp</tt>
+</td>
+<td><tt>6B</tt>
+</td>
+<td>2
+</td>
+<td>4
+</td>
+<td><tt>N.....ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>ROR dp+X</tt>
+</td>
+<td><tt>ROR dp, X</tt>
+</td>
+<td><tt>7B</tt>
+</td>
+<td>2
+</td>
+<td>5
+</td>
+<td><tt>N.....ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>ROR !abs</tt>
+</td>
+<td><tt>ROR abs</tt>
+</td>
+<td><tt>6C</tt>
+</td>
+<td>3
+</td>
+<td>5
+</td>
+<td><tt>N.....ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>XCN A</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>9F</tt>
+</td>
+<td>1
+</td>
+<td>5
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>Exchange nibbles of A
+</td></tr>
+<tr>
+<td colspan="7">. <b>16-bit operations</b>
+</td></tr>
+<tr>
+<td><tt>MOVW YA, dp</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>BA</tt>
+</td>
+<td>2
+</td>
+<td>5
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>MOVW dp, YA</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>DA</tt>
+</td>
+<td>2
+</td>
+<td>4
+</td>
+<td><tt>........</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>INCW dp</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>3A</tt>
+</td>
+<td>2
+</td>
+<td>6
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>DECW dp</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>1A</tt>
+</td>
+<td>2
+</td>
+<td>6
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>ADDW YA, dp</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>7A</tt>
+</td>
+<td>2
+</td>
+<td>5
+</td>
+<td><tt>NV..H.ZC</tt>
+</td>
+<td>Uses carry flag
+</td></tr>
+<tr>
+<td><tt>SUBW YA, dp</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>9A</tt>
+</td>
+<td>2
+</td>
+<td>5
+</td>
+<td><tt>NV..H.ZC</tt>
+</td>
+<td>Uses carry flag
+</td></tr>
+<tr>
+<td><tt>CMPW YA, dp</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>5A</tt>
+</td>
+<td>2
+</td>
+<td>4
+</td>
+<td><tt>N.....ZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>MUL YA</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>CF</tt>
+</td>
+<td>1
+</td>
+<td>9
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td><tt>YA = Y * A</tt><br />n/z flags based on Y register (high-byte) only
+</td></tr>
+<tr>
+<td><tt>DIV YA, X</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>9E</tt>
+</td>
+<td>1
+</td>
+<td>12
+</td>
+<td><tt>NV..H.Z.</tt>
+</td>
+<td><tt>A = YA / X</tt>, <tt>Y = YA&#160;% X</tt><br />Bit 8 of quotient is stored in the overflow (v) flag.<br />Output only valid if quotient is &lt;= 511.<br />n/z flags based on A register (bits 0-7 of quotient) only.
+</td></tr>
+<tr>
+<td colspan="7">. <b>decimal adjust</b>
+</td></tr>
+<tr>
+<td><tt>DAA A</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>DF</tt>
+</td>
+<td>1
+</td>
+<td>3
+</td>
+<td><tt>N.....ZC</tt>
+</td>
+<td>Apply carry/half-carry after BCD addition
+</td></tr>
+<tr>
+<td><tt>DAS A</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>BE</tt>
+</td>
+<td>1
+</td>
+<td>3
+</td>
+<td><tt>N.....ZC</tt>
+</td>
+<td>Apply carry/half-carry after BCD subtraction
+</td></tr>
+<tr>
+<td colspan="7">. <b>branching</b>
+</td></tr>
+<tr>
+<td><tt>BRA rel</tt>
+</td>
+<td><tt>BRA rel</tt>
+</td>
+<td><tt>2F</tt>
+</td>
+<td>2
+</td>
+<td>4
+</td>
+<td><tt>........</tt>
+</td>
+<td>Branch always
+</td></tr>
+<tr>
+<td><tt>BEQ rel</tt>
+</td>
+<td><tt>BEQ rel</tt>
+</td>
+<td><tt>F0</tt>
+</td>
+<td>2
+</td>
+<td>2/4
+</td>
+<td><tt>........</tt>
+</td>
+<td>Branch if Z=1
+</td></tr>
+<tr>
+<td><tt>BNE rel</tt>
+</td>
+<td><tt>BNE rel</tt>
+</td>
+<td><tt>D0</tt>
+</td>
+<td>2
+</td>
+<td>2/4
+</td>
+<td><tt>........</tt>
+</td>
+<td>Branch if Z=0
+</td></tr>
+<tr>
+<td><tt>BCS rel</tt>
+</td>
+<td><tt>BCS rel</tt>
+</td>
+<td><tt>B0</tt>
+</td>
+<td>2
+</td>
+<td>2/4
+</td>
+<td><tt>........</tt>
+</td>
+<td>Branch if C=1
+</td></tr>
+<tr>
+<td><tt>BCC rel</tt>
+</td>
+<td><tt>BCC rel</tt>
+</td>
+<td><tt>90</tt>
+</td>
+<td>2
+</td>
+<td>2/4
+</td>
+<td><tt>........</tt>
+</td>
+<td>Branch if C=0
+</td></tr>
+<tr>
+<td><tt>BVS rel</tt>
+</td>
+<td><tt>BVS rel</tt>
+</td>
+<td><tt>70</tt>
+</td>
+<td>2
+</td>
+<td>2/4
+</td>
+<td><tt>........</tt>
+</td>
+<td>Branch if V=1
+</td></tr>
+<tr>
+<td><tt>BVC rel</tt>
+</td>
+<td><tt>BVC rel</tt>
+</td>
+<td><tt>50</tt>
+</td>
+<td>2
+</td>
+<td>2/4
+</td>
+<td><tt>........</tt>
+</td>
+<td>Branch if V=0
+</td></tr>
+<tr>
+<td><tt>BMI rel</tt>
+</td>
+<td><tt>BMI rel</tt>
+</td>
+<td><tt>30</tt>
+</td>
+<td>2
+</td>
+<td>2/4
+</td>
+<td><tt>........</tt>
+</td>
+<td>Branch if N=1
+</td></tr>
+<tr>
+<td><tt>BPL rel</tt>
+</td>
+<td><tt>BPL rel</tt>
+</td>
+<td><tt>10</tt>
+</td>
+<td>2
+</td>
+<td>2/4
+</td>
+<td><tt>........</tt>
+</td>
+<td>Branch if N=0
+</td></tr>
+<tr>
+<td><tt>BBS dp, bit, rel</tt>
+</td>
+<td><tt>BBS bit, dp, rel</tt>
+</td>
+<td><tt>x3</tt>
+</td>
+<td>3
+</td>
+<td>5/7
+</td>
+<td><tt>........</tt>
+</td>
+<td>Branch if dp bit=1, x=(bit*2)
+</td></tr>
+<tr>
+<td><tt>BBC dp, bit, rel</tt>
+</td>
+<td><tt>BBR bit, dp, rel</tt>
+</td>
+<td><tt>y3</tt>
+</td>
+<td>3
+</td>
+<td>5/7
+</td>
+<td><tt>........</tt>
+</td>
+<td>Branch if dp bit=1, y=(bit*2)+1
+</td></tr>
+<tr>
+<td><tt>CBNE dp, rel</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>2E</tt>
+</td>
+<td>3
+</td>
+<td>5/7
+</td>
+<td><tt>........</tt>
+</td>
+<td>CMP A, dp then BNE
+</td></tr>
+<tr>
+<td><tt>CBNE dp+X, rel</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>DE</tt>
+</td>
+<td>3
+</td>
+<td>6/8
+</td>
+<td><tt>........</tt>
+</td>
+<td>CMP A, dp+X then BNE
+</td></tr>
+<tr>
+<td><tt>DBNZ dp, rel</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>6E</tt>
+</td>
+<td>3
+</td>
+<td>5/7
+</td>
+<td><tt>........</tt>
+</td>
+<td>DEC dp then BNE
+</td></tr>
+<tr>
+<td><tt>DBNZ Y, rel</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>FE</tt>
+</td>
+<td>2
+</td>
+<td>4/6
+</td>
+<td><tt>........</tt>
+</td>
+<td>DEC Y then BNE
+</td></tr>
+<tr>
+<td><tt>JMP !abs</tt>
+</td>
+<td><tt>JMP abs</tt>
+</td>
+<td><tt>5F</tt>
+</td>
+<td>3
+</td>
+<td>3
+</td>
+<td><tt>........</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>JMP [!abs+X]</tt>
+</td>
+<td><tt>JMP (abs, X)</tt>
+</td>
+<td><tt>1F</tt>
+</td>
+<td>3
+</td>
+<td>6
+</td>
+<td><tt>........</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td colspan="7">. <b>subroutines</b>
+</td></tr>
+<tr>
+<td><tt>CALL !abs</tt>
+</td>
+<td><tt>JSR abs</tt>
+</td>
+<td><tt>3F</tt>
+</td>
+<td>3
+</td>
+<td>8
+</td>
+<td><tt>........</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>PCALL up</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>4F</tt>
+</td>
+<td>2
+</td>
+<td>6
+</td>
+<td><tt>........</tt>
+</td>
+<td>CALL $FF00 + up
+</td></tr>
+<tr>
+<td><tt>TCALL n</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>n1</tt>
+</td>
+<td>1
+</td>
+<td>8
+</td>
+<td><tt>........</tt>
+</td>
+<td>CALL [$FFDE-(2*n)]
+</td></tr>
+<tr>
+<td><tt>BRK</tt>
+</td>
+<td><tt>BRK</tt>
+</td>
+<td><tt>0F</tt>
+</td>
+<td>1
+</td>
+<td>8
+</td>
+<td><tt>...1.0..</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>RET</tt>
+</td>
+<td><tt>RTS</tt>
+</td>
+<td><tt>6F</tt>
+</td>
+<td>1
+</td>
+<td>5
+</td>
+<td><tt>........</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>RETI</tt>
+</td>
+<td><tt>RTI</tt>
+</td>
+<td><tt>7F</tt>
+</td>
+<td>1
+</td>
+<td>6
+</td>
+<td><tt>NVPBHIZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td colspan="7">. <b>stack</b>
+</td></tr>
+<tr>
+<td><tt>PUSH A</tt>
+</td>
+<td><tt>PHA</tt>
+</td>
+<td><tt>2D</tt>
+</td>
+<td>1
+</td>
+<td>4
+</td>
+<td><tt>........</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>PUSH X</tt>
+</td>
+<td><tt>PHX</tt>
+</td>
+<td><tt>4D</tt>
+</td>
+<td>1
+</td>
+<td>4
+</td>
+<td><tt>........</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>PUSH Y</tt>
+</td>
+<td><tt>PHY</tt>
+</td>
+<td><tt>6D</tt>
+</td>
+<td>1
+</td>
+<td>4
+</td>
+<td><tt>........</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>PUSH PSW</tt>
+</td>
+<td><tt>PHP</tt>
+</td>
+<td><tt>0D</tt>
+</td>
+<td>1
+</td>
+<td>4
+</td>
+<td><tt>........</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>POP A</tt>
+</td>
+<td><tt>PLA</tt>
+</td>
+<td><tt>AE</tt>
+</td>
+<td>1
+</td>
+<td>4
+</td>
+<td><tt>........</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>POP X</tt>
+</td>
+<td><tt>PLX</tt>
+</td>
+<td><tt>CE</tt>
+</td>
+<td>1
+</td>
+<td>4
+</td>
+<td><tt>........</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>POP Y</tt>
+</td>
+<td><tt>PLY</tt>
+</td>
+<td><tt>EE</tt>
+</td>
+<td>1
+</td>
+<td>4
+</td>
+<td><tt>........</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>POP PSW</tt>
+</td>
+<td><tt>PLP</tt>
+</td>
+<td><tt>8E</tt>
+</td>
+<td>1
+</td>
+<td>4
+</td>
+<td><tt>NVPBHIZC</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td colspan="7">. <b>memory bit operations</b>
+</td></tr>
+<tr>
+<td><tt>SET1 dp, bit</tt>
+</td>
+<td><tt>SMB bit, dp</tt>
+</td>
+<td><tt>x2</tt>
+</td>
+<td>2
+</td>
+<td>4
+</td>
+<td><tt>........</tt>
+</td>
+<td>Set dp bit, x=(bit*2)
+</td></tr>
+<tr>
+<td><tt>CLR1 dp, bit</tt>
+</td>
+<td><tt>RMB bit, dp</tt>
+</td>
+<td><tt>y2</tt>
+</td>
+<td>2
+</td>
+<td>4
+</td>
+<td><tt>........</tt>
+</td>
+<td>Set dp bit, y=(bit*2)+1
+</td></tr>
+<tr>
+<td><tt>TSET1 !abs</tt>
+</td>
+<td><tt>TSB abs</tt>
+</td>
+<td><tt>0E</tt>
+</td>
+<td>3
+</td>
+<td>6
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>Test and set bits with A<br />Equality test (<tt>A - old_value</tt>)
+</td></tr>
+<tr>
+<td><tt>TCLR1 !abs</tt>
+</td>
+<td><tt>TRB abs</tt>
+</td>
+<td><tt>4E</tt>
+</td>
+<td>3
+</td>
+<td>6
+</td>
+<td><tt>N.....Z.</tt>
+</td>
+<td>Test and clear bits with A<br />Equality test (<tt>A - old_value</tt>)
+</td></tr>
+<tr>
+<td><tt>AND1 C, abs, bit</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>4A</tt>
+</td>
+<td>3
+</td>
+<td>4
+</td>
+<td><tt>.......C</tt>
+</td>
+<td>C &amp;= [abs] bit
+</td></tr>
+<tr>
+<td><tt>AND1 C, /abs, bit</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>6A</tt>
+</td>
+<td>3
+</td>
+<td>4
+</td>
+<td><tt>.......C</tt>
+</td>
+<td>C &amp;=&#160;!([abs] bit)
+</td></tr>
+<tr>
+<td><tt>OR1 C, abs, bit</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>0A</tt>
+</td>
+<td>3
+</td>
+<td>5
+</td>
+<td><tt>.......C</tt>
+</td>
+<td>C |= [abs] bit
+</td></tr>
+<tr>
+<td><tt>OR1 C, /abs, bit</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>2A</tt>
+</td>
+<td>3
+</td>
+<td>5
+</td>
+<td><tt>.......C</tt>
+</td>
+<td>C |=&#160;!([abs] bit)
+</td></tr>
+<tr>
+<td><tt>EOR1 C, abs, bit</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>8A</tt>
+</td>
+<td>3
+</td>
+<td>5
+</td>
+<td><tt>.......C</tt>
+</td>
+<td>C ^= [abs] bit
+</td></tr>
+<tr>
+<td><tt>NOT1 abs, bit</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>EA</tt>
+</td>
+<td>3
+</td>
+<td>5
+</td>
+<td><tt>........</tt>
+</td>
+<td>[abs] bit ^= 1
+</td></tr>
+<tr>
+<td><tt>MOV1 C, abs, bit</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>AA</tt>
+</td>
+<td>3
+</td>
+<td>4
+</td>
+<td><tt>.......C</tt>
+</td>
+<td>C = [abs] bit
+</td></tr>
+<tr>
+<td><tt>MOV1 abs, bit, C</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>CA</tt>
+</td>
+<td>3
+</td>
+<td>6
+</td>
+<td><tt>........</tt>
+</td>
+<td>[abs] bit = C
+</td></tr>
+<tr>
+<td colspan="7">. <b>status flags</b>
+</td></tr>
+<tr>
+<td><tt>CLRC</tt>
+</td>
+<td><tt>CLC</tt>
+</td>
+<td><tt>60</tt>
+</td>
+<td>1
+</td>
+<td>2
+</td>
+<td><tt>.......0</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>SETC</tt>
+</td>
+<td><tt>SEC</tt>
+</td>
+<td><tt>80</tt>
+</td>
+<td>1
+</td>
+<td>2
+</td>
+<td><tt>.......1</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>NOTC</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>ED</tt>
+</td>
+<td>1
+</td>
+<td>3
+</td>
+<td><tt>.......C</tt>
+</td>
+<td>C ^= 1
+</td></tr>
+<tr>
+<td><tt>CLRV</tt>
+</td>
+<td><tt>CLV</tt>
+</td>
+<td><tt>E0</tt>
+</td>
+<td>1
+</td>
+<td>2
+</td>
+<td><tt>.0..0...</tt>
+</td>
+<td>Clears V and H
+</td></tr>
+<tr>
+<td><tt>CLRP</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>20</tt>
+</td>
+<td>1
+</td>
+<td>2
+</td>
+<td><tt>..0.....</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>SETP</tt>
+</td>
+<td><tt>?</tt>
+</td>
+<td><tt>40</tt>
+</td>
+<td>1
+</td>
+<td>2
+</td>
+<td><tt>..1.....</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>EI</tt>
+</td>
+<td><tt>CLI</tt>
+</td>
+<td><tt>A0</tt>
+</td>
+<td>1
+</td>
+<td>3
+</td>
+<td><tt>......1.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>DI</tt>
+</td>
+<td><tt>SEI</tt>
+</td>
+<td><tt>C0</tt>
+</td>
+<td>1
+</td>
+<td>3
+</td>
+<td><tt>......0.</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td colspan="7">. <b>no-operation and halt</b>
+</td></tr>
+<tr>
+<td><tt>NOP</tt>
+</td>
+<td><tt>NOP</tt>
+</td>
+<td><tt>00</tt>
+</td>
+<td>1
+</td>
+<td>2
+</td>
+<td><tt>........</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>SLEEP</tt>
+</td>
+<td><tt>WAI</tt>
+</td>
+<td><tt>EF</tt>
+</td>
+<td>1
+</td>
+<td>3
+</td>
+<td><tt>........</tt>
+</td>
+<td>
+</td></tr>
+<tr>
+<td><tt>STOP</tt>
+</td>
+<td><tt>STP</tt>
+</td>
+<td><tt>FF</tt>
+</td>
+<td>1
+</td>
+<td>2
+</td>
+<td><tt>........</tt>
+</td>
+<td>
+</td></tr></tbody></table>
+<p>Instruction list:
+</p>
+<ul><li><tt>MOV</tt></li>
+<li><tt>ADC</tt> <tt>SBC</tt> <tt>CMP</tt></li>
+<li><tt>AND</tt> <tt>OR</tt> <tt>EOR</tt> <tt>ASL</tt> <tt>LSR</tt> <tt>ROL</tt> <tt>ROR</tt> <tt>XCN</tt></li>
+<li><tt>INC</tt> <tt>DEC</tt></li>
+<li><tt>MOVW</tt> <tt>INCW</tt> <tt>DECW</tt> <tt>ADDW</tt> <tt>SUBW</tt> <tt>CMPW</tt> <tt>MUL</tt> <tt>DIV</tt></li>
+<li><tt>DAA</tt> <tt>DAS</tt></li>
+<li><tt>BRA</tt> <tt>BEQ</tt> <tt>BNE</tt> <tt>BCS</tt> <tt>BCC</tt> <tt>BVS</tt> <tt>BVC</tt> <tt>BMI</tt> <tt>BPL</tt> <tt>BBS</tt> <tt>BBC</tt> <tt>CBNE</tt> <tt>DBNZ</tt> <tt>JMP</tt></li>
+<li><tt>CALL</tt> <tt>PCALL</tt> <tt>TCALL</tt> <tt>BRK</tt> <tt>RET</tt> <tt>RETI</tt></li>
+<li><tt>PUSH</tt> <tt>POP</tt></li>
+<li><tt>SET1</tt> <tt>CLR1</tt> <tt>TSET1</tt> <tt>TCLR1</tt> <tt>AND1</tt> <tt>OR1</tt> <tt>EOR1</tt> <tt>NOT1</tt> <tt>MOV1</tt></li>
+<li><tt>CLRC</tt> <tt>SETC</tt> <tt>NOTC</tt> <tt>CLRV</tt> <tt>CLRP</tt> <tt>SETP</tt> <tt>EI</tt> <tt>DI</tt></li>
+<li><tt>NOP</tt> <tt>SLEEP</tt> <tt>STOP</tt></li></ul>
+<div class="mw-heading mw-heading2"><h2 id="Links">Links</h2></div>
+<ul><li><a rel="nofollow" class="external text" href="https://wiki.superfamicom.org/spc700-reference#cpu-instruction-set-568">SPC700 Reference - CPU Instruction Set</a> at superfamicom.org wiki</li></ul>
+<!-- 
+NewPP limit report
+Cached time: 20260607075756
+Cache expiry: 86400
+Reduced expiry: false
+Complications: [show‐toc]
+CPU time usage: 0.147 seconds
+Real time usage: 0.153 seconds
+Preprocessor visited node count: 38/1000000
+Revision size: 26042/2097152 bytes
+Post‐expand include size: 0/2097152 bytes
+Template argument size: 0/2097152 bytes
+Highest expansion depth: 2/100
+Expensive parser function count: 0/100
+Unstrip recursion depth: 0/20
+Unstrip post‐expand size: 2/5000000 bytes
+-->
+<!--
+Transclusion expansion time report (%,ms,calls,template)
+100.00%    0.000      1 -total
+-->
+
+<!-- Saved in parser cache with key nesdev_db-sneswiki_:pcache:112:|#|:idhash:canonical and timestamp 20260607075756 and revision id 1386. Rendering was triggered because: page_view
+ -->
+</div>
+<div class="printfooter" data-nosnippet="">Retrieved from "<a dir="ltr" href="https://snes.nesdev.org/w/index.php?title=SPC-700_instruction_set&amp;oldid=1386">https://snes.nesdev.org/w/index.php?title=SPC-700_instruction_set&amp;oldid=1386</a>"</div></div>
+				<div id="catlinks" class="catlinks" data-mw="interface"><div id="mw-normal-catlinks" class="mw-normal-catlinks"><a href="/wiki/Special:Categories" title="Special:Categories">Category</a>: <ul><li><a href="/wiki/Category:Sound" title="Category:Sound">Sound</a></li></ul></div></div>
+				<!-- end content -->
+				<div class="visualClear"></div>
+			</div>
+		</div>
+		<div class="visualClear"></div>
+	</div>
+	<div id="column-one" >
+		<h2>Navigation menu</h2>
+		<div role="navigation" class="portlet" id="p-cactions" aria-labelledby="p-cactions-label">
+			<h3 id="p-cactions-label" >Page actions</h3>
+			<div class="pBody">
+				<ul >
+				<li id="ca-nstab-main" class="selected mw-list-item"><a href="/wiki/SPC-700_instruction_set" title="View the content page [c]" accesskey="c">Page</a></li><li id="ca-talk" class="new mw-list-item"><a href="/w/index.php?title=Talk:SPC-700_instruction_set&amp;action=edit&amp;redlink=1" rel="discussion" class="new" title="Discussion about the content page (page does not exist) [t]" accesskey="t">Discussion</a></li><li id="ca-view" class="selected mw-list-item"><a href="/wiki/SPC-700_instruction_set">Read</a></li><li id="ca-viewsource" class="mw-list-item"><a href="/w/index.php?title=SPC-700_instruction_set&amp;action=edit" title="This page is protected.&#10;You can view its source [e]" accesskey="e">View source</a></li><li id="ca-history" class="mw-list-item"><a href="/w/index.php?title=SPC-700_instruction_set&amp;action=history" title="Past revisions of this page [h]" accesskey="h">History</a></li>
+				
+				</ul>
+			</div>
+		</div>
+		
+<div role="navigation" class="portlet mw-portlet mw-portlet-cactions-mobile"
+	id="p-cactions-mobile" aria-labelledby="p-cactions-mobile-label">
+	<h3 id="p-cactions-mobile-label" >Page actions</h3>
+	<div class="pBody">
+		<ul ><li id="main-mobile" class="selected mw-list-item"><a href="/wiki/SPC-700_instruction_set" title="Page">Page</a></li><li id="talk-mobile" class="new mw-list-item"><a href="/w/index.php?title=Talk:SPC-700_instruction_set&amp;action=edit&amp;redlink=1" title=" (page does not exist)" class="new">Discussion</a></li><li id="ca-more" class="mw-list-item"><a href="#p-cactions">More</a></li><li id="ca-tools" class="mw-list-item"><a href="#p-tb" title="Tools">Tools</a></li></ul>
+		
+	</div>
+</div>
+
+		<div role="navigation" class="portlet" id="p-personal" aria-labelledby="p-personal-label">
+			<h3 id="p-personal-label" >Personal tools</h3>
+			<div class="pBody">
+				<ul >
+				<li id="pt-createaccount" class="mw-list-item"><a href="/w/index.php?title=Special:CreateAccount&amp;returnto=SPC-700+instruction+set" title="You are encouraged to create an account and log in; however, it is not mandatory">Create account</a></li><li id="pt-login" class="mw-list-item"><a href="/w/index.php?title=Special:UserLogin&amp;returnto=SPC-700+instruction+set" title="You are encouraged to log in; however, it is not mandatory [o]" accesskey="o">Log in</a></li>
+				</ul>
+			</div>
+		</div>
+		<div class="portlet" id="p-logo" role="banner">
+			<a href="/wiki/SNESdev_Wiki" class="mw-wiki-logo"></a>
+		</div>
+		<div id="sidebar">
+		
+<div role="navigation" class="portlet mw-portlet mw-portlet-navigation"
+	id="p-navigation" aria-labelledby="p-navigation-label">
+	<h3 id="p-navigation-label" >Navigation</h3>
+	<div class="pBody">
+		<ul ><li id="n-Wiki-main-page" class="mw-list-item"><a href="/wiki/SNESdev_Wiki">Wiki main page</a></li><li id="n-Offline-wiki-snapshot" class="mw-list-item"><a rel="nofollow" href="https://archive.org/details/SNESDevWiki">Offline wiki snapshot</a></li><li id="n-NESdev-Forums" class="mw-list-item"><a rel="nofollow" href="https://forums.nesdev.org/">NESdev Forums</a></li><li id="n-NESdev-Discord" class="mw-list-item"><a rel="nofollow" href="https://discord.gg/SddKcS6ehE">NESdev Discord</a></li><li id="n-SNES-Discord" class="mw-list-item"><a rel="nofollow" href="https://discord.gg/yXNEV6p">SNES Discord</a></li><li id="n-recentchanges" class="mw-list-item"><a href="/wiki/Special:RecentChanges" title="A list of recent changes in the wiki [r]" accesskey="r">Recent changes</a></li></ul>
+		
+	</div>
+</div>
+
+		<div role="search" class="portlet" id="p-search">
+			<h3 id="p-search-label" ><label for="searchInput">Search</label></h3>
+			<div class="pBody" id="searchBody">
+				<form action="/w/index.php" id="searchform"><input type="hidden" value="Special:Search" name="title"><input type="search" name="search" placeholder="Search SNESdev Wiki" aria-label="Search SNESdev Wiki" autocapitalize="sentences" spellcheck="false" title="Search SNESdev Wiki [f]" accesskey="f" id="searchInput"><input type="submit" name="go" value="Go" title="Go to a page with this exact name if it exists" class="searchButton" id="searchButton"> <input type="submit" name="fulltext" value="Search" title="Search the pages for this text" class="searchButton mw-fallbackSearchButton" id="mw-searchButton"></form>
+			</div>
+		</div>
+		
+<div role="navigation" class="portlet mw-portlet mw-portlet-tb"
+	id="p-tb" aria-labelledby="p-tb-label">
+	<h3 id="p-tb-label" >Tools</h3>
+	<div class="pBody">
+		<ul ><li id="t-whatlinkshere" class="mw-list-item"><a href="/wiki/Special:WhatLinksHere/SPC-700_instruction_set" title="A list of all wiki pages that link here [j]" accesskey="j">What links here</a></li><li id="t-recentchangeslinked" class="mw-list-item"><a href="/wiki/Special:RecentChangesLinked/SPC-700_instruction_set" rel="nofollow" title="Recent changes in pages linked from this page [k]" accesskey="k">Related changes</a></li><li id="t-print" class="mw-list-item"><a href="javascript:print();" rel="alternate" title="Printable version of this page [p]" accesskey="p">Printable version</a></li><li id="t-permalink" class="mw-list-item"><a href="/w/index.php?title=SPC-700_instruction_set&amp;oldid=1386" title="Permanent link to this revision of this page">Permanent link</a></li><li id="t-info" class="mw-list-item"><a href="/w/index.php?title=SPC-700_instruction_set&amp;action=info" title="More information about this page">Page information</a></li></ul>
+		
+	</div>
+</div>
+
+		
+		</div>
+		<a href="#sidebar" title="Jump to navigation"
+			class="menu-toggle" id="sidebar-toggle"></a>
+		<a href="#p-personal" title="user tools"
+			class="menu-toggle" id="p-personal-toggle"></a>
+		<a href="#globalWrapper" title="back to top"
+			class="menu-toggle" id="globalWrapper-toggle"></a>
+	</div>
+	<!-- end of the left (by default at least) column -->
+	<div class="visualClear"></div>
+	<div id="footer" class="mw-footer" role="contentinfo"
+		>
+		<div id="f-poweredbyico" class="footer-icons">
+			<a href="https://www.mediawiki.org/" class="cdx-button cdx-button--fake-button cdx-button--size-large cdx-button--fake-button--enabled"><picture><source media="(min-width: 500px)" srcset="/w/resources/assets/poweredby_mediawiki.svg" width="88" height="31"><img src="/w/resources/assets/mediawiki_compact.svg" alt="Powered by MediaWiki" lang="en" width="25" height="25" loading="lazy"></picture></a>
+		</div>
+		<ul id="f-list">
+			<li id="lastmod"> This page was last edited on 19 July 2025, at 23:02.</li><li id="copyright">Content is available under <a class="external" rel="nofollow" href="https://creativecommons.org/publicdomain/zero/1.0/">CC0 Public Domain</a> unless otherwise noted.</li>
+			<li id="privacy"><a href="/wiki/Snesdev_wiki:Privacy_policy">Privacy policy</a></li><li id="about"><a href="/wiki/Snesdev_wiki:About">About SNESdev Wiki</a></li><li id="disclaimers"><a href="/wiki/Snesdev_wiki:General_disclaimer">Disclaimers</a></li>
+		</ul>
+	</div>
+</div>
+<script>(RLQ=window.RLQ||[]).push(function(){mw.config.set({"wgBackendResponseTime":200,"wgPageParseReport":{"limitreport":{"cputime":"0.147","walltime":"0.153","ppvisitednodes":{"value":38,"limit":1000000},"revisionsize":{"value":26042,"limit":2097152},"postexpandincludesize":{"value":0,"limit":2097152},"templateargumentsize":{"value":0,"limit":2097152},"expansiondepth":{"value":2,"limit":100},"expensivefunctioncount":{"value":0,"limit":100},"unstrip-depth":{"value":0,"limit":20},"unstrip-size":{"value":2,"limit":5000000},"timingprofile":["100.00%    0.000      1 -total"]},"cachereport":{"timestamp":"20260607075756","ttl":86400,"transientcontent":false}}});});</script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v833ccba57c9e4d2798f2e76cebdd09a11778172276447" integrity="sha512-57MDmcccJXYtNnH+ZiBwzC4jb2rvgVCEokYN+L/nLlmO8rfYT/gIpW2A569iJ/3b+0UEasghjuZH/ma3wIs/EQ==" data-cf-beacon='{"version":"2024.11.0","token":"6c2a51884de146568600589c93ac5eda","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+</html>

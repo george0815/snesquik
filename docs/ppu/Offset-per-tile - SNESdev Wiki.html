@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html class="client-nojs" lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<title>Offset-per-tile - SNESdev Wiki</title>
+<script>document.documentElement.className="client-js";RLCONF={"wgBreakFrames":false,"wgSeparatorTransformTable":["",""],"wgDigitTransformTable":["",""],"wgDefaultDateFormat":"dmy","wgMonthNames":["","January","February","March","April","May","June","July","August","September","October","November","December"],"wgRequestId":"aiV6zCr-4BQH7PWAl4GgzwAAAAA","wgCanonicalNamespace":"","wgCanonicalSpecialPageName":false,"wgNamespaceNumber":0,"wgPageName":"Offset-per-tile","wgTitle":"Offset-per-tile","wgCurRevisionId":1439,"wgRevisionId":1439,"wgArticleId":20,"wgIsArticle":true,"wgIsRedirect":false,"wgAction":"view","wgUserName":null,"wgUserGroups":["*"],"wgCategories":["Graphics"],"wgPageViewLanguage":"en","wgPageContentLanguage":"en","wgPageContentModel":"wikitext","wgRelevantPageName":"Offset-per-tile","wgRelevantArticleId":20,"wgIsProbablyEditable":false,"wgRelevantPageIsProbablyEditable":false,"wgRestrictionEdit":[],"wgRestrictionMove":[],"wgCheckUserClientHintsHeadersJsApi":["brands","architecture","bitness","fullVersionList","mobile","model","platform","platformVersion"]};
+RLSTATE={"site.styles":"ready","user.styles":"ready","user":"ready","user.options":"loading","skins.monobook.styles":"ready"};RLPAGEMODULES=["site","mediawiki.page.ready","skins.monobook.scripts","ext.checkUser.clientHints"];</script>
+<script>(RLQ=window.RLQ||[]).push(function(){mw.loader.impl(function(){return["user.options@12s5i",function($,jQuery,require,module){mw.user.tokens.set({"patrolToken":"+\\","watchToken":"+\\","csrfToken":"+\\"});
+}];});});</script>
+<link rel="stylesheet" href="/w/load.php?lang=en&amp;modules=skins.monobook.styles&amp;only=styles&amp;skin=monobook">
+<script async="" src="/w/load.php?lang=en&amp;modules=startup&amp;only=scripts&amp;raw=1&amp;skin=monobook"></script>
+<meta name="ResourceLoaderDynamicStyles" content="">
+<link rel="stylesheet" href="/w/load.php?lang=en&amp;modules=site.styles&amp;only=styles&amp;skin=monobook">
+<meta name="generator" content="MediaWiki 1.45.1">
+<meta name="robots" content="max-image-preview:standard">
+<meta name="format-detection" content="telephone=no">
+<meta name="description" content="Offset-per-tile is a feature of background modes 2, 4, and 6. It allows overriding a layer&#039;s horizontal and vertical scroll position on a tile-by-tile basis. This is used by Yoshi&#039;s Island for the dizzy effect and Tetris Attack to have two different playfields with different vertical positions.&#10;This...">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, minimum-scale=0.25, maximum-scale=5.0">
+<link rel="search" type="application/opensearchdescription+xml" href="/w/rest.php/v1/search" title="SNESdev Wiki (en)">
+<link rel="EditURI" type="application/rsd+xml" href="https://snes.nesdev.org/w/api.php?action=rsd">
+<link rel="license" href="https://creativecommons.org/publicdomain/zero/1.0/">
+<link rel="alternate" type="application/atom+xml" title="SNESdev Wiki Atom feed" href="/w/index.php?title=Special:RecentChanges&amp;feed=atom">
+	<meta property="og:type" content="article">
+
+	<meta property="og:site_name" content="SNESdev Wiki">
+
+	<meta property="og:title" content="Offset-per-tile">
+
+	<meta property="og:description" content="Offset-per-tile is a feature of background modes 2, 4, and 6. It allows overriding a layer&#039;s horizontal and vertical scroll position on a tile-by-tile basis. This is used by Yoshi&#039;s Island for the dizzy effect and Tetris Attack to have two different playfields with different vertical positions.&#10;This...">
+
+	<meta property="og:url" content="https://snes.nesdev.org/wiki/Offset-per-tile">
+
+</head>
+<body class="mediawiki ltr sitedir-ltr mw-hide-empty-elt ns-0 ns-subject page-Offset-per-tile rootpage-Offset-per-tile skin-monobook action-view skin--responsive"><div id="globalWrapper">
+	<div id="column-content">
+		<div id="content" class="mw-body" role="main">
+			<a id="top"></a>
+			<div id="siteNotice"></div>
+			<div class="mw-indicators">
+			</div>
+			<h1 id="firstHeading" class="firstHeading mw-first-heading"><span class="mw-page-title-main">Offset-per-tile</span></h1>
+			<div id="bodyContent" class="monobook-body">
+				<div id="siteSub">From SNESdev Wiki</div>
+				<div id="contentSub" ><div id="mw-content-subtitle"></div></div>
+				
+				<div id="jump-to-nav"></div><a href="#column-one" class="mw-jump-link">Jump to navigation</a><a href="#searchInput" class="mw-jump-link">Jump to search</a>
+				<!-- start content -->
+				<div id="mw-content-text" class="mw-body-content"><div class="mw-content-ltr mw-parser-output" lang="en" dir="ltr"><p>Offset-per-tile is a feature of background modes 2, 4, and 6. It allows overriding a layer's horizontal and vertical scroll position on a tile-by-tile basis. This is used by <i>Yoshi's Island</i> for the dizzy effect and <i>Tetris Attack</i> to have two different playfields with different vertical positions.
+</p><p>This feature can be used to simulate a rotating background for small rotation angles, as seen in <i>Star Fox</i>.
+</p><p>See:
+</p>
+<ul><li><a href="/wiki/Uncommon_graphics_mode_games#Vertical_Offset-per-tile" title="Uncommon graphics mode games">Uncommon graphics mode games: Vertical</a></li>
+<li><a href="/wiki/Uncommon_graphics_mode_games#Horizontal_Offset-per-tile" title="Uncommon graphics mode games">Uncommon graphics mode games: Horizontal</a></li></ul>
+<div class="mw-heading mw-heading2"><h2 id="Details_on_how_the_feature_works">Details on how the feature works</h2></div>
+<p>In offset-per-tile modes, BG3's tilemap data is repurposed to hold scroll values (referred to as "offsets" by Nintendo) instead of tile numbers.
+</p><p>The PPU will read 2 rows from the tilemap (each containing 32 entries, for 128 bytes total), where the first contains horizontal offsets and the second contain vertical offsets. Mode 4 only reads 1 row, and each entry may be exclusively horizontal or exclusively vertical.
+</p>
+<ul><li>Horizontal entries will replace the BG HOFS value, except for the low 3 bits. The fine scroll of 0-7 pixels is retained, but the upper bits are replaced with the BG3 entry.</li>
+<li>Vertical entries will replace the BG VOFS value entirely.</li></ul>
+<p>Each entry is a 16-bit value:
+</p>
+<pre>15  bit  8   7  bit  0
+ ---- ----   ---- ----
+ V21. ..SS   SSSS Ssss
+ |||    ||   |||| ||||
+ |||    ++---++++-++++- New scroll value for this tile. For horizontal values, the bottom three bits are ignored
+ ||+------------------- Override scroll value for layer 1
+ |+-------------------- Override scroll value for layer 2
+ +--------------------- Mode 4 only: Scroll direction (0 = horizontal, 1 = vertical)
+</pre>
+<p>The leftmost column of tiles is not affected by the offsets. The 0th entry for the offset map applies instead to the second visible column. This allows the first column's offset to be controlled by that layer's normal HOFS/VOFS setting, and the 32 entries affect the remaining 32 tiles that may be visible on that scanline. (Because the left column may be partially scrolled offscreen, up to 33 tiles can be at least partly seen on a scanline.)
+</p><p>Each entry affects an entire column of the image, because the screen Y position does not affect which row of BG3 is used. However, BG3VOFS does set the starting row's data position within the "tilemap", so <a href="/wiki/HDMA" class="mw-redirect" title="HDMA">HDMA</a> or other timing techniques may be used to switch to multiple "sets" of scroll overrides in different parts of the screen.
+</p><p>When reading the offset map, the PPU continues to follow most of the same logic it would when reading tile numbers:
+</p>
+<ul><li>BG3 is affected by scrolling with HOFS/VOFS, which have the effect of selecting what section of BG3's tilemap is used for the offset map, as mentioned above.
+<ul><li>The low 3 bits of HOFS and VOFS are ignored, so HOFS can be scrolled to match the other layers it applies to.</li></ul></li>
+<li>BG3's tilemap may be two maps wide and/or tall (per <a href="/wiki/PPU_registers#BGnSC" title="PPU registers">BG3SC</a>), though this would not normally have much use. Having it two-wide might allow you to scroll a 64-entry pre-computed offset row in tandem with a two-wide background layer it affects.</li>
+<li>BG3 can be set to use 16x16 pixel "tiles" using <a href="/wiki/PPU_registers#BGMODE" title="PPU registers">BGMODE</a>, and mode 6 will treat the 8x8 setting as 16x8 for both BG1 and BG3.</li>
+<li>When the PPU reads the vertical offset row, it acts as if 8 was added to VOFS. This means that 16x16 pixel tiles on BG3 will cause the PPU to read the same values for the horizontal and vertical offsets when an even row is selected. If adding 8 to VOFS would put the vertical offsets on a different map (with BG3's tilemap set to be two maps tall) then the PPU will actually access that other map instead of wrapping within the current one.</li></ul>
+<!-- 
+NewPP limit report
+Cached time: 20260607071259
+Cache expiry: 86400
+Reduced expiry: false
+Complications: []
+CPU time usage: 0.014 seconds
+Real time usage: 0.017 seconds
+Preprocessor visited node count: 8/1000000
+Revision size: 3826/2097152 bytes
+Post‐expand include size: 0/2097152 bytes
+Template argument size: 0/2097152 bytes
+Highest expansion depth: 2/100
+Expensive parser function count: 0/100
+Unstrip recursion depth: 0/20
+Unstrip post‐expand size: 418/5000000 bytes
+-->
+<!--
+Transclusion expansion time report (%,ms,calls,template)
+100.00%    0.000      1 -total
+-->
+
+<!-- Saved in parser cache with key nesdev_db-sneswiki_:pcache:20:|#|:idhash:canonical and timestamp 20260607071259 and revision id 1439. Rendering was triggered because: page_view
+ -->
+</div>
+<div class="printfooter" data-nosnippet="">Retrieved from "<a dir="ltr" href="https://snes.nesdev.org/w/index.php?title=Offset-per-tile&amp;oldid=1439">https://snes.nesdev.org/w/index.php?title=Offset-per-tile&amp;oldid=1439</a>"</div></div>
+				<div id="catlinks" class="catlinks" data-mw="interface"><div id="mw-normal-catlinks" class="mw-normal-catlinks"><a href="/wiki/Special:Categories" title="Special:Categories">Category</a>: <ul><li><a href="/wiki/Category:Graphics" title="Category:Graphics">Graphics</a></li></ul></div></div>
+				<!-- end content -->
+				<div class="visualClear"></div>
+			</div>
+		</div>
+		<div class="visualClear"></div>
+	</div>
+	<div id="column-one" >
+		<h2>Navigation menu</h2>
+		<div role="navigation" class="portlet" id="p-cactions" aria-labelledby="p-cactions-label">
+			<h3 id="p-cactions-label" >Page actions</h3>
+			<div class="pBody">
+				<ul >
+				<li id="ca-nstab-main" class="selected mw-list-item"><a href="/wiki/Offset-per-tile" title="View the content page [c]" accesskey="c">Page</a></li><li id="ca-talk" class="new mw-list-item"><a href="/w/index.php?title=Talk:Offset-per-tile&amp;action=edit&amp;redlink=1" rel="discussion" class="new" title="Discussion about the content page (page does not exist) [t]" accesskey="t">Discussion</a></li><li id="ca-view" class="selected mw-list-item"><a href="/wiki/Offset-per-tile">Read</a></li><li id="ca-viewsource" class="mw-list-item"><a href="/w/index.php?title=Offset-per-tile&amp;action=edit" title="This page is protected.&#10;You can view its source [e]" accesskey="e">View source</a></li><li id="ca-history" class="mw-list-item"><a href="/w/index.php?title=Offset-per-tile&amp;action=history" title="Past revisions of this page [h]" accesskey="h">History</a></li>
+				
+				</ul>
+			</div>
+		</div>
+		
+<div role="navigation" class="portlet mw-portlet mw-portlet-cactions-mobile"
+	id="p-cactions-mobile" aria-labelledby="p-cactions-mobile-label">
+	<h3 id="p-cactions-mobile-label" >Page actions</h3>
+	<div class="pBody">
+		<ul ><li id="main-mobile" class="selected mw-list-item"><a href="/wiki/Offset-per-tile" title="Page">Page</a></li><li id="talk-mobile" class="new mw-list-item"><a href="/w/index.php?title=Talk:Offset-per-tile&amp;action=edit&amp;redlink=1" title=" (page does not exist)" class="new">Discussion</a></li><li id="ca-more" class="mw-list-item"><a href="#p-cactions">More</a></li><li id="ca-tools" class="mw-list-item"><a href="#p-tb" title="Tools">Tools</a></li></ul>
+		
+	</div>
+</div>
+
+		<div role="navigation" class="portlet" id="p-personal" aria-labelledby="p-personal-label">
+			<h3 id="p-personal-label" >Personal tools</h3>
+			<div class="pBody">
+				<ul >
+				<li id="pt-createaccount" class="mw-list-item"><a href="/w/index.php?title=Special:CreateAccount&amp;returnto=Offset-per-tile" title="You are encouraged to create an account and log in; however, it is not mandatory">Create account</a></li><li id="pt-login" class="mw-list-item"><a href="/w/index.php?title=Special:UserLogin&amp;returnto=Offset-per-tile" title="You are encouraged to log in; however, it is not mandatory [o]" accesskey="o">Log in</a></li>
+				</ul>
+			</div>
+		</div>
+		<div class="portlet" id="p-logo" role="banner">
+			<a href="/wiki/SNESdev_Wiki" class="mw-wiki-logo"></a>
+		</div>
+		<div id="sidebar">
+		
+<div role="navigation" class="portlet mw-portlet mw-portlet-navigation"
+	id="p-navigation" aria-labelledby="p-navigation-label">
+	<h3 id="p-navigation-label" >Navigation</h3>
+	<div class="pBody">
+		<ul ><li id="n-Wiki-main-page" class="mw-list-item"><a href="/wiki/SNESdev_Wiki">Wiki main page</a></li><li id="n-Offline-wiki-snapshot" class="mw-list-item"><a rel="nofollow" href="https://archive.org/details/SNESDevWiki">Offline wiki snapshot</a></li><li id="n-NESdev-Forums" class="mw-list-item"><a rel="nofollow" href="https://forums.nesdev.org/">NESdev Forums</a></li><li id="n-NESdev-Discord" class="mw-list-item"><a rel="nofollow" href="https://discord.gg/SddKcS6ehE">NESdev Discord</a></li><li id="n-SNES-Discord" class="mw-list-item"><a rel="nofollow" href="https://discord.gg/yXNEV6p">SNES Discord</a></li><li id="n-recentchanges" class="mw-list-item"><a href="/wiki/Special:RecentChanges" title="A list of recent changes in the wiki [r]" accesskey="r">Recent changes</a></li></ul>
+		
+	</div>
+</div>
+
+		<div role="search" class="portlet" id="p-search">
+			<h3 id="p-search-label" ><label for="searchInput">Search</label></h3>
+			<div class="pBody" id="searchBody">
+				<form action="/w/index.php" id="searchform"><input type="hidden" value="Special:Search" name="title"><input type="search" name="search" placeholder="Search SNESdev Wiki" aria-label="Search SNESdev Wiki" autocapitalize="sentences" spellcheck="false" title="Search SNESdev Wiki [f]" accesskey="f" id="searchInput"><input type="submit" name="go" value="Go" title="Go to a page with this exact name if it exists" class="searchButton" id="searchButton"> <input type="submit" name="fulltext" value="Search" title="Search the pages for this text" class="searchButton mw-fallbackSearchButton" id="mw-searchButton"></form>
+			</div>
+		</div>
+		
+<div role="navigation" class="portlet mw-portlet mw-portlet-tb"
+	id="p-tb" aria-labelledby="p-tb-label">
+	<h3 id="p-tb-label" >Tools</h3>
+	<div class="pBody">
+		<ul ><li id="t-whatlinkshere" class="mw-list-item"><a href="/wiki/Special:WhatLinksHere/Offset-per-tile" title="A list of all wiki pages that link here [j]" accesskey="j">What links here</a></li><li id="t-recentchangeslinked" class="mw-list-item"><a href="/wiki/Special:RecentChangesLinked/Offset-per-tile" rel="nofollow" title="Recent changes in pages linked from this page [k]" accesskey="k">Related changes</a></li><li id="t-print" class="mw-list-item"><a href="javascript:print();" rel="alternate" title="Printable version of this page [p]" accesskey="p">Printable version</a></li><li id="t-permalink" class="mw-list-item"><a href="/w/index.php?title=Offset-per-tile&amp;oldid=1439" title="Permanent link to this revision of this page">Permanent link</a></li><li id="t-info" class="mw-list-item"><a href="/w/index.php?title=Offset-per-tile&amp;action=info" title="More information about this page">Page information</a></li></ul>
+		
+	</div>
+</div>
+
+		
+		</div>
+		<a href="#sidebar" title="Jump to navigation"
+			class="menu-toggle" id="sidebar-toggle"></a>
+		<a href="#p-personal" title="user tools"
+			class="menu-toggle" id="p-personal-toggle"></a>
+		<a href="#globalWrapper" title="back to top"
+			class="menu-toggle" id="globalWrapper-toggle"></a>
+	</div>
+	<!-- end of the left (by default at least) column -->
+	<div class="visualClear"></div>
+	<div id="footer" class="mw-footer" role="contentinfo"
+		>
+		<div id="f-poweredbyico" class="footer-icons">
+			<a href="https://www.mediawiki.org/" class="cdx-button cdx-button--fake-button cdx-button--size-large cdx-button--fake-button--enabled"><picture><source media="(min-width: 500px)" srcset="/w/resources/assets/poweredby_mediawiki.svg" width="88" height="31"><img src="/w/resources/assets/mediawiki_compact.svg" alt="Powered by MediaWiki" lang="en" width="25" height="25" loading="lazy"></picture></a>
+		</div>
+		<ul id="f-list">
+			<li id="lastmod"> This page was last edited on 23 April 2026, at 05:19.</li><li id="copyright">Content is available under <a class="external" rel="nofollow" href="https://creativecommons.org/publicdomain/zero/1.0/">CC0 Public Domain</a> unless otherwise noted.</li>
+			<li id="privacy"><a href="/wiki/Snesdev_wiki:Privacy_policy">Privacy policy</a></li><li id="about"><a href="/wiki/Snesdev_wiki:About">About SNESdev Wiki</a></li><li id="disclaimers"><a href="/wiki/Snesdev_wiki:General_disclaimer">Disclaimers</a></li>
+		</ul>
+	</div>
+</div>
+<script>(RLQ=window.RLQ||[]).push(function(){mw.config.set({"wgBackendResponseTime":101,"wgPageParseReport":{"limitreport":{"cputime":"0.014","walltime":"0.017","ppvisitednodes":{"value":8,"limit":1000000},"revisionsize":{"value":3826,"limit":2097152},"postexpandincludesize":{"value":0,"limit":2097152},"templateargumentsize":{"value":0,"limit":2097152},"expansiondepth":{"value":2,"limit":100},"expensivefunctioncount":{"value":0,"limit":100},"unstrip-depth":{"value":0,"limit":20},"unstrip-size":{"value":418,"limit":5000000},"timingprofile":["100.00%    0.000      1 -total"]},"cachereport":{"timestamp":"20260607071259","ttl":86400,"transientcontent":false}}});});</script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v833ccba57c9e4d2798f2e76cebdd09a11778172276447" integrity="sha512-57MDmcccJXYtNnH+ZiBwzC4jb2rvgVCEokYN+L/nLlmO8rfYT/gIpW2A569iJ/3b+0UEasghjuZH/ma3wIs/EQ==" data-cf-beacon='{"version":"2024.11.0","token":"6c2a51884de146568600589c93ac5eda","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+</html>

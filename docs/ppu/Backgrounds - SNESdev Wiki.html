@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html class="client-nojs" lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<title>Backgrounds - SNESdev Wiki</title>
+<script>document.documentElement.className="client-js";RLCONF={"wgBreakFrames":false,"wgSeparatorTransformTable":["",""],"wgDigitTransformTable":["",""],"wgDefaultDateFormat":"dmy","wgMonthNames":["","January","February","March","April","May","June","July","August","September","October","November","December"],"wgRequestId":"aiV6qPCco7DVwEdBA0lNYQAAARg","wgCanonicalNamespace":"","wgCanonicalSpecialPageName":false,"wgNamespaceNumber":0,"wgPageName":"Backgrounds","wgTitle":"Backgrounds","wgCurRevisionId":1244,"wgRevisionId":1244,"wgArticleId":73,"wgIsArticle":true,"wgIsRedirect":false,"wgAction":"view","wgUserName":null,"wgUserGroups":["*"],"wgCategories":["Graphics"],"wgPageViewLanguage":"en","wgPageContentLanguage":"en","wgPageContentModel":"wikitext","wgRelevantPageName":"Backgrounds","wgRelevantArticleId":73,"wgIsProbablyEditable":false,"wgRelevantPageIsProbablyEditable":false,"wgRestrictionEdit":[],"wgRestrictionMove":[],"wgCheckUserClientHintsHeadersJsApi":["brands","architecture","bitness","fullVersionList","mobile","model","platform","platformVersion"]};
+RLSTATE={"site.styles":"ready","user.styles":"ready","user":"ready","user.options":"loading","skins.monobook.styles":"ready"};RLPAGEMODULES=["site","mediawiki.page.ready","mediawiki.toc","skins.monobook.scripts","ext.checkUser.clientHints"];</script>
+<script>(RLQ=window.RLQ||[]).push(function(){mw.loader.impl(function(){return["user.options@12s5i",function($,jQuery,require,module){mw.user.tokens.set({"patrolToken":"+\\","watchToken":"+\\","csrfToken":"+\\"});
+}];});});</script>
+<link rel="stylesheet" href="/w/load.php?lang=en&amp;modules=skins.monobook.styles&amp;only=styles&amp;skin=monobook">
+<script async="" src="/w/load.php?lang=en&amp;modules=startup&amp;only=scripts&amp;raw=1&amp;skin=monobook"></script>
+<meta name="ResourceLoaderDynamicStyles" content="">
+<link rel="stylesheet" href="/w/load.php?lang=en&amp;modules=site.styles&amp;only=styles&amp;skin=monobook">
+<meta name="generator" content="MediaWiki 1.45.1">
+<meta name="robots" content="max-image-preview:standard">
+<meta name="format-detection" content="telephone=no">
+<meta name="description" content="The SNES backgrounds consist of one or more layers of tilemaps.&#10;There are 8 available background modes, which can be changed at any time via BGMODE, even mid-screen.&#10;Each mode has 1-4 layers, consisting of tiles that are 2bpp (4-color), 4bpp (16-color), or 8bpp (256-color).">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, minimum-scale=0.25, maximum-scale=5.0">
+<link rel="search" type="application/opensearchdescription+xml" href="/w/rest.php/v1/search" title="SNESdev Wiki (en)">
+<link rel="EditURI" type="application/rsd+xml" href="https://snes.nesdev.org/w/api.php?action=rsd">
+<link rel="license" href="https://creativecommons.org/publicdomain/zero/1.0/">
+<link rel="alternate" type="application/atom+xml" title="SNESdev Wiki Atom feed" href="/w/index.php?title=Special:RecentChanges&amp;feed=atom">
+	<meta property="og:type" content="article">
+
+	<meta property="og:site_name" content="SNESdev Wiki">
+
+	<meta property="og:title" content="Backgrounds">
+
+	<meta property="og:description" content="The SNES backgrounds consist of one or more layers of tilemaps.&#10;There are 8 available background modes, which can be changed at any time via BGMODE, even mid-screen.&#10;Each mode has 1-4 layers, consisting of tiles that are 2bpp (4-color), 4bpp (16-color), or 8bpp (256-color).">
+
+	<meta property="og:url" content="https://snes.nesdev.org/wiki/Backgrounds">
+
+</head>
+<body class="mediawiki ltr sitedir-ltr mw-hide-empty-elt ns-0 ns-subject page-Backgrounds rootpage-Backgrounds skin-monobook action-view skin--responsive"><div id="globalWrapper">
+	<div id="column-content">
+		<div id="content" class="mw-body" role="main">
+			<a id="top"></a>
+			<div id="siteNotice"></div>
+			<div class="mw-indicators">
+			</div>
+			<h1 id="firstHeading" class="firstHeading mw-first-heading"><span class="mw-page-title-main">Backgrounds</span></h1>
+			<div id="bodyContent" class="monobook-body">
+				<div id="siteSub">From SNESdev Wiki</div>
+				<div id="contentSub" ><div id="mw-content-subtitle"></div></div>
+				
+				<div id="jump-to-nav"></div><a href="#column-one" class="mw-jump-link">Jump to navigation</a><a href="#searchInput" class="mw-jump-link">Jump to search</a>
+				<!-- start content -->
+				<div id="mw-content-text" class="mw-body-content"><div class="mw-content-ltr mw-parser-output" lang="en" dir="ltr"><p>The SNES backgrounds consist of one or more layers of <a href="/wiki/Tilemaps" title="Tilemaps">tilemaps</a>.
+</p><p>There are 8 available background modes, which can be changed at any time via <a href="/wiki/PPU_registers#BGMODE" title="PPU registers">BGMODE</a>, even mid-screen.
+</p><p>Each mode has 1-4 layers, consisting of <a href="/wiki/Tiles" title="Tiles">tiles</a> that are 2bpp (4-color), 4bpp (16-color), or 8bpp (256-color).
+</p><p><ins id="Priority&#95;table"></ins>
+</p>
+<table class="wikitable">
+<tbody><tr>
+<th>Mode
+</th>
+<th style="background:#ffdddd">BG1
+</th>
+<th style="background:#ddddff">BG2
+</th>
+<th style="background:#ddffdd">BG3
+</th>
+<th style="background:#ffddff">BG4
+</th>
+<th><a href="#High_resolution">Hi-res</a>
+</th>
+<th><a href="#Priority">Priority</a> (front ↔ back)
+</th></tr>
+<tr>
+<th><a href="#Mode_0">0</a>
+</th>
+<td>2</td>
+<td>2</td>
+<td>2</td>
+<td>2</td>
+<td>
+</td>
+<td><tt style="white-space: nowrap">&#160;&#160;&#160;<span style="background-color:#ffffdd">S3</span> <span style="background-color:#ffdddd">1H</span> <span style="background-color:#ddddff">2H</span> <span style="background-color:#ffffdd">S2</span> <span style="background-color:#ffdddd">1L</span> <span style="background-color:#ddddff">2L</span> <span style="background-color:#ffffdd">S1</span> <span style="background-color:#ddffdd">3H</span> <span style="background-color:#ffddff">4H</span> <span style="background-color:#ffffdd">S0</span> <span style="background-color:#ddffdd">3L</span> <span style="background-color:#ffddff">4L</span></tt>
+</td></tr>
+<tr>
+<th><a href="#Mode_1">1</a>
+</th>
+<td>4</td>
+<td>4</td>
+<td>2</td>
+<td></td>
+<td>
+</td>
+<td><tt style="white-space: nowrap"><span style="background-color:#ddffdd">3H</span> <span style="background-color:#ffffdd">S3</span> <span style="background-color:#ffdddd">1H</span> <span style="background-color:#ddddff">2H</span> <span style="background-color:#ffffdd">S2</span> <span style="background-color:#ffdddd">1L</span> <span style="background-color:#ddddff">2L</span> <span style="background-color:#ffffdd">S1</span> <span style="background-color:#ddffdd">3H</span>&#160;&#160;&#160;&#160;<span style="background-color:#ffffdd">S0</span> <span style="background-color:#ddffdd">3L</span></tt>
+</td></tr>
+<tr>
+<th><a href="#Mode_2">2</a>
+</th>
+<td>4</td>
+<td>4</td>
+<td><a href="/wiki/Offset-per-tile" title="Offset-per-tile">OPT</a></td>
+<td></td>
+<td>
+</td>
+<td><tt style="white-space: nowrap">&#160;&#160;&#160;<span style="background-color:#ffffdd">S3</span> <span style="background-color:#ffdddd">1H</span>&#160;&#160;&#160;&#160;<span style="background-color:#ffffdd">S2</span> <span style="background-color:#ddddff">2H</span>&#160;&#160;&#160;&#160;<span style="background-color:#ffffdd">S1</span> <span style="background-color:#ffdddd">1L</span>&#160;&#160;&#160;&#160;<span style="background-color:#ffffdd">S0</span> <span style="background-color:#ddddff">2L</span></tt>
+</td></tr>
+<tr>
+<th><a href="#Mode_3">3</a>
+</th>
+<td>8</td>
+<td>4</td>
+<td></td>
+<td></td>
+<td>
+</td>
+<td><tt style="white-space: nowrap">&#160;&#160;&#160;<span style="background-color:#ffffdd">S3</span> <span style="background-color:#ffdddd">1H</span>&#160;&#160;&#160;&#160;<span style="background-color:#ffffdd">S2</span> <span style="background-color:#ddddff">2H</span>&#160;&#160;&#160;&#160;<span style="background-color:#ffffdd">S1</span> <span style="background-color:#ffdddd">1L</span>&#160;&#160;&#160;&#160;<span style="background-color:#ffffdd">S0</span> <span style="background-color:#ddddff">2L</span></tt>
+</td></tr>
+<tr>
+<th><a href="#Mode_4">4</a>
+</th>
+<td>8</td>
+<td>2</td>
+<td>OPT</td>
+<td></td>
+<td>
+</td>
+<td><tt style="white-space: nowrap">&#160;&#160;&#160;<span style="background-color:#ffffdd">S3</span> <span style="background-color:#ffdddd">1H</span>&#160;&#160;&#160;&#160;<span style="background-color:#ffffdd">S2</span> <span style="background-color:#ddddff">2H</span>&#160;&#160;&#160;&#160;<span style="background-color:#ffffdd">S1</span> <span style="background-color:#ffdddd">1L</span>&#160;&#160;&#160;&#160;<span style="background-color:#ffffdd">S0</span> <span style="background-color:#ddddff">2L</span></tt>
+</td></tr>
+<tr>
+<th><a href="#Mode_5">5</a>
+</th>
+<td>4</td>
+<td>2</td>
+<td></td>
+<td></td>
+<td>✔
+</td>
+<td><tt style="white-space: nowrap">&#160;&#160;&#160;<span style="background-color:#ffffdd">S3</span> <span style="background-color:#ffdddd">1H</span>&#160;&#160;&#160;&#160;<span style="background-color:#ffffdd">S2</span> <span style="background-color:#ddddff">2H</span>&#160;&#160;&#160;&#160;<span style="background-color:#ffffdd">S1</span> <span style="background-color:#ffdddd">1L</span>&#160;&#160;&#160;&#160;<span style="background-color:#ffffdd">S0</span> <span style="background-color:#ddddff">2L</span></tt>
+</td></tr>
+<tr>
+<th><a href="#Mode_6">6</a>
+</th>
+<td>4</td>
+<td></td>
+<td>OPT</td>
+<td></td>
+<td>✔
+</td>
+<td><tt style="white-space: nowrap">&#160;&#160;&#160;<span style="background-color:#ffffdd">S3</span> <span style="background-color:#ffdddd">1H</span>&#160;&#160;&#160;&#160;<span style="background-color:#ffffdd">S2</span>&#160;&#160;&#160;&#160;&#160;&#160;&#160;<span style="background-color:#ffffdd">S1</span> <span style="background-color:#ffdddd">1L</span>&#160;&#160;&#160;&#160;<span style="background-color:#ffffdd">S0</span></tt>
+</td></tr>
+<tr>
+<th><a href="#Mode_7">7</a>
+</th>
+<td>8</td>
+<td>(7)</td>
+<td></td>
+<td></td>
+<td>
+</td>
+<td><tt style="white-space: nowrap">&#160;&#160;&#160;<span style="background-color:#ffffdd">S3</span>&#160;&#160;&#160;&#160;&#160;&#160;&#160;<span style="background-color:#ffffdd">S2</span> <span style="background-color:#ddddff">2H</span>&#160;&#160;&#160;&#160;<span style="background-color:#ffffdd">S1</span> <span style="background-color:#ffdddd">1L</span>&#160;&#160;&#160;&#160;<span style="background-color:#ffffdd">S0</span> <span style="background-color:#ddddff">2L</span></tt>
+</td></tr></tbody></table>
+<div id="toc" class="toc" role="navigation" aria-labelledby="mw-toc-heading"><input type="checkbox" role="button" id="toctogglecheckbox" class="toctogglecheckbox" style="display:none" /><div class="toctitle" lang="en" dir="ltr"><h2 id="mw-toc-heading">Contents</h2><span class="toctogglespan"><label class="toctogglelabel" for="toctogglecheckbox"></label></span></div>
+<ul>
+<li class="toclevel-1 tocsection-1"><a href="#Properties"><span class="tocnumber">1</span> <span class="toctext">Properties</span></a></li>
+<li class="toclevel-1 tocsection-2"><a href="#Priority"><span class="tocnumber">2</span> <span class="toctext">Priority</span></a></li>
+<li class="toclevel-1 tocsection-3"><a href="#High_resolution"><span class="tocnumber">3</span> <span class="toctext">High resolution</span></a>
+<ul>
+<li class="toclevel-2 tocsection-4"><a href="#Interlacing"><span class="tocnumber">3.1</span> <span class="toctext">Interlacing</span></a></li>
+</ul>
+</li>
+<li class="toclevel-1 tocsection-5"><a href="#Mode_0"><span class="tocnumber">4</span> <span class="toctext">Mode 0</span></a></li>
+<li class="toclevel-1 tocsection-6"><a href="#Mode_1"><span class="tocnumber">5</span> <span class="toctext">Mode 1</span></a></li>
+<li class="toclevel-1 tocsection-7"><a href="#Mode_2"><span class="tocnumber">6</span> <span class="toctext">Mode 2</span></a></li>
+<li class="toclevel-1 tocsection-8"><a href="#Mode_3_&amp;_4"><span class="tocnumber">7</span> <span class="toctext">Mode 3 &amp; 4</span></a></li>
+<li class="toclevel-1 tocsection-9"><a href="#Mode_5_&amp;_6"><span class="tocnumber">8</span> <span class="toctext">Mode 5 &amp; 6</span></a></li>
+<li class="toclevel-1 tocsection-10"><a href="#Mode_7"><span class="tocnumber">9</span> <span class="toctext">Mode 7</span></a>
+<ul>
+<li class="toclevel-2 tocsection-11"><a href="#EXTBG"><span class="tocnumber">9.1</span> <span class="toctext">EXTBG</span></a></li>
+</ul>
+</li>
+<li class="toclevel-1 tocsection-12"><a href="#See_Also"><span class="tocnumber">10</span> <span class="toctext">See Also</span></a></li>
+<li class="toclevel-1 tocsection-13"><a href="#References"><span class="tocnumber">11</span> <span class="toctext">References</span></a></li>
+</ul>
+</div>
+
+<div class="mw-heading mw-heading2"><h2 id="Properties">Properties</h2></div>
+<p>Each of the 4 BG layers has several independent properties:
+</p>
+<ul><li><a href="/wiki/Tilemap" class="mw-redirect" title="Tilemap">Tilemap</a> VRAM address: <a href="/wiki/PPU_registers#BGnSC" title="PPU registers">BGnSC</a></li>
+<li><a href="/wiki/Tiles" title="Tiles">Tileset</a> (CHR) VRAM address: <a href="/wiki/PPU_registers#BG12NBA" title="PPU registers">BG12NBA</a>, <a href="/wiki/PPU_registers#BG34NBA" title="PPU registers">BG34NBA</a></li>
+<li>Multiple tilemaps in 1x1, 2x1, 1x2, 2x2 arrangements: <a href="/wiki/PPU_registers#BGnSC" title="PPU registers">BGnSC</a></li>
+<li>Tile size of 8x8 (or 16x8) or 16x16: <a href="/wiki/PPU_registers#BGMODE" title="PPU registers">BGMODE</a></li>
+<li>Scroll position: <a href="/wiki/PPU_registers#BGnHOFS" title="PPU registers">BGnHOFS</a>, <a href="/wiki/PPU_registers#BGnVOFS" title="PPU registers">BGnVOFS</a></li>
+<li><a href="/wiki/Windows" title="Windows">Windows</a></li>
+<li><a href="/w/index.php?title=Mosaic&amp;action=edit&amp;redlink=1" class="new" title="Mosaic (page does not exist)">Mosaic</a>: <a href="/wiki/PPU_registers#MOSAIC" title="PPU registers">MOSAIC</a></li></ul>
+<p>Each of the 4 BG layers can be independently activated for the main and sub-screen: <a href="/wiki/PPU_registers#TM" title="PPU registers">TM</a>, <a href="/wiki/PPU_registers#TS" title="PPU registers">TS</a>
+</p>
+<ul><li>If <a href="/wiki/Color_math" title="Color math">color math</a> is enabled, the main screen can be blended with the subscreen.</li>
+<li>If high resolution is enabled (<a href="/wiki/PPU_registers#SETINI" title="PPU registers">SETINI</a>) the main-screen appears on even columns, and the sub-screen appears on odd columns.</li>
+<li>If neither color math nor high resolution is enabled, only the main screen is seen.</li></ul>
+<p>The 4 BG layers and sprites (OBJ) are composited to make the main and sub-screens, layered according to their <a href="/wiki/Priority" class="mw-redirect" title="Priority">priority</a>
+</p>
+<div class="mw-heading mw-heading2"><h2 id="Priority">Priority</h2></div>
+<p>The way background layers and <a href="/wiki/Sprites" title="Sprites">sprites</a> are composited on top of each other is different for each mode.
+</p><p>Each of the background layers BG1-4 is further subdivided into a high and low priority layer, using <a href="/wiki/Tilemap" class="mw-redirect" title="Tilemap">tilemap</a> attributes.
+Sprites (OBJ) are also subdivided into 4 layers of their own using their <a href="/wiki/OAM" class="mw-redirect" title="OAM">OAM</a> attributes.
+</p><p>In the <a href="#Priority_table">mode table above</a>:
+</p>
+<ul><li><tt><span style="background-color:#ffffdd">S3</span> <span style="background-color:#ffffdd">S2</span> <span style="background-color:#ffffdd">S1</span> <span style="background-color:#ffffdd">S0</span></tt> are the <a href="/wiki/Sprite" class="mw-redirect" title="Sprite">sprite</a> layers with priority 3, 2, 1 and 0.</li>
+<li><tt><span style="background-color:#ffdddd">1H</span> <span style="background-color:#ffdddd">1L</span></tt> is BG1 layers with high (H) and low (L) priority.</li>
+<li><tt><span style="background-color:#ddddff">2H</span> <span style="background-color:#ddddff">2L</span></tt> is BG2 layers with high (H) and low (L) priority.</li>
+<li><tt><span style="background-color:#ddffdd">3H</span> <span style="background-color:#ddffdd">3L</span></tt> is BG3 layers with high (H) and low (L) priority. In mode 1 only, one of two different high priority positions can be chosen via <a href="/wiki/PPU_registers#BGMODE" title="PPU registers">BGMODE</a>.</li>
+<li><tt><span style="background-color:#ffddff">4H</span> <span style="background-color:#ffddff">4L</span></tt> is BG4 layers with high (H) and low (L) priority.</li></ul>
+<p>In mode 7 BG1 only has one layer (a), but <a href="#EXTBG">EXTBG</a> can enable BG2 split into two layers (b, a).
+</p>
+<div class="mw-heading mw-heading2"><h2 id="High_resolution">High resolution</h2></div>
+<p>High resolution is automatically used in mode 5 and 6, but can be manually enabled for other modes via <a href="/wiki/PPU_registers#SETINI" title="PPU registers">SETINI</a>.
+</p><p>This doubles the horizontal resolution of the SNES from 256 to 512 pixels.
+</p><p>The main-screen appears on every even column, and the sub-screen appears on every odd column.
+<a href="/wiki/Color_math" title="Color math">Color math</a> with a fixed color is still available.
+</p><p>In <a href="#Mode_5">modes 5 and 6</a> high-resolution is forced, and the background layers are automatically de-interleaved into the main and sub-screens,
+rendering each tile at half its usual width, but with twice the density of pixels.
+</p><p>In other modes you would have to compose the main/sub-screen with alternating columns.
+</p><p>However, because 512px output tends to get blurred significantly on TVs through normal composite output,
+some games use the alternating columns as an alternative to <a href="/wiki/Color_math" title="Color math">color math</a>, providing something like a 50% "blend" of the main and sub screens.
+This usage is sometimes known as <b>pseudo hi-res</b>. (See: Jurassic Park, Kirby's Dream Land 3.)
+</p><p>In modes 5 and 6, horizontal scrolling (<a href="/wiki/PPU_registers#BGnHOFS" title="PPU registers">BGnHOFS</a>) is in coarse increments of 2 high-resolution pixels. (Interlacing, on the other hand, automatically provides a fine vertical scroll.)
+</p>
+<div class="mw-heading mw-heading3"><h3 id="Interlacing">Interlacing</h3></div>
+<p>Interlacing can also be enabled via <a href="/wiki/PPU_registers#SETINI" title="PPU registers">SETINI</a>.
+</p><p>Interlacing shifts every second frame (field) down by half a line. The result is that over 2 frames you get twice the vertical resolution, but at half the framerate.
+<a href="/wiki/PPU_registers#STAT78" title="PPU registers">STAT78</a> can be used to determine whether you're currently on an even or odd field.
+</p><p>In <a href="#Mode_5">modes 5 and 6</a>, if interlacing is enabled the vertical tile density is automatically doubled across the two fields.
+</p><p>In other modes, you would have to manually change the picture between even and odd fields to make use of the increased vertical resolution.
+</p><p>In modes 5 and 6, vertical scrolling (<a href="/wiki/PPU_registers#BGnVOFS" title="PPU registers">BGnVOFS</a>) is automatically adjusted for interlacing, providing a fine high-resolution vertical scroll position, unlike horizontal high-resolution.
+</p><p>The lowered framerate has the drawback of a visible "flickering". Perception of this flickering varies from person to person,
+but it is intensified by images with sharp vertical contrast. Normally interlaced video for broadcast is vertically filtered/blurred to reduce this effect,
+but this is harder to accomplish on the SNES with its palette limitations.
+</p><p>Care should be taken not to switch interlacing on or off too frequently in the middle of a game.
+On most modern televisions and capture devices, doing so will often cause the signal to drop and re-synchronize for a few seconds (or more).
+You might wish to wait for user input to confirm before proceeding into action, after swiching into or out of interlaced mode.
+Older CRT televisions can generally switch to interlacing instantly, though it cannot be changed mid-frame.
+</p>
+<div class="mw-heading mw-heading2"><h2 id="Mode_0">Mode 0</h2></div>
+<p>The only mode which has 4 independent BG layers. Its drawback is that each layer is only 2bpp (4 color).
+</p><p>The first 128 colors of <a href="/wiki/CGRAM" class="mw-redirect" title="CGRAM">CGRAM</a> are divided into 32 4-color palettes, and each BG layer uses its own sequential non-overlapping 8-palette subset:
+</p>
+<ul><li>BG0 uses CGRAM indices 0-31 (which is the same as the 2bpp layers in modes 1, 4, and 5)</li>
+<li>BG1 uses CGRAM indices 32-63</li>
+<li>BG2 uses CGRAM indices 64-95</li>
+<li>BG3 uses CGRAM indices 96-127</li></ul>
+<div class="mw-heading mw-heading2"><h2 id="Mode_1">Mode 1</h2></div>
+<p>The most commonly used mode, which has two main 4bpp (16 color) layers BG1 and BG2, and one auxiliar 2bpp (4 color) layer BG3.
+</p><p>BG3 has an additional <a href="/wiki/Priority" class="mw-redirect" title="Priority">priority</a> control in mode 1. Its priority bit in <a href="/wiki/PPU_registers#BGMODE" title="PPU registers">BGMODE</a> allows it to be rendered either above or below BG1 and BG2.
+</p><p>BG3 selects a palette from the first 32 entries of <a href="/wiki/CGRAM" class="mw-redirect" title="CGRAM">CGRAM</a>.
+</p><p>In many games, BG1 and BG2 are used for a colourful main background with parallax, and BG3 to overlay a HUD or text box.
+</p><p>BG3 can also be useful for things like a blended cloud or fog in the foreground, or a third parallax layer in the deep background. (Super Metroid has many good examples.)
+</p>
+<div class="mw-heading mw-heading2"><h2 id="Mode_2">Mode 2</h2></div>
+<p>Has two 4bpp layers like mode 1, but BG3 is used to encode <a href="/wiki/Offset-per-tile" title="Offset-per-tile">offset-per-tile</a> for BG1 and BG2, instead of being a visible layer.
+</p><p><ins id="Mode&#95;3"></ins><ins id="Mode&#95;4"></ins>
+</p>
+<div class="mw-heading mw-heading2"><h2 id="Mode_3_&amp;_4"><span id="Mode_3_.26_4"></span>Mode 3 &amp; 4</h2></div>
+<p>Mode 3 has an 8bpp BG1 layer, allowing use of all 256 colors of <a href="/wiki/CGRAM" class="mw-redirect" title="CGRAM">CGRAM</a>. This can also be used as <a href="/wiki/Direct_color" class="mw-redirect" title="Direct color">direct color</a>, bypassing CGRAM entirely.
+</p><p>Mode 3 also has a 4bpp (16 color) auxiliary layer BG2.
+</p><p>Mode 4 instead has a 2bpp (2 color) auxiliary layer BG2, and BG3 is used to encode <a href="/wiki/Offset-per-tile" title="Offset-per-tile">offset-per-tile</a>. (BG2 palettes are stored in the first 32 entries of <a href="/wiki/CGRAM" class="mw-redirect" title="CGRAM">CGRAM</a>.)
+</p><p><ins id="Mode&#95;5"></ins><ins id="Mode&#95;6"></ins>
+</p>
+<div class="mw-heading mw-heading2"><h2 id="Mode_5_&amp;_6"><span id="Mode_5_.26_6"></span>Mode 5 &amp; 6</h2></div>
+<p>Mode 5 and 6 force <a href="#High_resolution">high resolution</a> on, and automatically divide the background so that the tiles appear at double horizontal density.
+</p><p>The 8x8 pixel tilemap tile size selectable via <a href="/wiki/PPU_registers#BGMODE" title="PPU registers">BGMODE</a> is replaced with a 16x8 pixel tile mode instead. The 16x16 mode is still 16x16.
+</p><p>If interlacing is enabled (<a href="/wiki/PPU_registers#SETINI" title="PPU registers">SETINI</a>), the vertical tile density is automatically doubled as well, giving the option for vertical high-resolution as well. Note that the <a href="/wiki/PPU_registers#BGMODE" title="PPU registers">BGMODE</a> register still chooses between 16x8 and 16x16. The provides the only way to have insufficient nametable to fill a whole screen: the combination of mode 5 or 6 with interlacing and 16x8 tiles and the smallest size nametable (32x32).
+</p><p>Horizontal scrolling in these modes only has a resolution of 2 hi-res pixels (i.e. 1/256 of the screen per increment), but when interlaced the vertical scrolling has fine control (1/480).
+</p><p>Mode 5 has a 4bpp (16 color) BG1, and an auxiliary 2bpp (4 color) BG2.
+</p><p>Mode 6 is like mode 5 but replaces BG2 with an invisible BG3 providing <a href="/wiki/Offset-per-tile" title="Offset-per-tile">offset-per-tile</a>.
+</p>
+<div class="mw-heading mw-heading2"><h2 id="Mode_7">Mode 7</h2></div>
+<p>Mode 7 ignores most of the layer configuration options, and instead always occupies the entire first half of VRAM with a 128x128 tilemap, and 256 available 8x8 tiles.
+</p>
+<dl><dd>See: <a href="/wiki/Tilemaps#Mode_7" title="Tilemaps">Mode 7 tilemaps</a>, <a href="/wiki/Tiles#Mode_7" title="Tiles">Mode 7 tiles</a>.</dd></dl>
+<p>This provides a single background layer that has a unique transformation property.
+</p>
+<dl><dd>See: <a href="/wiki/Mode_7_transform" title="Mode 7 transform">Mode 7 transform</a></dd></dl>
+<p>The <a href="/wiki/PPU_registers#M7SEL" title="PPU registers">M7SEL</a> register provides a few unusual properties just for mode 7:
+</p>
+<ul><li>The entire screen can be horizontally or vertically flipped.</li>
+<li>Outside the boundary of the 1024x1024 pixel tilemap, three options are provided:
+<ul><li>Transparency.</li>
+<li>Fill with tile 0.</li>
+<li>Infinite horizontal and vertical wrapping (repetition) of the tilemap.</li></ul></li></ul>
+<p>Mode 7 tiles can use <a href="/wiki/Direct_color" class="mw-redirect" title="Direct color">direct color</a>, if desired.
+</p><p>Sometimes mode 7 is used for large rotating boss characters. Even though it has only 1 background layer, sprites can be used to draw things around it that would normally be "background", and another BG mode might be switched to with HDMA to enable a solid floor background at the bottom, for example.
+</p>
+<div class="mw-heading mw-heading3"><h3 id="EXTBG">EXTBG</h3></div>
+<p>Normally mode 7 is a single layer on BG1 only, but <a href="/wiki/PPU_registers#SETINI" title="PPU registers">SETINI</a> can be used to enable <b>Mode 7 EXTBG</b> which activates BG2 as a duplicate of BG1, but split into two layers.
+</p><p>EXTBG BG2 treats the high bit of each tile's pixel value like a tilemap priority bit, allowing BG2 to be split into two layers which can appear above and below sprites. This sort of makes BG2 into two "7bpp" layers but they are not independently transformed or scrolled.
+</p><p>EXTBG does not support <a href="/wiki/Direct_color" class="mw-redirect" title="Direct color">direct color</a> for BG2. BG2 ignores the <a href="/wiki/PPU_registers#CGWSEL" title="PPU registers">CGWSEL</a> direct color setting and will always use indexed color, though direct color can still be used for BG1.
+</p>
+<div class="mw-heading mw-heading2"><h2 id="See_Also">See Also</h2></div>
+<ul><li><a href="/wiki/Tilemaps" title="Tilemaps">Tilemaps</a></li>
+<li><a href="/wiki/Tiles" title="Tiles">Tiles</a></li>
+<li><a href="/wiki/Uncommon_graphics_mode_games" title="Uncommon graphics mode games">Uncommon graphics mode games</a></li></ul>
+<div class="mw-heading mw-heading2"><h2 id="References">References</h2></div>
+<ul><li><a href="/wiki/SNES_Development_Manual" title="SNES Development Manual">SNES Development Manual</a> Book I 2-5-1 Rotation/Enlargement/Reduction</li>
+<li><a rel="nofollow" class="external text" href="https://www.youtube.com/watch?v=5SBEAZIfDAg">Retro Game Mechanics Explained: SNES Background Modes 0-6</a> - video</li>
+<li><a rel="nofollow" class="external text" href="https://www.youtube.com/watch?v=3FVN_Ze7bzw">Retro Game Mechanics Explained: SNES Background Mode 7</a> - video</li>
+<li><a rel="nofollow" class="external text" href="https://www.youtube.com/watch?v=AnEuk8Vj3w0">Retro Game Mechanics Explained: SNES Background Modes Higher Resolutions</a> - video</li></ul>
+<!-- 
+NewPP limit report
+Cached time: 20260607033606
+Cache expiry: 86400
+Reduced expiry: false
+Complications: [show‐toc]
+CPU time usage: 0.058 seconds
+Real time usage: 0.068 seconds
+Preprocessor visited node count: 297/1000000
+Revision size: 15815/2097152 bytes
+Post‐expand include size: 246/2097152 bytes
+Template argument size: 76/2097152 bytes
+Highest expansion depth: 4/100
+Expensive parser function count: 0/100
+Unstrip recursion depth: 0/20
+Unstrip post‐expand size: 0/5000000 bytes
+-->
+<!--
+Transclusion expansion time report (%,ms,calls,template)
+100.00%   10.116      1 -total
+ 96.09%    9.720      3 Template:Anchor
+-->
+
+<!-- Saved in parser cache with key nesdev_db-sneswiki_:pcache:73:|#|:idhash:canonical and timestamp 20260607033606 and revision id 1244. Rendering was triggered because: page_view
+ -->
+</div>
+<div class="printfooter" data-nosnippet="">Retrieved from "<a dir="ltr" href="https://snes.nesdev.org/w/index.php?title=Backgrounds&amp;oldid=1244">https://snes.nesdev.org/w/index.php?title=Backgrounds&amp;oldid=1244</a>"</div></div>
+				<div id="catlinks" class="catlinks" data-mw="interface"><div id="mw-normal-catlinks" class="mw-normal-catlinks"><a href="/wiki/Special:Categories" title="Special:Categories">Category</a>: <ul><li><a href="/wiki/Category:Graphics" title="Category:Graphics">Graphics</a></li></ul></div></div>
+				<!-- end content -->
+				<div class="visualClear"></div>
+			</div>
+		</div>
+		<div class="visualClear"></div>
+	</div>
+	<div id="column-one" >
+		<h2>Navigation menu</h2>
+		<div role="navigation" class="portlet" id="p-cactions" aria-labelledby="p-cactions-label">
+			<h3 id="p-cactions-label" >Page actions</h3>
+			<div class="pBody">
+				<ul >
+				<li id="ca-nstab-main" class="selected mw-list-item"><a href="/wiki/Backgrounds" title="View the content page [c]" accesskey="c">Page</a></li><li id="ca-talk" class="new mw-list-item"><a href="/w/index.php?title=Talk:Backgrounds&amp;action=edit&amp;redlink=1" rel="discussion" class="new" title="Discussion about the content page (page does not exist) [t]" accesskey="t">Discussion</a></li><li id="ca-view" class="selected mw-list-item"><a href="/wiki/Backgrounds">Read</a></li><li id="ca-viewsource" class="mw-list-item"><a href="/w/index.php?title=Backgrounds&amp;action=edit" title="This page is protected.&#10;You can view its source [e]" accesskey="e">View source</a></li><li id="ca-history" class="mw-list-item"><a href="/w/index.php?title=Backgrounds&amp;action=history" title="Past revisions of this page [h]" accesskey="h">History</a></li>
+				
+				</ul>
+			</div>
+		</div>
+		
+<div role="navigation" class="portlet mw-portlet mw-portlet-cactions-mobile"
+	id="p-cactions-mobile" aria-labelledby="p-cactions-mobile-label">
+	<h3 id="p-cactions-mobile-label" >Page actions</h3>
+	<div class="pBody">
+		<ul ><li id="main-mobile" class="selected mw-list-item"><a href="/wiki/Backgrounds" title="Page">Page</a></li><li id="talk-mobile" class="new mw-list-item"><a href="/w/index.php?title=Talk:Backgrounds&amp;action=edit&amp;redlink=1" title=" (page does not exist)" class="new">Discussion</a></li><li id="ca-more" class="mw-list-item"><a href="#p-cactions">More</a></li><li id="ca-tools" class="mw-list-item"><a href="#p-tb" title="Tools">Tools</a></li></ul>
+		
+	</div>
+</div>
+
+		<div role="navigation" class="portlet" id="p-personal" aria-labelledby="p-personal-label">
+			<h3 id="p-personal-label" >Personal tools</h3>
+			<div class="pBody">
+				<ul >
+				<li id="pt-createaccount" class="mw-list-item"><a href="/w/index.php?title=Special:CreateAccount&amp;returnto=Backgrounds" title="You are encouraged to create an account and log in; however, it is not mandatory">Create account</a></li><li id="pt-login" class="mw-list-item"><a href="/w/index.php?title=Special:UserLogin&amp;returnto=Backgrounds" title="You are encouraged to log in; however, it is not mandatory [o]" accesskey="o">Log in</a></li>
+				</ul>
+			</div>
+		</div>
+		<div class="portlet" id="p-logo" role="banner">
+			<a href="/wiki/SNESdev_Wiki" class="mw-wiki-logo"></a>
+		</div>
+		<div id="sidebar">
+		
+<div role="navigation" class="portlet mw-portlet mw-portlet-navigation"
+	id="p-navigation" aria-labelledby="p-navigation-label">
+	<h3 id="p-navigation-label" >Navigation</h3>
+	<div class="pBody">
+		<ul ><li id="n-Wiki-main-page" class="mw-list-item"><a href="/wiki/SNESdev_Wiki">Wiki main page</a></li><li id="n-Offline-wiki-snapshot" class="mw-list-item"><a rel="nofollow" href="https://archive.org/details/SNESDevWiki">Offline wiki snapshot</a></li><li id="n-NESdev-Forums" class="mw-list-item"><a rel="nofollow" href="https://forums.nesdev.org/">NESdev Forums</a></li><li id="n-NESdev-Discord" class="mw-list-item"><a rel="nofollow" href="https://discord.gg/SddKcS6ehE">NESdev Discord</a></li><li id="n-SNES-Discord" class="mw-list-item"><a rel="nofollow" href="https://discord.gg/yXNEV6p">SNES Discord</a></li><li id="n-recentchanges" class="mw-list-item"><a href="/wiki/Special:RecentChanges" title="A list of recent changes in the wiki [r]" accesskey="r">Recent changes</a></li></ul>
+		
+	</div>
+</div>
+
+		<div role="search" class="portlet" id="p-search">
+			<h3 id="p-search-label" ><label for="searchInput">Search</label></h3>
+			<div class="pBody" id="searchBody">
+				<form action="/w/index.php" id="searchform"><input type="hidden" value="Special:Search" name="title"><input type="search" name="search" placeholder="Search SNESdev Wiki" aria-label="Search SNESdev Wiki" autocapitalize="sentences" spellcheck="false" title="Search SNESdev Wiki [f]" accesskey="f" id="searchInput"><input type="submit" name="go" value="Go" title="Go to a page with this exact name if it exists" class="searchButton" id="searchButton"> <input type="submit" name="fulltext" value="Search" title="Search the pages for this text" class="searchButton mw-fallbackSearchButton" id="mw-searchButton"></form>
+			</div>
+		</div>
+		
+<div role="navigation" class="portlet mw-portlet mw-portlet-tb"
+	id="p-tb" aria-labelledby="p-tb-label">
+	<h3 id="p-tb-label" >Tools</h3>
+	<div class="pBody">
+		<ul ><li id="t-whatlinkshere" class="mw-list-item"><a href="/wiki/Special:WhatLinksHere/Backgrounds" title="A list of all wiki pages that link here [j]" accesskey="j">What links here</a></li><li id="t-recentchangeslinked" class="mw-list-item"><a href="/wiki/Special:RecentChangesLinked/Backgrounds" rel="nofollow" title="Recent changes in pages linked from this page [k]" accesskey="k">Related changes</a></li><li id="t-print" class="mw-list-item"><a href="javascript:print();" rel="alternate" title="Printable version of this page [p]" accesskey="p">Printable version</a></li><li id="t-permalink" class="mw-list-item"><a href="/w/index.php?title=Backgrounds&amp;oldid=1244" title="Permanent link to this revision of this page">Permanent link</a></li><li id="t-info" class="mw-list-item"><a href="/w/index.php?title=Backgrounds&amp;action=info" title="More information about this page">Page information</a></li></ul>
+		
+	</div>
+</div>
+
+		
+		</div>
+		<a href="#sidebar" title="Jump to navigation"
+			class="menu-toggle" id="sidebar-toggle"></a>
+		<a href="#p-personal" title="user tools"
+			class="menu-toggle" id="p-personal-toggle"></a>
+		<a href="#globalWrapper" title="back to top"
+			class="menu-toggle" id="globalWrapper-toggle"></a>
+	</div>
+	<!-- end of the left (by default at least) column -->
+	<div class="visualClear"></div>
+	<div id="footer" class="mw-footer" role="contentinfo"
+		>
+		<div id="f-poweredbyico" class="footer-icons">
+			<a href="https://www.mediawiki.org/" class="cdx-button cdx-button--fake-button cdx-button--size-large cdx-button--fake-button--enabled"><picture><source media="(min-width: 500px)" srcset="/w/resources/assets/poweredby_mediawiki.svg" width="88" height="31"><img src="/w/resources/assets/mediawiki_compact.svg" alt="Powered by MediaWiki" lang="en" width="25" height="25" loading="lazy"></picture></a>
+		</div>
+		<ul id="f-list">
+			<li id="lastmod"> This page was last edited on 8 July 2024, at 19:08.</li><li id="copyright">Content is available under <a class="external" rel="nofollow" href="https://creativecommons.org/publicdomain/zero/1.0/">CC0 Public Domain</a> unless otherwise noted.</li>
+			<li id="privacy"><a href="/wiki/Snesdev_wiki:Privacy_policy">Privacy policy</a></li><li id="about"><a href="/wiki/Snesdev_wiki:About">About SNESdev Wiki</a></li><li id="disclaimers"><a href="/wiki/Snesdev_wiki:General_disclaimer">Disclaimers</a></li>
+		</ul>
+	</div>
+</div>
+<script>(RLQ=window.RLQ||[]).push(function(){mw.config.set({"wgBackendResponseTime":140,"wgPageParseReport":{"limitreport":{"cputime":"0.058","walltime":"0.068","ppvisitednodes":{"value":297,"limit":1000000},"revisionsize":{"value":15815,"limit":2097152},"postexpandincludesize":{"value":246,"limit":2097152},"templateargumentsize":{"value":76,"limit":2097152},"expansiondepth":{"value":4,"limit":100},"expensivefunctioncount":{"value":0,"limit":100},"unstrip-depth":{"value":0,"limit":20},"unstrip-size":{"value":0,"limit":5000000},"timingprofile":["100.00%   10.116      1 -total"," 96.09%    9.720      3 Template:Anchor"]},"cachereport":{"timestamp":"20260607033606","ttl":86400,"transientcontent":false}}});});</script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v833ccba57c9e4d2798f2e76cebdd09a11778172276447" integrity="sha512-57MDmcccJXYtNnH+ZiBwzC4jb2rvgVCEokYN+L/nLlmO8rfYT/gIpW2A569iJ/3b+0UEasghjuZH/ma3wIs/EQ==" data-cf-beacon='{"version":"2024.11.0","token":"6c2a51884de146568600589c93ac5eda","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+</html>

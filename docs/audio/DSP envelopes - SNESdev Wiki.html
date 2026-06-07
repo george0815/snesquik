@@ -1,0 +1,1245 @@
+<!DOCTYPE html>
+<html class="client-nojs" lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<title>DSP envelopes - SNESdev Wiki</title>
+<script>document.documentElement.className="client-js";RLCONF={"wgBreakFrames":false,"wgSeparatorTransformTable":["",""],"wgDigitTransformTable":["",""],"wgDefaultDateFormat":"dmy","wgMonthNames":["","January","February","March","April","May","June","July","August","September","October","November","December"],"wgRequestId":"aiV7mi-YMYoIf_PA5oPikAAAAEs","wgCanonicalNamespace":"","wgCanonicalSpecialPageName":false,"wgNamespaceNumber":0,"wgPageName":"DSP_envelopes","wgTitle":"DSP envelopes","wgCurRevisionId":1447,"wgRevisionId":1447,"wgArticleId":115,"wgIsArticle":true,"wgIsRedirect":false,"wgAction":"view","wgUserName":null,"wgUserGroups":["*"],"wgCategories":["Sound"],"wgPageViewLanguage":"en","wgPageContentLanguage":"en","wgPageContentModel":"wikitext","wgRelevantPageName":"DSP_envelopes","wgRelevantArticleId":115,"wgIsProbablyEditable":false,"wgRelevantPageIsProbablyEditable":false,"wgRestrictionEdit":[],"wgRestrictionMove":[],"wgCheckUserClientHintsHeadersJsApi":["brands","architecture","bitness","fullVersionList","mobile","model","platform","platformVersion"]};
+RLSTATE={"site.styles":"ready","user.styles":"ready","user":"ready","user.options":"loading","ext.cite.styles":"ready","skins.monobook.styles":"ready"};RLPAGEMODULES=["ext.cite.ux-enhancements","site","mediawiki.page.ready","mediawiki.toc","skins.monobook.scripts","ext.checkUser.clientHints"];</script>
+<script>(RLQ=window.RLQ||[]).push(function(){mw.loader.impl(function(){return["user.options@12s5i",function($,jQuery,require,module){mw.user.tokens.set({"patrolToken":"+\\","watchToken":"+\\","csrfToken":"+\\"});
+}];});});</script>
+<link rel="stylesheet" href="/w/load.php?lang=en&amp;modules=ext.cite.styles%7Cskins.monobook.styles&amp;only=styles&amp;skin=monobook">
+<script async="" src="/w/load.php?lang=en&amp;modules=startup&amp;only=scripts&amp;raw=1&amp;skin=monobook"></script>
+<meta name="ResourceLoaderDynamicStyles" content="">
+<link rel="stylesheet" href="/w/load.php?lang=en&amp;modules=site.styles&amp;only=styles&amp;skin=monobook">
+<meta name="generator" content="MediaWiki 1.45.1">
+<meta name="robots" content="max-image-preview:standard">
+<meta name="format-detection" content="telephone=no">
+<meta name="description" content="The envelope value of each S-DSP voice is driven by either an ADSR envelope, or a gain control. This gives an additional way to automatically shape the volume of the voice over time, aside from its VOL registers.&#10;Internally the envelope is an 11-bit value multiplied by by the voice output. The ENVX value...">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, minimum-scale=0.25, maximum-scale=5.0">
+<link rel="search" type="application/opensearchdescription+xml" href="/w/rest.php/v1/search" title="SNESdev Wiki (en)">
+<link rel="EditURI" type="application/rsd+xml" href="https://snes.nesdev.org/w/api.php?action=rsd">
+<link rel="license" href="https://creativecommons.org/publicdomain/zero/1.0/">
+<link rel="alternate" type="application/atom+xml" title="SNESdev Wiki Atom feed" href="/w/index.php?title=Special:RecentChanges&amp;feed=atom">
+	<meta property="og:type" content="article">
+
+	<meta property="og:site_name" content="SNESdev Wiki">
+
+	<meta property="og:title" content="DSP envelopes">
+
+	<meta property="og:description" content="The envelope value of each S-DSP voice is driven by either an ADSR envelope, or a gain control. This gives an additional way to automatically shape the volume of the voice over time, aside from its VOL registers.&#10;Internally the envelope is an 11-bit value multiplied by by the voice output. The ENVX value...">
+
+	<meta property="og:url" content="https://snes.nesdev.org/wiki/DSP_envelopes">
+
+</head>
+<body class="mediawiki ltr sitedir-ltr mw-hide-empty-elt ns-0 ns-subject page-DSP_envelopes rootpage-DSP_envelopes skin-monobook action-view skin--responsive"><div id="globalWrapper">
+	<div id="column-content">
+		<div id="content" class="mw-body" role="main">
+			<a id="top"></a>
+			<div id="siteNotice"></div>
+			<div class="mw-indicators">
+			</div>
+			<h1 id="firstHeading" class="firstHeading mw-first-heading"><span class="mw-page-title-main">DSP envelopes</span></h1>
+			<div id="bodyContent" class="monobook-body">
+				<div id="siteSub">From SNESdev Wiki</div>
+				<div id="contentSub" ><div id="mw-content-subtitle"></div></div>
+				
+				<div id="jump-to-nav"></div><a href="#column-one" class="mw-jump-link">Jump to navigation</a><a href="#searchInput" class="mw-jump-link">Jump to search</a>
+				<!-- start content -->
+				<div id="mw-content-text" class="mw-body-content"><div class="mw-content-ltr mw-parser-output" lang="en" dir="ltr"><p>The envelope value of each <a href="/wiki/S-DSP" class="mw-redirect" title="S-DSP">S-DSP</a> voice is driven by either an ADSR envelope, or a gain control. This gives an additional way to automatically shape the volume of the voice over time, aside from its <b>VOL</b> registers.
+</p><p>Internally the envelope is an 11-bit value multiplied by by the voice output. The <b>ENVX</b> value that can be read from the DSP contains only the high 7 bits.
+</p><p>See:
+</p>
+<ul><li><a href="/wiki/S-DSP_registers#VxADSR" title="S-DSP registers">ADSR registers</a></li>
+<li><a href="/wiki/S-DSP_registers#VxGAIN" title="S-DSP registers">GAIN registers</a></li></ul>
+<div id="toc" class="toc" role="navigation" aria-labelledby="mw-toc-heading"><input type="checkbox" role="button" id="toctogglecheckbox" class="toctogglecheckbox" style="display:none" /><div class="toctitle" lang="en" dir="ltr"><h2 id="mw-toc-heading">Contents</h2><span class="toctogglespan"><label class="toctogglelabel" for="toctogglecheckbox"></label></span></div>
+<ul>
+<li class="toclevel-1 tocsection-1"><a href="#ADSR_Envelope"><span class="tocnumber">1</span> <span class="toctext">ADSR Envelope</span></a></li>
+<li class="toclevel-1 tocsection-2"><a href="#Gain_Timings"><span class="tocnumber">2</span> <span class="toctext">Gain Timings</span></a></li>
+<li class="toclevel-1 tocsection-3"><a href="#Period_Table"><span class="tocnumber">3</span> <span class="toctext">Period Table</span></a></li>
+<li class="toclevel-1 tocsection-4"><a href="#References"><span class="tocnumber">4</span> <span class="toctext">References</span></a></li>
+</ul>
+</div>
+
+<div class="mw-heading mw-heading2"><h2 id="ADSR_Envelope">ADSR Envelope</h2></div>
+<p>The ADSR describes a 4 stage envelope:
+</p>
+<ul><li><b>Attack</b> begins at key-on, linear increase from 0 to full over a chosen amount of time.</li>
+<li><b>Decay</b> Exponential decrease from full to a chosen Sustain Level.</li>
+<li><b>Sustain</b> Exponential decrease from Sustain Level to 0 (if the Sustain Rate is non-zero).</li>
+<li><b>Release</b> begins at key-off, lowering to 0 with an fixed decay.</li></ul>
+<p><span class="mw-default-size" typeof="mw:File"><a href="/wiki/File:Adsr_envelope.svg" class="mw-file-description"><img src="/w/images/snes/thumb/e/e2/Adsr_envelope.svg/567px-Adsr_envelope.svg.png" decoding="async" width="567" height="354" class="mw-file-element" srcset="/w/images/snes/thumb/e/e2/Adsr_envelope.svg/851px-Adsr_envelope.svg.png 1.5x, /w/images/snes/thumb/e/e2/Adsr_envelope.svg/1134px-Adsr_envelope.svg.png 2x" /></a></span>
+</p><p><br />
+See: <a href="/wiki/S-DSP_registers#VxADSR" title="S-DSP registers">S-DSP VxADSR registers</a>
+</p>
+<table class="wikitable">
+<tbody><tr>
+<th>Name
+</th>
+<th>Address
+</th>
+<th>Bits
+</th>
+<th>Notes
+</th></tr>
+<tr>
+<th>ADSR (1)
+</th>
+<th>$X5
+</th>
+<td style="text-align: right"><tt style="white-space: nowrap">EDDD AAAA</tt>
+</td>
+<td>ADSR enable (E), decay rate (D), attack rate (A).
+</td></tr>
+<tr>
+<th>ADSR (2)
+</th>
+<th>$X6
+</th>
+<td style="text-align: right"><tt style="white-space: nowrap">LLLR RRRR</tt>
+</td>
+<td>Sustain level (SL), sustain rate (SR).
+</td></tr></tbody></table>
+<p><br />
+At a rate according to the <a href="#Period_Table">period table</a> the following action is performed, and the envelope is clamped to 0-2047 ($7FF):
+</p>
+<ul><li>Attack at period[A*2+1]: adds 32, or if A=$F adds 1024 ($400).</li>
+<li>Decay at period[D*2+16]: <tt>envelope -= 1</tt>, then <tt>envelope -= envelope &gt;&gt; 8</tt>.</li>
+<li>Sustain at period[SR]: <tt>envelope -= 1</tt>, then <tt>envelope -= envelope &gt;&gt; 8</tt>.</li>
+<li>Release: <tt>envelope -= 8</tt> every sample.</li></ul>
+<p>This table of timings gives the resulting time taken by the above operations:
+</p>
+<ul><li>Attack is the time from 0 to full.</li>
+<li>Decay is the time from full to sustain level.</li>
+<li>Sustain is the time from full to 0.</li></ul>
+<table>
+<tbody><tr>
+<td style="vertical-align: top">
+<table class="wikitable">
+<tbody><tr>
+<th colspan="2">ADSR Attack
+</th></tr>
+<tr>
+<th>A</th>
+<th>Time (ms)
+</th></tr>
+<tr>
+<td>$0</td>
+<td>4100
+</td></tr>
+<tr>
+<td>$1</td>
+<td>2600
+</td></tr>
+<tr>
+<td>$2</td>
+<td>1500
+</td></tr>
+<tr>
+<td>$3</td>
+<td>1000
+</td></tr>
+<tr>
+<td>$4</td>
+<td>640
+</td></tr>
+<tr>
+<td>$5</td>
+<td>380
+</td></tr>
+<tr>
+<td>$6</td>
+<td>260
+</td></tr>
+<tr>
+<td>$7</td>
+<td>160
+</td></tr>
+<tr>
+<td>$8</td>
+<td>96
+</td></tr>
+<tr>
+<td>$9</td>
+<td>64
+</td></tr>
+<tr>
+<td>$A</td>
+<td>40
+</td></tr>
+<tr>
+<td>$B</td>
+<td>24
+</td></tr>
+<tr>
+<td>$C</td>
+<td>16
+</td></tr>
+<tr>
+<td>$D</td>
+<td>10
+</td></tr>
+<tr>
+<td>$E</td>
+<td>6
+</td></tr>
+<tr>
+<td>$F</td>
+<td>0
+</td></tr></tbody></table>
+</td>
+<td style="vertical-align: top">
+<table class="wikitable">
+<tbody><tr>
+<th colspan="2">ADSR Decay
+</th></tr>
+<tr>
+<th>D</th>
+<th>Time (ms)
+</th></tr>
+<tr>
+<td>0</td>
+<td>1200
+</td></tr>
+<tr>
+<td>1</td>
+<td>740
+</td></tr>
+<tr>
+<td>2</td>
+<td>440
+</td></tr>
+<tr>
+<td>3</td>
+<td>290
+</td></tr>
+<tr>
+<td>4</td>
+<td>180
+</td></tr>
+<tr>
+<td>5</td>
+<td>110
+</td></tr>
+<tr>
+<td>6</td>
+<td>74
+</td></tr>
+<tr>
+<td>7</td>
+<td>37
+</td></tr></tbody></table>
+</td>
+<td style="vertical-align: top">
+<table class="wikitable">
+<tbody><tr>
+<th colspan="4">ADSR Sustain
+</th></tr>
+<tr>
+<th>R</th>
+<th>Time (ms)</th>
+<th>R</th>
+<th>Time (ms)
+</th></tr>
+<tr>
+<td>$00</td>
+<td>Infinite</td>
+<td>$10</td>
+<td>1200
+</td></tr>
+<tr>
+<td>$01</td>
+<td>38000</td>
+<td>$11</td>
+<td>880
+</td></tr>
+<tr>
+<td>$02</td>
+<td>28000</td>
+<td>$12</td>
+<td>740
+</td></tr>
+<tr>
+<td>$03</td>
+<td>24000</td>
+<td>$13</td>
+<td>590
+</td></tr>
+<tr>
+<td>$04</td>
+<td>19000</td>
+<td>$14</td>
+<td>440
+</td></tr>
+<tr>
+<td>$05</td>
+<td>14000</td>
+<td>$15</td>
+<td>370
+</td></tr>
+<tr>
+<td>$06</td>
+<td>12000</td>
+<td>$16</td>
+<td>290
+</td></tr>
+<tr>
+<td>$07</td>
+<td>9400</td>
+<td>$17</td>
+<td>220
+</td></tr>
+<tr>
+<td>$08</td>
+<td>7100</td>
+<td>$18</td>
+<td>180
+</td></tr>
+<tr>
+<td>$09</td>
+<td>5900</td>
+<td>$19</td>
+<td>150
+</td></tr>
+<tr>
+<td>$0A</td>
+<td>4700</td>
+<td>$1A</td>
+<td>110
+</td></tr>
+<tr>
+<td>$0B</td>
+<td>3500</td>
+<td>$1B</td>
+<td>92
+</td></tr>
+<tr>
+<td>$0C</td>
+<td>2900</td>
+<td>$1C</td>
+<td>74
+</td></tr>
+<tr>
+<td>$0D</td>
+<td>2400</td>
+<td>$1D</td>
+<td>55
+</td></tr>
+<tr>
+<td>$0E</td>
+<td>1800</td>
+<td>$1E</td>
+<td>37
+</td></tr>
+<tr>
+<td>$0F</td>
+<td>1500</td>
+<td>$1F</td>
+<td>18
+</td></tr></tbody></table>
+</td></tr></tbody></table>
+<div class="mw-heading mw-heading2"><h2 id="Gain_Timings">Gain Timings</h2></div>
+<p>See: <a href="/wiki/S-DSP_registers#VxGAIN" title="S-DSP registers">S-DSP VxGAIN register</a>
+</p>
+<table class="wikitable">
+<tbody><tr>
+<th>Name
+</th>
+<th>Address
+</th>
+<th>Bits
+</th>
+<th>Notes
+</th></tr>
+<tr>
+<th>GAIN
+</th>
+<th>$X7
+</th>
+<td style="text-align: right"><tt style="white-space: nowrap">0VVV VVVV</tt><br /> <tt style="white-space: nowrap">1MMV VVVV</tt>
+</td>
+<td>Mode (M), value (V).
+</td></tr></tbody></table>
+<p>At a rate according to the <a href="#Period_Table">period table</a> the following action is performed, and the envelope is clamped to 0-2047 ($7FF):
+</p>
+<ul><li>Linear gain adds or subtracts 32.</li>
+<li>Bent gain adds 32 if below 1536 ($600), or 8 if above.</li>
+<li>Exponential is two steps: <tt>envelope -= 1</tt>, then: <tt>envelope -= envelope &gt;&gt; 8</tt>.</li></ul>
+<p>This table gives times taken between 0 volume and full volume (or the reverse):
+</p>
+<table class="wikitable">
+<tbody><tr>
+<th colspan="8">GAIN
+</th></tr>
+<tr>
+<th colspan="2">Decrease Linear</th>
+<th colspan="2">Decrease Exponential</th>
+<th colspan="2">Increase Linear</th>
+<th colspan="2">Increase Bent
+</th></tr>
+<tr>
+<th>V</th>
+<th>Time (ms)</th>
+<th>V</th>
+<th>Time (ms)</th>
+<th>V</th>
+<th>Time (ms)</th>
+<th>V</th>
+<th>Time (ms)
+</th></tr>
+<tr>
+<th>$80
+</th>
+<td>Infinite
+</td>
+<th>$A0
+</th>
+<td>Infinite
+</td>
+<th>$C0
+</th>
+<td>Infinite
+</td>
+<th>$E0
+</th>
+<td>Infinite
+</td></tr>
+<tr>
+<th>$81
+</th>
+<td>4100
+</td>
+<th>$A1
+</th>
+<td>38000
+</td>
+<th>$C1
+</th>
+<td>4100
+</td>
+<th>$E1
+</th>
+<td>7200
+</td></tr>
+<tr>
+<th>$82
+</th>
+<td>3100
+</td>
+<th>$A2
+</th>
+<td>28000
+</td>
+<th>$C2
+</th>
+<td>3100
+</td>
+<th>$E2
+</th>
+<td>5400
+</td></tr>
+
+<tr>
+<th>$83
+</th>
+<td>2600
+</td>
+<th>$A3
+</th>
+<td>24000
+</td>
+<th>$C3
+</th>
+<td>2600
+</td>
+<th>$E3
+</th>
+<td>4600
+</td></tr>
+<tr>
+<th>$84
+</th>
+<td>2000
+</td>
+<th>$A4
+</th>
+<td>19000
+</td>
+<th>$C4
+</th>
+<td>2000
+</td>
+<th>$E4
+</th>
+<td>3500
+</td></tr>
+<tr>
+<th>$85
+</th>
+<td>1500
+</td>
+<th>$A5
+</th>
+<td>14000
+</td>
+<th>$C5
+</th>
+<td>1500
+</td>
+<th>$E5
+</th>
+<td>2600
+</td></tr>
+<tr>
+<th>$86
+</th>
+<td>1300
+</td>
+<th>$A6
+</th>
+<td>12000
+</td>
+<th>$C6
+</th>
+<td>1300
+</td>
+<th>$E6
+</th>
+<td>2300
+</td></tr>
+<tr>
+<th>$87
+</th>
+<td>1000
+</td>
+<th>$A7
+</th>
+<td>9400
+</td>
+<th>$C7
+</th>
+<td>1000
+</td>
+<th>$E7
+</th>
+<td>1800
+</td></tr>
+<tr>
+<th>$88
+</th>
+<td>770
+</td>
+<th>$A8
+</th>
+<td>7100
+</td>
+<th>$C8
+</th>
+<td>770
+</td>
+<th>$E8
+</th>
+<td>1300
+</td></tr>
+<tr>
+<th>$89
+</th>
+<td>640
+</td>
+<th>$A9
+</th>
+<td>5900
+</td>
+<th>$C9
+</th>
+<td>640
+</td>
+<th>$E9
+</th>
+<td>1100
+</td></tr>
+<tr>
+<th>$8A
+</th>
+<td>510
+</td>
+<th>$AA
+</th>
+<td>4700
+</td>
+<th>$CA
+</th>
+<td>510
+</td>
+<th>$EA
+</th>
+<td>900
+</td></tr>
+<tr>
+<th>$8B
+</th>
+<td>380
+</td>
+<th>$AB
+</th>
+<td>3500
+</td>
+<th>$CB
+</th>
+<td>380
+</td>
+<th>$EB
+</th>
+<td>670
+</td></tr>
+<tr>
+<th>$8C
+</th>
+<td>320
+</td>
+<th>$AC
+</th>
+<td>2900
+</td>
+<th>$CC
+</th>
+<td>320
+</td>
+<th>$EC
+</th>
+<td>560
+</td></tr>
+<tr>
+<th>$8D
+</th>
+<td>260
+</td>
+<th>$AD
+</th>
+<td>2400
+</td>
+<th>$CD
+</th>
+<td>260
+</td>
+<th>$ED
+</th>
+<td>450
+</td></tr>
+<tr>
+<th>$8E
+</th>
+<td>190
+</td>
+<th>$AE
+</th>
+<td>1800
+</td>
+<th>$CE
+</th>
+<td>190
+</td>
+<th>$EE
+</th>
+<td>340
+</td></tr>
+<tr>
+<th>$8F
+</th>
+<td>160
+</td>
+<th>$AF
+</th>
+<td>1500
+</td>
+<th>$CF
+</th>
+<td>160
+</td>
+<th>$EF
+</th>
+<td>280
+</td></tr>
+<tr>
+<th>$90
+</th>
+<td>130
+</td>
+<th>$B0
+</th>
+<td>1200
+</td>
+<th>$D0
+</th>
+<td>130
+</td>
+<th>$F0
+</th>
+<td>220
+</td></tr>
+<tr>
+<th>$91
+</th>
+<td>96
+</td>
+<th>$B1
+</th>
+<td>880
+</td>
+<th>$D1
+</th>
+<td>96
+</td>
+<th>$F1
+</th>
+<td>170
+</td></tr>
+<tr>
+<th>$92
+</th>
+<td>80
+</td>
+<th>$B2
+</th>
+<td>740
+</td>
+<th>$D2
+</th>
+<td>80
+</td>
+<th>$F2
+</th>
+<td>140
+</td></tr>
+<tr>
+<th>$93
+</th>
+<td>64
+</td>
+<th>$B3
+</th>
+<td>590
+</td>
+<th>$D3
+</th>
+<td>64
+</td>
+<th>$F3
+</th>
+<td>110
+</td></tr>
+<tr>
+<th>$94
+</th>
+<td>48
+</td>
+<th>$B4
+</th>
+<td>440
+</td>
+<th>$D4
+</th>
+<td>48
+</td>
+<th>$F4
+</th>
+<td>84
+</td></tr>
+<tr>
+<th>$95
+</th>
+<td>40
+</td>
+<th>$B5
+</th>
+<td>370
+</td>
+<th>$D5
+</th>
+<td>40
+</td>
+<th>$F5
+</th>
+<td>70
+</td></tr>
+<tr>
+<th>$96
+</th>
+<td>32
+</td>
+<th>$B6
+</th>
+<td>290
+</td>
+<th>$D6
+</th>
+<td>32
+</td>
+<th>$F6
+</th>
+<td>56
+</td></tr>
+<tr>
+<th>$97
+</th>
+<td>24
+</td>
+<th>$B7
+</th>
+<td>220
+</td>
+<th>$D7
+</th>
+<td>24
+</td>
+<th>$F7
+</th>
+<td>42
+</td></tr>
+<tr>
+<th>$98
+</th>
+<td>20
+</td>
+<th>$B8
+</th>
+<td>180
+</td>
+<th>$D8
+</th>
+<td>20
+</td>
+<th>$F8
+</th>
+<td>35
+</td></tr>
+<tr>
+<th>$99
+</th>
+<td>16
+</td>
+<th>$B9
+</th>
+<td>150
+</td>
+<th>$D9
+</th>
+<td>16
+</td>
+<th>$F9
+</th>
+<td>28
+</td></tr>
+<tr>
+<th>$9A
+</th>
+<td>12
+</td>
+<th>$BA
+</th>
+<td>110
+</td>
+<th>$DA
+</th>
+<td>12
+</td>
+<th>$FA
+</th>
+<td>21
+</td></tr>
+<tr>
+<th>$9B
+</th>
+<td>10
+</td>
+<th>$BB
+</th>
+<td>92
+</td>
+<th>$DB
+</th>
+<td>10
+</td>
+<th>$FB
+</th>
+<td>18
+</td></tr>
+<tr>
+<th>$9C
+</th>
+<td>8
+</td>
+<th>$BC
+</th>
+<td>74
+</td>
+<th>$DC
+</th>
+<td>8
+</td>
+<th>$FC
+</th>
+<td>14
+</td></tr>
+<tr>
+<th>$9D
+</th>
+<td>6
+</td>
+<th>$DD
+</th>
+<td>55
+</td>
+<th>$BD
+</th>
+<td>6
+</td>
+<th>$FD
+</th>
+<td>11
+</td></tr>
+<tr>
+<th>$9E
+</th>
+<td>4
+</td>
+<th>$BE
+</th>
+<td>37
+</td>
+<th>$DE
+</th>
+<td>4
+</td>
+<th>$FE
+</th>
+<td>7
+</td></tr>
+<tr>
+<th>$9F
+</th>
+<td>2
+</td>
+<th>$BF
+</th>
+<td>18
+</td>
+<th>$DF
+</th>
+<td>2
+</td>
+<th>$FF
+</th>
+<td>3.5
+</td></tr></tbody></table>
+<div class="mw-heading mw-heading2"><h2 id="Period_Table">Period Table</h2></div>
+<p>The rate of DSP envelope events are controlled by a common table of 32 periods. Each entry is how many S-SMP clocks elapse per envelope operation. The table is arranged in groups of 3.
+</p><p>Additionally, each column of periods appears to have a delay offset applied to it, affecting when the operation occurs. If <tt>counter</tt> is counting down the number of S-SMP clocks elapsed since reset, the envelope operation is applied when the following is true:
+</p>
+<ul><li><tt>0 == (counter + offset[rate])&#160;% period[rate]</tt></li></ul>
+<p>The counter begins at 0 after reset, and decrements on each S-SMP clock, wrapping to $77FF (30,720) when it would go below 0<sup id="cite&#95;ref-1" class="reference"><a href="#cite_note-1"><span class="cite-bracket">&#91;</span>1<span class="cite-bracket">&#93;</span></a></sup>. (The first clock after reset will wrap.)
+</p>
+<table>
+<tbody><tr>
+<td style="vertical-align: top">
+<table class="wikitable">
+<tbody><tr>
+<th colspan="16">DSP Period Table
+</th></tr>
+<tr>
+<th>/</th>
+<th>+0</th>
+<th>+1</th>
+<th>+2
+</th></tr>
+<tr>
+<th>0
+</th>
+<td>Infinite</td>
+<td>2048</td>
+<td>1536
+</td></tr>
+<tr>
+<th>3
+</th>
+<td>1280</td>
+<td>1024</td>
+<td>768
+</td></tr>
+<tr>
+<th>6
+</th>
+<td>640</td>
+<td>512</td>
+<td>384
+</td></tr>
+<tr>
+<th>9
+</th>
+<td>320</td>
+<td>256</td>
+<td>192
+</td></tr>
+<tr>
+<th>12
+</th>
+<td>160</td>
+<td>128</td>
+<td>96
+</td></tr>
+<tr>
+<th>15
+</th>
+<td>80</td>
+<td>64</td>
+<td>48
+</td></tr>
+<tr>
+<th>18
+</th>
+<td>40</td>
+<td>32</td>
+<td>24
+</td></tr>
+<tr>
+<th>21
+</th>
+<td>20</td>
+<td>16</td>
+<td>12
+</td></tr>
+<tr>
+<th>24
+</th>
+<td>10</td>
+<td>8</td>
+<td>6
+</td></tr>
+<tr>
+<th>27
+</th>
+<td>5</td>
+<td>4</td>
+<td>3
+</td></tr>
+<tr>
+<th>30
+</th>
+<td>2</td>
+<td>1</td>
+<td>-
+</td></tr></tbody></table>
+</td>
+<td style="vertical-align: top">
+<table class="wikitable">
+<tbody><tr>
+<th colspan="16">DSP Period Offset
+</th></tr>
+<tr>
+<th>/</th>
+<th>+0</th>
+<th>+1</th>
+<th>+2
+</th></tr>
+<tr>
+<th>0
+</th>
+<td>Never</td>
+<td>0</td>
+<td>1040
+</td></tr>
+<tr>
+<th>3
+</th>
+<td>536</td>
+<td>0</td>
+<td>1040
+</td></tr>
+<tr>
+<th>6
+</th>
+<td>536</td>
+<td>0</td>
+<td>1040
+</td></tr>
+<tr>
+<th>9
+</th>
+<td>536</td>
+<td>0</td>
+<td>1040
+</td></tr>
+<tr>
+<th>12
+</th>
+<td>536</td>
+<td>0</td>
+<td>1040
+</td></tr>
+<tr>
+<th>15
+</th>
+<td>536</td>
+<td>0</td>
+<td>1040
+</td></tr>
+<tr>
+<th>18
+</th>
+<td>536</td>
+<td>0</td>
+<td>1040
+</td></tr>
+<tr>
+<th>21
+</th>
+<td>536</td>
+<td>0</td>
+<td>1040
+</td></tr>
+<tr>
+<th>24
+</th>
+<td>536</td>
+<td>0</td>
+<td>1040
+</td></tr>
+<tr>
+<th>27
+</th>
+<td>536</td>
+<td>0</td>
+<td>1040
+</td></tr>
+<tr>
+<th>30
+</th>
+<td>536</td>
+<td>0</td>
+<td>-
+</td></tr></tbody></table>
+</td></tr></tbody></table>
+<p>Note that most of the offsets given above are effectively much smaller, given that they are modulo (%) with their associated period, but the modulo-equivalent larger values shown here demonstrate the symmetry between columns.
+</p>
+<div class="mw-heading mw-heading2"><h2 id="References">References</h2></div>
+<div class="mw-references-wrap"><ol class="references">
+<li id="cite&#95;note-1"><span class="mw-cite-backlink"><a href="#cite_ref-1">↑</a></span> <span class="reference-text"><a rel="nofollow" class="external text" href="https://www.romhacking.net/documents/191/">apudsp_jwdonal.txt</a> - Anomie's S-DSP document.</span>
+</li>
+</ol></div>
+<!-- 
+NewPP limit report
+Cached time: 20260606195916
+Cache expiry: 86400
+Reduced expiry: false
+Complications: [show‐toc]
+CPU time usage: 0.094 seconds
+Real time usage: 0.101 seconds
+Preprocessor visited node count: 39/1000000
+Revision size: 7703/2097152 bytes
+Post‐expand include size: 0/2097152 bytes
+Template argument size: 0/2097152 bytes
+Highest expansion depth: 2/100
+Expensive parser function count: 0/100
+Unstrip recursion depth: 0/20
+Unstrip post‐expand size: 496/5000000 bytes
+-->
+<!--
+Transclusion expansion time report (%,ms,calls,template)
+100.00%    0.000      1 -total
+-->
+
+<!-- Saved in parser cache with key nesdev_db-sneswiki_:pcache:115:|#|:idhash:canonical and timestamp 20260606195916 and revision id 1447. Rendering was triggered because: page_view
+ -->
+</div>
+<div class="printfooter" data-nosnippet="">Retrieved from "<a dir="ltr" href="https://snes.nesdev.org/w/index.php?title=DSP_envelopes&amp;oldid=1447">https://snes.nesdev.org/w/index.php?title=DSP_envelopes&amp;oldid=1447</a>"</div></div>
+				<div id="catlinks" class="catlinks" data-mw="interface"><div id="mw-normal-catlinks" class="mw-normal-catlinks"><a href="/wiki/Special:Categories" title="Special:Categories">Category</a>: <ul><li><a href="/wiki/Category:Sound" title="Category:Sound">Sound</a></li></ul></div></div>
+				<!-- end content -->
+				<div class="visualClear"></div>
+			</div>
+		</div>
+		<div class="visualClear"></div>
+	</div>
+	<div id="column-one" >
+		<h2>Navigation menu</h2>
+		<div role="navigation" class="portlet" id="p-cactions" aria-labelledby="p-cactions-label">
+			<h3 id="p-cactions-label" >Page actions</h3>
+			<div class="pBody">
+				<ul >
+				<li id="ca-nstab-main" class="selected mw-list-item"><a href="/wiki/DSP_envelopes" title="View the content page [c]" accesskey="c">Page</a></li><li id="ca-talk" class="new mw-list-item"><a href="/w/index.php?title=Talk:DSP_envelopes&amp;action=edit&amp;redlink=1" rel="discussion" class="new" title="Discussion about the content page (page does not exist) [t]" accesskey="t">Discussion</a></li><li id="ca-view" class="selected mw-list-item"><a href="/wiki/DSP_envelopes">Read</a></li><li id="ca-viewsource" class="mw-list-item"><a href="/w/index.php?title=DSP_envelopes&amp;action=edit" title="This page is protected.&#10;You can view its source [e]" accesskey="e">View source</a></li><li id="ca-history" class="mw-list-item"><a href="/w/index.php?title=DSP_envelopes&amp;action=history" title="Past revisions of this page [h]" accesskey="h">History</a></li>
+				
+				</ul>
+			</div>
+		</div>
+		
+<div role="navigation" class="portlet mw-portlet mw-portlet-cactions-mobile"
+	id="p-cactions-mobile" aria-labelledby="p-cactions-mobile-label">
+	<h3 id="p-cactions-mobile-label" >Page actions</h3>
+	<div class="pBody">
+		<ul ><li id="main-mobile" class="selected mw-list-item"><a href="/wiki/DSP_envelopes" title="Page">Page</a></li><li id="talk-mobile" class="new mw-list-item"><a href="/w/index.php?title=Talk:DSP_envelopes&amp;action=edit&amp;redlink=1" title=" (page does not exist)" class="new">Discussion</a></li><li id="ca-more" class="mw-list-item"><a href="#p-cactions">More</a></li><li id="ca-tools" class="mw-list-item"><a href="#p-tb" title="Tools">Tools</a></li></ul>
+		
+	</div>
+</div>
+
+		<div role="navigation" class="portlet" id="p-personal" aria-labelledby="p-personal-label">
+			<h3 id="p-personal-label" >Personal tools</h3>
+			<div class="pBody">
+				<ul >
+				<li id="pt-createaccount" class="mw-list-item"><a href="/w/index.php?title=Special:CreateAccount&amp;returnto=DSP+envelopes" title="You are encouraged to create an account and log in; however, it is not mandatory">Create account</a></li><li id="pt-login" class="mw-list-item"><a href="/w/index.php?title=Special:UserLogin&amp;returnto=DSP+envelopes" title="You are encouraged to log in; however, it is not mandatory [o]" accesskey="o">Log in</a></li>
+				</ul>
+			</div>
+		</div>
+		<div class="portlet" id="p-logo" role="banner">
+			<a href="/wiki/SNESdev_Wiki" class="mw-wiki-logo"></a>
+		</div>
+		<div id="sidebar">
+		
+<div role="navigation" class="portlet mw-portlet mw-portlet-navigation"
+	id="p-navigation" aria-labelledby="p-navigation-label">
+	<h3 id="p-navigation-label" >Navigation</h3>
+	<div class="pBody">
+		<ul ><li id="n-Wiki-main-page" class="mw-list-item"><a href="/wiki/SNESdev_Wiki">Wiki main page</a></li><li id="n-Offline-wiki-snapshot" class="mw-list-item"><a rel="nofollow" href="https://archive.org/details/SNESDevWiki">Offline wiki snapshot</a></li><li id="n-NESdev-Forums" class="mw-list-item"><a rel="nofollow" href="https://forums.nesdev.org/">NESdev Forums</a></li><li id="n-NESdev-Discord" class="mw-list-item"><a rel="nofollow" href="https://discord.gg/SddKcS6ehE">NESdev Discord</a></li><li id="n-SNES-Discord" class="mw-list-item"><a rel="nofollow" href="https://discord.gg/yXNEV6p">SNES Discord</a></li><li id="n-recentchanges" class="mw-list-item"><a href="/wiki/Special:RecentChanges" title="A list of recent changes in the wiki [r]" accesskey="r">Recent changes</a></li></ul>
+		
+	</div>
+</div>
+
+		<div role="search" class="portlet" id="p-search">
+			<h3 id="p-search-label" ><label for="searchInput">Search</label></h3>
+			<div class="pBody" id="searchBody">
+				<form action="/w/index.php" id="searchform"><input type="hidden" value="Special:Search" name="title"><input type="search" name="search" placeholder="Search SNESdev Wiki" aria-label="Search SNESdev Wiki" autocapitalize="sentences" spellcheck="false" title="Search SNESdev Wiki [f]" accesskey="f" id="searchInput"><input type="submit" name="go" value="Go" title="Go to a page with this exact name if it exists" class="searchButton" id="searchButton"> <input type="submit" name="fulltext" value="Search" title="Search the pages for this text" class="searchButton mw-fallbackSearchButton" id="mw-searchButton"></form>
+			</div>
+		</div>
+		
+<div role="navigation" class="portlet mw-portlet mw-portlet-tb"
+	id="p-tb" aria-labelledby="p-tb-label">
+	<h3 id="p-tb-label" >Tools</h3>
+	<div class="pBody">
+		<ul ><li id="t-whatlinkshere" class="mw-list-item"><a href="/wiki/Special:WhatLinksHere/DSP_envelopes" title="A list of all wiki pages that link here [j]" accesskey="j">What links here</a></li><li id="t-recentchangeslinked" class="mw-list-item"><a href="/wiki/Special:RecentChangesLinked/DSP_envelopes" rel="nofollow" title="Recent changes in pages linked from this page [k]" accesskey="k">Related changes</a></li><li id="t-print" class="mw-list-item"><a href="javascript:print();" rel="alternate" title="Printable version of this page [p]" accesskey="p">Printable version</a></li><li id="t-permalink" class="mw-list-item"><a href="/w/index.php?title=DSP_envelopes&amp;oldid=1447" title="Permanent link to this revision of this page">Permanent link</a></li><li id="t-info" class="mw-list-item"><a href="/w/index.php?title=DSP_envelopes&amp;action=info" title="More information about this page">Page information</a></li></ul>
+		
+	</div>
+</div>
+
+		
+		</div>
+		<a href="#sidebar" title="Jump to navigation"
+			class="menu-toggle" id="sidebar-toggle"></a>
+		<a href="#p-personal" title="user tools"
+			class="menu-toggle" id="p-personal-toggle"></a>
+		<a href="#globalWrapper" title="back to top"
+			class="menu-toggle" id="globalWrapper-toggle"></a>
+	</div>
+	<!-- end of the left (by default at least) column -->
+	<div class="visualClear"></div>
+	<div id="footer" class="mw-footer" role="contentinfo"
+		>
+		<div id="f-poweredbyico" class="footer-icons">
+			<a href="https://www.mediawiki.org/" class="cdx-button cdx-button--fake-button cdx-button--size-large cdx-button--fake-button--enabled"><picture><source media="(min-width: 500px)" srcset="/w/resources/assets/poweredby_mediawiki.svg" width="88" height="31"><img src="/w/resources/assets/mediawiki_compact.svg" alt="Powered by MediaWiki" lang="en" width="25" height="25" loading="lazy"></picture></a>
+		</div>
+		<ul id="f-list">
+			<li id="lastmod"> This page was last edited on 2 May 2026, at 01:51.</li><li id="copyright">Content is available under <a class="external" rel="nofollow" href="https://creativecommons.org/publicdomain/zero/1.0/">CC0 Public Domain</a> unless otherwise noted.</li>
+			<li id="privacy"><a href="/wiki/Snesdev_wiki:Privacy_policy">Privacy policy</a></li><li id="about"><a href="/wiki/Snesdev_wiki:About">About SNESdev Wiki</a></li><li id="disclaimers"><a href="/wiki/Snesdev_wiki:General_disclaimer">Disclaimers</a></li>
+		</ul>
+	</div>
+</div>
+<script>(RLQ=window.RLQ||[]).push(function(){mw.config.set({"wgBackendResponseTime":128,"wgPageParseReport":{"limitreport":{"cputime":"0.094","walltime":"0.101","ppvisitednodes":{"value":39,"limit":1000000},"revisionsize":{"value":7703,"limit":2097152},"postexpandincludesize":{"value":0,"limit":2097152},"templateargumentsize":{"value":0,"limit":2097152},"expansiondepth":{"value":2,"limit":100},"expensivefunctioncount":{"value":0,"limit":100},"unstrip-depth":{"value":0,"limit":20},"unstrip-size":{"value":496,"limit":5000000},"timingprofile":["100.00%    0.000      1 -total"]},"cachereport":{"timestamp":"20260606195916","ttl":86400,"transientcontent":false}}});});</script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v833ccba57c9e4d2798f2e76cebdd09a11778172276447" integrity="sha512-57MDmcccJXYtNnH+ZiBwzC4jb2rvgVCEokYN+L/nLlmO8rfYT/gIpW2A569iJ/3b+0UEasghjuZH/ma3wIs/EQ==" data-cf-beacon='{"version":"2024.11.0","token":"6c2a51884de146568600589c93ac5eda","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+</html>

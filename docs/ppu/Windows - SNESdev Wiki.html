@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html class="client-nojs" lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<title>Windows - SNESdev Wiki</title>
+<script>document.documentElement.className="client-js";RLCONF={"wgBreakFrames":false,"wgSeparatorTransformTable":["",""],"wgDigitTransformTable":["",""],"wgDefaultDateFormat":"dmy","wgMonthNames":["","January","February","March","April","May","June","July","August","September","October","November","December"],"wgRequestId":"aiV6xyr-4BQH7PWAl4GgzgAAAAA","wgCanonicalNamespace":"","wgCanonicalSpecialPageName":false,"wgNamespaceNumber":0,"wgPageName":"Windows","wgTitle":"Windows","wgCurRevisionId":1167,"wgRevisionId":1167,"wgArticleId":132,"wgIsArticle":true,"wgIsRedirect":false,"wgAction":"view","wgUserName":null,"wgUserGroups":["*"],"wgCategories":["Graphics"],"wgPageViewLanguage":"en","wgPageContentLanguage":"en","wgPageContentModel":"wikitext","wgRelevantPageName":"Windows","wgRelevantArticleId":132,"wgIsProbablyEditable":false,"wgRelevantPageIsProbablyEditable":false,"wgRestrictionEdit":[],"wgRestrictionMove":[],"wgCheckUserClientHintsHeadersJsApi":["brands","architecture","bitness","fullVersionList","mobile","model","platform","platformVersion"]};
+RLSTATE={"site.styles":"ready","user.styles":"ready","user":"ready","user.options":"loading","skins.monobook.styles":"ready"};RLPAGEMODULES=["site","mediawiki.page.ready","mediawiki.toc","skins.monobook.scripts","ext.checkUser.clientHints"];</script>
+<script>(RLQ=window.RLQ||[]).push(function(){mw.loader.impl(function(){return["user.options@12s5i",function($,jQuery,require,module){mw.user.tokens.set({"patrolToken":"+\\","watchToken":"+\\","csrfToken":"+\\"});
+}];});});</script>
+<link rel="stylesheet" href="/w/load.php?lang=en&amp;modules=skins.monobook.styles&amp;only=styles&amp;skin=monobook">
+<script async="" src="/w/load.php?lang=en&amp;modules=startup&amp;only=scripts&amp;raw=1&amp;skin=monobook"></script>
+<meta name="ResourceLoaderDynamicStyles" content="">
+<link rel="stylesheet" href="/w/load.php?lang=en&amp;modules=site.styles&amp;only=styles&amp;skin=monobook">
+<meta name="generator" content="MediaWiki 1.45.1">
+<meta name="robots" content="max-image-preview:standard">
+<meta name="format-detection" content="telephone=no">
+<meta name="description" content="Windows are used to hide layers from regions of the screen. On a per-scanline basis, they can be used to cut out areas of:&#10;&#10;Background layers (BG1, BG2, BG3, BG4)&#10;The Sprite layer (OBJ)&#10;The main screen&#10;The sub screen (color math)">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, minimum-scale=0.25, maximum-scale=5.0">
+<link rel="search" type="application/opensearchdescription+xml" href="/w/rest.php/v1/search" title="SNESdev Wiki (en)">
+<link rel="EditURI" type="application/rsd+xml" href="https://snes.nesdev.org/w/api.php?action=rsd">
+<link rel="license" href="https://creativecommons.org/publicdomain/zero/1.0/">
+<link rel="alternate" type="application/atom+xml" title="SNESdev Wiki Atom feed" href="/w/index.php?title=Special:RecentChanges&amp;feed=atom">
+	<meta property="og:type" content="article">
+
+	<meta property="og:site_name" content="SNESdev Wiki">
+
+	<meta property="og:title" content="Windows">
+
+	<meta property="og:description" content="Windows are used to hide layers from regions of the screen. On a per-scanline basis, they can be used to cut out areas of:&#10;&#10;Background layers (BG1, BG2, BG3, BG4)&#10;The Sprite layer (OBJ)&#10;The main screen&#10;The sub screen (color math)">
+
+	<meta property="og:url" content="https://snes.nesdev.org/wiki/Windows">
+
+</head>
+<body class="mediawiki ltr sitedir-ltr mw-hide-empty-elt ns-0 ns-subject page-Windows rootpage-Windows skin-monobook action-view skin--responsive"><div id="globalWrapper">
+	<div id="column-content">
+		<div id="content" class="mw-body" role="main">
+			<a id="top"></a>
+			<div id="siteNotice"></div>
+			<div class="mw-indicators">
+			</div>
+			<h1 id="firstHeading" class="firstHeading mw-first-heading"><span class="mw-page-title-main">Windows</span></h1>
+			<div id="bodyContent" class="monobook-body">
+				<div id="siteSub">From SNESdev Wiki</div>
+				<div id="contentSub" ><div id="mw-content-subtitle"></div></div>
+				
+				<div id="jump-to-nav"></div><a href="#column-one" class="mw-jump-link">Jump to navigation</a><a href="#searchInput" class="mw-jump-link">Jump to search</a>
+				<!-- start content -->
+				<div id="mw-content-text" class="mw-body-content"><div class="mw-content-ltr mw-parser-output" lang="en" dir="ltr"><p><b>Windows</b> are used to hide layers from regions of the screen. On a per-scanline basis, they can be used to cut out areas of:
+</p>
+<ul><li><a href="/wiki/Backgrounds" title="Backgrounds">Background</a> layers (BG1, BG2, BG3, BG4)</li>
+<li>The <a href="/wiki/Sprites" title="Sprites">Sprite</a> layer (OBJ)</li>
+<li>The main screen</li>
+<li>The sub screen (<a href="/wiki/Color_math" title="Color math">color math</a>)</li></ul>
+<div id="toc" class="toc" role="navigation" aria-labelledby="mw-toc-heading"><input type="checkbox" role="button" id="toctogglecheckbox" class="toctogglecheckbox" style="display:none" /><div class="toctitle" lang="en" dir="ltr"><h2 id="mw-toc-heading">Contents</h2><span class="toctogglespan"><label class="toctogglelabel" for="toctogglecheckbox"></label></span></div>
+<ul>
+<li class="toclevel-1 tocsection-1"><a href="#Registers"><span class="tocnumber">1</span> <span class="toctext">Registers</span></a></li>
+<li class="toclevel-1 tocsection-2"><a href="#Window"><span class="tocnumber">2</span> <span class="toctext">Window</span></a></li>
+<li class="toclevel-1 tocsection-3"><a href="#Window_Mask_Logic"><span class="tocnumber">3</span> <span class="toctext">Window Mask Logic</span></a></li>
+<li class="toclevel-1 tocsection-4"><a href="#See_Also"><span class="tocnumber">4</span> <span class="toctext">See Also</span></a></li>
+</ul>
+</div>
+
+<div class="mw-heading mw-heading2"><h2 id="Registers">Registers</h2></div>
+<p>See: <a href="/wiki/PPU_registers#Windows" title="PPU registers">PPU registers: Windows</a>
+</p>
+<table class="wikitable">
+<tbody><tr>
+<th>Name
+</th>
+<th>Address
+</th>
+<th>Bits
+</th>
+<th>Type
+</th>
+<th>Notes
+</th></tr>
+<tr>
+<th><a href="/wiki/PPU_registers#W12SEL" title="PPU registers">W12SEL</a>
+</th>
+<th>$2123
+</th>
+<td style="text-align: right"><tt style="white-space: nowrap">DdCc BbAa</tt>
+</td>
+<td>W8
+</td>
+<td>Enable (ABCD) and Invert (abcd) windows for BG1 (AB) and BG2 (CD).
+</td></tr>
+<tr>
+<th><a href="/wiki/PPU_registers#W34SEL" title="PPU registers">W34SEL</a>
+</th>
+<th>$2124
+</th>
+<td style="text-align: right"><tt style="white-space: nowrap">DdCc BbAa</tt>
+</td>
+<td>W8
+</td>
+<td>Enable (EFGH) and Invert (efgh) windows for BG3 (EF) and BG2 (GH).
+</td></tr>
+<tr>
+<th><a href="/wiki/PPU_registers#WOBJSEL" title="PPU registers">WOBJSEL</a>
+</th>
+<th>$2125
+</th>
+<td style="text-align: right"><tt style="white-space: nowrap">LlKk JjIi</tt>
+</td>
+<td>W8
+</td>
+<td>Enable (IJKL) and Invert (ijkl) windows for OBJ (IJ) and color (KL).
+</td></tr>
+<tr>
+<th><a href="/wiki/PPU_registers#WH0" title="PPU registers">WH0</a>
+</th>
+<th>$2126
+</th>
+<td style="text-align: right"><tt style="white-space: nowrap">LLLL LLLL</tt>
+</td>
+<td>W8
+</td>
+<td>Window 1 left position.
+</td></tr>
+<tr>
+<th><a href="/wiki/PPU_registers#WH1" title="PPU registers">WH1</a>
+</th>
+<th>$2127
+</th>
+<td style="text-align: right"><tt style="white-space: nowrap">RRRR RRRR</tt>
+</td>
+<td>W8
+</td>
+<td>Window 1 right position.
+</td></tr>
+<tr>
+<th><a href="/wiki/PPU_registers#WH2" title="PPU registers">WH2</a>
+</th>
+<th>$2128
+</th>
+<td style="text-align: right"><tt style="white-space: nowrap">LLLL LLLL</tt>
+</td>
+<td>W8
+</td>
+<td>Window 2 left position.
+</td></tr>
+<tr>
+<th><a href="/wiki/PPU_registers#WH3" title="PPU registers">WH3</a>
+</th>
+<th>$2129
+</th>
+<td style="text-align: right"><tt style="white-space: nowrap">RRRR RRRR</tt>
+</td>
+<td>W8
+</td>
+<td>Window 2 right position.
+</td></tr>
+<tr>
+<th><a href="/wiki/PPU_registers#WBGLOG" title="PPU registers">WBGLOG</a>
+</th>
+<th>$212A
+</th>
+<td style="text-align: right"><tt style="white-space: nowrap">4433 2211</tt>
+</td>
+<td>W8
+</td>
+<td>Window mask logic for BG layers (00=OR, 01=AND, 10=XOR, 11=XNOR).
+</td></tr>
+<tr>
+<th><a href="/wiki/PPU_registers#WOBJLOG" title="PPU registers">WOBJLOG</a>
+</th>
+<th>$212B
+</th>
+<td style="text-align: right"><tt style="white-space: nowrap">.... CCOO</tt>
+</td>
+<td>W8
+</td>
+<td>Window mask logic for OBJ (O) and color (C).
+</td></tr>
+<tr>
+<th><a href="/wiki/PPU_registers#TMW" title="PPU registers">TMW</a>
+</th>
+<th>$212E
+</th>
+<td style="text-align: right"><tt style="white-space: nowrap">...O 4321</tt>
+</td>
+<td>W8
+</td>
+<td>Main screen layer window enable.
+</td></tr>
+<tr>
+<th><a href="/wiki/PPU_registers#TSW" title="PPU registers">TSW</a>
+</th>
+<th>$212F
+</th>
+<td style="text-align: right"><tt style="white-space: nowrap">...O 4321</tt>
+</td>
+<td>W8
+</td>
+<td>Sub screen layer window enable.
+</td></tr>
+<tr>
+<th><a href="/wiki/PPU_registers#CGWSEL" title="PPU registers">CGWSEL</a>
+</th>
+<th>$2130
+</th>
+<td style="text-align: right"><tt style="white-space: nowrap">MMSS ..AD</tt>
+</td>
+<td>W8
+</td>
+<td>main/sub screen color window black/transparent regions (MS), fixed/subscreen (A), direct color (D).
+</td></tr></tbody></table>
+<div class="mw-heading mw-heading2"><h2 id="Window">Window</h2></div>
+<p>The SNES has two window devices which can be used to selectively cut holes out of parts of the picture.
+</p><p>Each window has a left and right pixel position (<a href="/wiki/PPU_registers#WH0" title="PPU registers">WH0</a>/<a href="/wiki/PPU_registers#WH1" title="PPU registers">WH1</a>/<a href="/wiki/PPU_registers#WH2" title="PPU registers">WH2</a>/<a href="/wiki/PPU_registers#WH3" title="PPU registers">WH3</a>) where the window should hide the affected layers. The window effect (1 output) is at left &lt;= X &lt;= right. If left &gt; right then the window effect is nowhere (all 0 output). <a href="/wiki/HDMA" class="mw-redirect" title="HDMA">HDMA</a> can be used to <a href="/wiki/Drawing_window_shapes" title="Drawing window shapes">create shapes</a> by adjusting the left/right position for each scanline.
+</p><p>Each window can be separately enabled for the various layers, and also inverted (<a href="/wiki/PPU_registers#W12SEL" title="PPU registers">W12SEL</a>/<a href="/wiki/PPU_registers#W34SEL" title="PPU registers">W34SEL</a>). If the window is inverted, the left/right position instead defines where the window should <i>not</i> hide the affected layers (if left &gt; right, the window effect is everywhere, all 1 output). If the window is disabled then invert has no effect (all 0 output).
+</p><p>Additionally if two windows are enabled for the same layer, boolean logic can be applied between them (<a href="/wiki/PPU_registers#WBGLOG" title="PPU registers">WBGLOG</a>/<a href="/wiki/PPU_registers#WOBJSEL" title="PPU registers">WOBJSEL</a>). An individual window is 0 when showing the layer, and 1 when hiding it. This logic will combine the effect of both windows in the chosen way.
+</p><p>The windows can be selectively applied to the main screen and sub screen layers (<a href="/wiki/PPU_registers#TMW" title="PPU registers">TMW</a>/<a href="/wiki/PPU_registers#TSW" title="PPU registers">TSW</a>).
+</p><p>Finally, the color window can be used to black areas of the main screen, or create a transparent region on the sub screen to mask <a href="/wiki/Color_math" title="Color math">color math</a> (<a href="/wiki/PPU_registers#CGWSEL" title="PPU registers">CGWSEL</a>).
+</p><p><br />
+</p>
+<div class="mw-heading mw-heading2"><h2 id="Window_Mask_Logic">Window Mask Logic</h2></div>
+<p>If both windows are enabled on the same layer, they will be combined using either OR, AND, XOR or XNOR boolean logic as set by the <a href="/wiki/PPU_registers#Window_mask_logic" title="PPU registers">Window mask logic registers</a> (<tt>WBGLOG</tt>/<tt>WOBJLOG</tt>).
+</p><p>When the window mask logic bits are combined with the <i>invert window</i> flags they form 16 different configurations, 10 of which are unique.
+</p>
+<figure class="mw-halign-center" typeof="mw:File/Frame"><a href="/wiki/File:Window_mask_logic_table.png" class="mw-file-description"><img src="/w/images/snes/9/9c/Window_mask_logic_table.png" decoding="async" width="550" height="775" class="mw-file-element" /></a><figcaption>The 4 window mask logic settings combined with the 2 invert window flags</figcaption></figure>
+<p><br />
+</p>
+<div class="mw-heading mw-heading2"><h2 id="See_Also">See Also</h2></div>
+<ul><li><a href="/wiki/Drawing_window_shapes" title="Drawing window shapes">Drawing window shapes</a></li></ul>
+<!-- 
+NewPP limit report
+Cached time: 20260607140600
+Cache expiry: 86400
+Reduced expiry: false
+Complications: [show‐toc]
+CPU time usage: 0.027 seconds
+Real time usage: 0.032 seconds
+Preprocessor visited node count: 56/1000000
+Revision size: 4698/2097152 bytes
+Post‐expand include size: 0/2097152 bytes
+Template argument size: 0/2097152 bytes
+Highest expansion depth: 2/100
+Expensive parser function count: 0/100
+Unstrip recursion depth: 0/20
+Unstrip post‐expand size: 0/5000000 bytes
+-->
+<!--
+Transclusion expansion time report (%,ms,calls,template)
+100.00%    0.000      1 -total
+-->
+
+<!-- Saved in parser cache with key nesdev_db-sneswiki_:pcache:132:|#|:idhash:canonical and timestamp 20260607140600 and revision id 1167. Rendering was triggered because: page_view
+ -->
+</div>
+<div class="printfooter" data-nosnippet="">Retrieved from "<a dir="ltr" href="https://snes.nesdev.org/w/index.php?title=Windows&amp;oldid=1167">https://snes.nesdev.org/w/index.php?title=Windows&amp;oldid=1167</a>"</div></div>
+				<div id="catlinks" class="catlinks" data-mw="interface"><div id="mw-normal-catlinks" class="mw-normal-catlinks"><a href="/wiki/Special:Categories" title="Special:Categories">Category</a>: <ul><li><a href="/wiki/Category:Graphics" title="Category:Graphics">Graphics</a></li></ul></div></div>
+				<!-- end content -->
+				<div class="visualClear"></div>
+			</div>
+		</div>
+		<div class="visualClear"></div>
+	</div>
+	<div id="column-one" >
+		<h2>Navigation menu</h2>
+		<div role="navigation" class="portlet" id="p-cactions" aria-labelledby="p-cactions-label">
+			<h3 id="p-cactions-label" >Page actions</h3>
+			<div class="pBody">
+				<ul >
+				<li id="ca-nstab-main" class="selected mw-list-item"><a href="/wiki/Windows" title="View the content page [c]" accesskey="c">Page</a></li><li id="ca-talk" class="new mw-list-item"><a href="/w/index.php?title=Talk:Windows&amp;action=edit&amp;redlink=1" rel="discussion" class="new" title="Discussion about the content page (page does not exist) [t]" accesskey="t">Discussion</a></li><li id="ca-view" class="selected mw-list-item"><a href="/wiki/Windows">Read</a></li><li id="ca-viewsource" class="mw-list-item"><a href="/w/index.php?title=Windows&amp;action=edit" title="This page is protected.&#10;You can view its source [e]" accesskey="e">View source</a></li><li id="ca-history" class="mw-list-item"><a href="/w/index.php?title=Windows&amp;action=history" title="Past revisions of this page [h]" accesskey="h">History</a></li>
+				
+				</ul>
+			</div>
+		</div>
+		
+<div role="navigation" class="portlet mw-portlet mw-portlet-cactions-mobile"
+	id="p-cactions-mobile" aria-labelledby="p-cactions-mobile-label">
+	<h3 id="p-cactions-mobile-label" >Page actions</h3>
+	<div class="pBody">
+		<ul ><li id="main-mobile" class="selected mw-list-item"><a href="/wiki/Windows" title="Page">Page</a></li><li id="talk-mobile" class="new mw-list-item"><a href="/w/index.php?title=Talk:Windows&amp;action=edit&amp;redlink=1" title=" (page does not exist)" class="new">Discussion</a></li><li id="ca-more" class="mw-list-item"><a href="#p-cactions">More</a></li><li id="ca-tools" class="mw-list-item"><a href="#p-tb" title="Tools">Tools</a></li></ul>
+		
+	</div>
+</div>
+
+		<div role="navigation" class="portlet" id="p-personal" aria-labelledby="p-personal-label">
+			<h3 id="p-personal-label" >Personal tools</h3>
+			<div class="pBody">
+				<ul >
+				<li id="pt-createaccount" class="mw-list-item"><a href="/w/index.php?title=Special:CreateAccount&amp;returnto=Windows" title="You are encouraged to create an account and log in; however, it is not mandatory">Create account</a></li><li id="pt-login" class="mw-list-item"><a href="/w/index.php?title=Special:UserLogin&amp;returnto=Windows" title="You are encouraged to log in; however, it is not mandatory [o]" accesskey="o">Log in</a></li>
+				</ul>
+			</div>
+		</div>
+		<div class="portlet" id="p-logo" role="banner">
+			<a href="/wiki/SNESdev_Wiki" class="mw-wiki-logo"></a>
+		</div>
+		<div id="sidebar">
+		
+<div role="navigation" class="portlet mw-portlet mw-portlet-navigation"
+	id="p-navigation" aria-labelledby="p-navigation-label">
+	<h3 id="p-navigation-label" >Navigation</h3>
+	<div class="pBody">
+		<ul ><li id="n-Wiki-main-page" class="mw-list-item"><a href="/wiki/SNESdev_Wiki">Wiki main page</a></li><li id="n-Offline-wiki-snapshot" class="mw-list-item"><a rel="nofollow" href="https://archive.org/details/SNESDevWiki">Offline wiki snapshot</a></li><li id="n-NESdev-Forums" class="mw-list-item"><a rel="nofollow" href="https://forums.nesdev.org/">NESdev Forums</a></li><li id="n-NESdev-Discord" class="mw-list-item"><a rel="nofollow" href="https://discord.gg/SddKcS6ehE">NESdev Discord</a></li><li id="n-SNES-Discord" class="mw-list-item"><a rel="nofollow" href="https://discord.gg/yXNEV6p">SNES Discord</a></li><li id="n-recentchanges" class="mw-list-item"><a href="/wiki/Special:RecentChanges" title="A list of recent changes in the wiki [r]" accesskey="r">Recent changes</a></li></ul>
+		
+	</div>
+</div>
+
+		<div role="search" class="portlet" id="p-search">
+			<h3 id="p-search-label" ><label for="searchInput">Search</label></h3>
+			<div class="pBody" id="searchBody">
+				<form action="/w/index.php" id="searchform"><input type="hidden" value="Special:Search" name="title"><input type="search" name="search" placeholder="Search SNESdev Wiki" aria-label="Search SNESdev Wiki" autocapitalize="sentences" spellcheck="false" title="Search SNESdev Wiki [f]" accesskey="f" id="searchInput"><input type="submit" name="go" value="Go" title="Go to a page with this exact name if it exists" class="searchButton" id="searchButton"> <input type="submit" name="fulltext" value="Search" title="Search the pages for this text" class="searchButton mw-fallbackSearchButton" id="mw-searchButton"></form>
+			</div>
+		</div>
+		
+<div role="navigation" class="portlet mw-portlet mw-portlet-tb"
+	id="p-tb" aria-labelledby="p-tb-label">
+	<h3 id="p-tb-label" >Tools</h3>
+	<div class="pBody">
+		<ul ><li id="t-whatlinkshere" class="mw-list-item"><a href="/wiki/Special:WhatLinksHere/Windows" title="A list of all wiki pages that link here [j]" accesskey="j">What links here</a></li><li id="t-recentchangeslinked" class="mw-list-item"><a href="/wiki/Special:RecentChangesLinked/Windows" rel="nofollow" title="Recent changes in pages linked from this page [k]" accesskey="k">Related changes</a></li><li id="t-print" class="mw-list-item"><a href="javascript:print();" rel="alternate" title="Printable version of this page [p]" accesskey="p">Printable version</a></li><li id="t-permalink" class="mw-list-item"><a href="/w/index.php?title=Windows&amp;oldid=1167" title="Permanent link to this revision of this page">Permanent link</a></li><li id="t-info" class="mw-list-item"><a href="/w/index.php?title=Windows&amp;action=info" title="More information about this page">Page information</a></li></ul>
+		
+	</div>
+</div>
+
+		
+		</div>
+		<a href="#sidebar" title="Jump to navigation"
+			class="menu-toggle" id="sidebar-toggle"></a>
+		<a href="#p-personal" title="user tools"
+			class="menu-toggle" id="p-personal-toggle"></a>
+		<a href="#globalWrapper" title="back to top"
+			class="menu-toggle" id="globalWrapper-toggle"></a>
+	</div>
+	<!-- end of the left (by default at least) column -->
+	<div class="visualClear"></div>
+	<div id="footer" class="mw-footer" role="contentinfo"
+		>
+		<div id="f-poweredbyico" class="footer-icons">
+			<a href="https://www.mediawiki.org/" class="cdx-button cdx-button--fake-button cdx-button--size-large cdx-button--fake-button--enabled"><picture><source media="(min-width: 500px)" srcset="/w/resources/assets/poweredby_mediawiki.svg" width="88" height="31"><img src="/w/resources/assets/mediawiki_compact.svg" alt="Powered by MediaWiki" lang="en" width="25" height="25" loading="lazy"></picture></a>
+		</div>
+		<ul id="f-list">
+			<li id="lastmod"> This page was last edited on 23 October 2023, at 09:00.</li><li id="copyright">Content is available under <a class="external" rel="nofollow" href="https://creativecommons.org/publicdomain/zero/1.0/">CC0 Public Domain</a> unless otherwise noted.</li>
+			<li id="privacy"><a href="/wiki/Snesdev_wiki:Privacy_policy">Privacy policy</a></li><li id="about"><a href="/wiki/Snesdev_wiki:About">About SNESdev Wiki</a></li><li id="disclaimers"><a href="/wiki/Snesdev_wiki:General_disclaimer">Disclaimers</a></li>
+		</ul>
+	</div>
+</div>
+<script>(RLQ=window.RLQ||[]).push(function(){mw.config.set({"wgBackendResponseTime":165,"wgPageParseReport":{"limitreport":{"cputime":"0.027","walltime":"0.032","ppvisitednodes":{"value":56,"limit":1000000},"revisionsize":{"value":4698,"limit":2097152},"postexpandincludesize":{"value":0,"limit":2097152},"templateargumentsize":{"value":0,"limit":2097152},"expansiondepth":{"value":2,"limit":100},"expensivefunctioncount":{"value":0,"limit":100},"unstrip-depth":{"value":0,"limit":20},"unstrip-size":{"value":0,"limit":5000000},"timingprofile":["100.00%    0.000      1 -total"]},"cachereport":{"timestamp":"20260607140600","ttl":86400,"transientcontent":false}}});});</script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v833ccba57c9e4d2798f2e76cebdd09a11778172276447" integrity="sha512-57MDmcccJXYtNnH+ZiBwzC4jb2rvgVCEokYN+L/nLlmO8rfYT/gIpW2A569iJ/3b+0UEasghjuZH/ma3wIs/EQ==" data-cf-beacon='{"version":"2024.11.0","token":"6c2a51884de146568600589c93ac5eda","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+</html>

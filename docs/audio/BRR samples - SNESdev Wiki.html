@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html class="client-nojs" lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<title>BRR samples - SNESdev Wiki</title>
+<script>document.documentElement.className="client-js";RLCONF={"wgBreakFrames":false,"wgSeparatorTransformTable":["",""],"wgDigitTransformTable":["",""],"wgDefaultDateFormat":"dmy","wgMonthNames":["","January","February","March","April","May","June","July","August","September","October","November","December"],"wgRequestId":"aiV7ny-YMYoIf_PA5oPikgAAAEs","wgCanonicalNamespace":"","wgCanonicalSpecialPageName":false,"wgNamespaceNumber":0,"wgPageName":"BRR_samples","wgTitle":"BRR samples","wgCurRevisionId":902,"wgRevisionId":902,"wgArticleId":109,"wgIsArticle":true,"wgIsRedirect":false,"wgAction":"view","wgUserName":null,"wgUserGroups":["*"],"wgCategories":["Sound"],"wgPageViewLanguage":"en","wgPageContentLanguage":"en","wgPageContentModel":"wikitext","wgRelevantPageName":"BRR_samples","wgRelevantArticleId":109,"wgIsProbablyEditable":false,"wgRelevantPageIsProbablyEditable":false,"wgRestrictionEdit":[],"wgRestrictionMove":[],"wgCheckUserClientHintsHeadersJsApi":["brands","architecture","bitness","fullVersionList","mobile","model","platform","platformVersion"]};
+RLSTATE={"site.styles":"ready","user.styles":"ready","user":"ready","user.options":"loading","skins.monobook.styles":"ready"};RLPAGEMODULES=["site","mediawiki.page.ready","skins.monobook.scripts","ext.checkUser.clientHints"];</script>
+<script>(RLQ=window.RLQ||[]).push(function(){mw.loader.impl(function(){return["user.options@12s5i",function($,jQuery,require,module){mw.user.tokens.set({"patrolToken":"+\\","watchToken":"+\\","csrfToken":"+\\"});
+}];});});</script>
+<link rel="stylesheet" href="/w/load.php?lang=en&amp;modules=skins.monobook.styles&amp;only=styles&amp;skin=monobook">
+<script async="" src="/w/load.php?lang=en&amp;modules=startup&amp;only=scripts&amp;raw=1&amp;skin=monobook"></script>
+<meta name="ResourceLoaderDynamicStyles" content="">
+<link rel="stylesheet" href="/w/load.php?lang=en&amp;modules=site.styles&amp;only=styles&amp;skin=monobook">
+<meta name="generator" content="MediaWiki 1.45.1">
+<meta name="robots" content="max-image-preview:standard">
+<meta name="format-detection" content="telephone=no">
+<meta name="description" content="Sound samples played by the S-SMP DSP are stored in the BRR (bit-rate-reduction) data format.&#10;BRR is composed of 16-sample blocks, each of which is stored in 9 bytes of data. This is a 1 byte control block, followed by 8 bytes containing 16 4-bit samples to be decoded (high nibble first).&#10;&#10;&#10;When a block...">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, minimum-scale=0.25, maximum-scale=5.0">
+<link rel="search" type="application/opensearchdescription+xml" href="/w/rest.php/v1/search" title="SNESdev Wiki (en)">
+<link rel="EditURI" type="application/rsd+xml" href="https://snes.nesdev.org/w/api.php?action=rsd">
+<link rel="license" href="https://creativecommons.org/publicdomain/zero/1.0/">
+<link rel="alternate" type="application/atom+xml" title="SNESdev Wiki Atom feed" href="/w/index.php?title=Special:RecentChanges&amp;feed=atom">
+	<meta property="og:type" content="article">
+
+	<meta property="og:site_name" content="SNESdev Wiki">
+
+	<meta property="og:title" content="BRR samples">
+
+	<meta property="og:description" content="Sound samples played by the S-SMP DSP are stored in the BRR (bit-rate-reduction) data format.&#10;BRR is composed of 16-sample blocks, each of which is stored in 9 bytes of data. This is a 1 byte control block, followed by 8 bytes containing 16 4-bit samples to be decoded (high nibble first).&#10;&#10;&#10;When a block...">
+
+	<meta property="og:url" content="https://snes.nesdev.org/wiki/BRR_samples">
+
+</head>
+<body class="mediawiki ltr sitedir-ltr mw-hide-empty-elt ns-0 ns-subject page-BRR_samples rootpage-BRR_samples skin-monobook action-view skin--responsive"><div id="globalWrapper">
+	<div id="column-content">
+		<div id="content" class="mw-body" role="main">
+			<a id="top"></a>
+			<div id="siteNotice"></div>
+			<div class="mw-indicators">
+			</div>
+			<h1 id="firstHeading" class="firstHeading mw-first-heading"><span class="mw-page-title-main">BRR samples</span></h1>
+			<div id="bodyContent" class="monobook-body">
+				<div id="siteSub">From SNESdev Wiki</div>
+				<div id="contentSub" ><div id="mw-content-subtitle"></div></div>
+				
+				<div id="jump-to-nav"></div><a href="#column-one" class="mw-jump-link">Jump to navigation</a><a href="#searchInput" class="mw-jump-link">Jump to search</a>
+				<!-- start content -->
+				<div id="mw-content-text" class="mw-body-content"><div class="mw-content-ltr mw-parser-output" lang="en" dir="ltr"><p>Sound samples played by the <a href="/wiki/S-SMP" title="S-SMP">S-SMP</a> DSP are stored in the <a rel="nofollow" class="external text" href="https://en.wikipedia.org/wiki/Bit_Rate_Reduction">BRR</a> (bit-rate-reduction) data format.
+</p><p>BRR is composed of 16-sample blocks, each of which is stored in 9 bytes of data. This is a 1 byte control block, followed by 8 bytes containing 16 4-bit samples to be decoded (high nibble first).
+</p>
+<table class="wikitable">
+<tbody><tr>
+<th>Offset</th>
+<th>Bits</th>
+<th>Notes
+</th></tr>
+<tr>
+<th>0
+</th>
+<td style="text-align: right"><tt style="white-space: nowrap">SSSS FFLE</tt>
+</td>
+<td>Left-shift (S), decoding filter (F), loop (L), end (E).
+</td></tr>
+<tr>
+<th>1
+</th>
+<td style="text-align: right"><tt style="white-space: nowrap">AAAA BBBB</tt>
+</td>
+<td>Samples 0 (A) and 1 (B).
+</td></tr>
+<tr>
+<th>2
+</th>
+<td style="text-align: right"><tt style="white-space: nowrap">CCCC DDDD</tt>
+</td>
+<td>Samples 2 (C) and 3 (D).
+</td></tr>
+<tr>
+<th>3
+</th>
+<td style="text-align: right"><tt style="white-space: nowrap">EEEE FFFF</tt>
+</td>
+<td>Samples 4 (E) and 5 (F).
+</td></tr>
+<tr>
+<th>4
+</th>
+<td style="text-align: right"><tt style="white-space: nowrap">GGGG HHHH</tt>
+</td>
+<td>Samples 6 (G) and 7 (H).
+</td></tr>
+<tr>
+<th>5
+</th>
+<td style="text-align: right"><tt style="white-space: nowrap">IIII JJJJ</tt>
+</td>
+<td>Samples 8 (I) and 9 (J).
+</td></tr>
+<tr>
+<th>6
+</th>
+<td style="text-align: right"><tt style="white-space: nowrap">KKKK LLLL</tt>
+</td>
+<td>Samples 10 (K) and 11 (L).
+</td></tr>
+<tr>
+<th>7
+</th>
+<td style="text-align: right"><tt style="white-space: nowrap">MMMM NNNN</tt>
+</td>
+<td>Samples 12 (M) and 13 (N).
+</td></tr>
+<tr>
+<th>8
+</th>
+<td style="text-align: right"><tt style="white-space: nowrap">OOOO PPPP</tt>
+</td>
+<td>Samples 14 (O) and 15 (P).
+</td></tr></tbody></table>
+<p>When a block with the end (E) flag set finishes, the channel will automatically stop unless the loop (L) flag is also set for this block. If the loop flag is set, the loop point will be read based on the channel's current <b>SCRN</b> and sample playback will continue from there. Because of the block structure, loop points must lie on 16-sample boundaries. The loop flag has no effect on blocks without the end flag set.
+</p><p>The left-shift (S) value specifies the overall magnitude of values. This is simply a left shift applied to each sample nibble before BRR filter decoding.
+</p><p>Each sample nibble is a signed 4-bit value in the range of -8 to +7. After being shifted, one of four BRR decoding filters (F) is applied, which may include the last 0-2 decoded samples in the result. Filter 0 will just use the shifted nibble directly.
+</p><p>Sound samples should normally start with a filter-0 block, to prevent leftover BRR samples from the previously playing sample from having an effect on decoding.
+</p>
+<div class="mw-heading mw-heading3"><h3 id="Filters">Filters</h3></div>
+<p>The four BRR filters form an <a rel="nofollow" class="external text" href="https://en.wikipedia.org/wiki/Adaptive_differential_pulse-code_modulation">adaptive PCM</a> (ADPCM) encoding scheme, using the previous few samples to predict the next one with a low amount of input data. By choosing the best fitting filter (i.e. adapting) for each block of 16 samples, the result can more closely match a desired waveform.
+</p><p>Each filter adds the shifted nibble to two previously decoded samples, each multiplied by a coefficient:
+</p>
+<table class="wikitable">
+<tbody><tr>
+<th>Filter</th>
+<th>Shifted Nibble</th>
+<th>Sample -1</th>
+<th>Sample -2
+</th></tr>
+<tr>
+<th>0
+</th>
+<td>1</td>
+<td>0</td>
+<td>0
+</td></tr>
+<tr>
+<th>1
+</th>
+<td>1</td>
+<td>15/16</td>
+<td>0
+</td></tr>
+<tr>
+<th>2
+</th>
+<td>1</td>
+<td>61/32</td>
+<td>15/16
+</td></tr>
+<tr>
+<th>3
+</th>
+<td>1</td>
+<td>115/64</td>
+<td>13/16
+</td></tr></tbody></table>
+<p>Filter 0 is the non-filter, which just uses the shifted nibble result directly. The previous samples are not used. Sound samples should normally begin with a filter 0 block to prevent leftover results from the previous sound affecting the new one.
+</p><p>Filter 1 includes some of the previously encoded sample.
+</p><p>Filters 2 and 3 include some of two previously encoded samples.
+</p><p>As the filter number increases, the high frequency bandwidth (sharpness) of the 4-bit sample encoding is traded for better low frequency (smoothness) encoding. Because most natural sounds have stronger low frequencies and weaker high frequencies, this allows the bandwidth allocation of each block to be adapted to better suit the frequency spectrum of the sound at that moment.
+</p>
+<div class="mw-heading mw-heading3"><h3 id="Gaussian_Interpolation">Gaussian Interpolation</h3></div>
+<p>Finally, after the BRR sample data is decoded, when a sample is played back, because the rate (P) is adjustable, an filter is used to smoothly interpolate values between the decoded samples. This is a gaussian interpolator which blends a combination of a neighbourhood of 4 adjacent samples according to a lookup table. This reduces high frequency aliasing across a range of playback rates.
+</p><p>Playback begins with the interpolator centred on the second sample. If your key-on does not begin with an ADSR attack envelope, you may wish to have three 0 samples at the beginning of your sound sample to ensure it begins at 0 and smoothly moves from there (avoiding clicks/pops).
+</p><p>Because of a bug in the DSP's gaussian interpolation filter, 3 maximum-negative values in a row can cause an overflow of the resulting sample, creating a loud pop. This can be intentionally exploited, but normally it is advised avoid this.
+</p>
+<div class="mw-heading mw-heading2"><h2 id="Links">Links</h2></div>
+<ul><li><a rel="nofollow" class="external text" href="https://wiki.superfamicom.org/bit-rate-reduction-(brr)">Bit Rate Reduction</a> - Superfamicom.org wiki article, documents BRR sample format.</li>
+<li><a rel="nofollow" class="external text" href="http://problemkaputt.de/fullsnes.htm#snesapudspbrrsamples">SNES APU DSP BRR Samples</a> - Fullsnes documentation of BRR sample format.</li></ul>
+<!-- 
+NewPP limit report
+Cached time: 20260606160842
+Cache expiry: 86400
+Reduced expiry: false
+Complications: []
+CPU time usage: 0.026 seconds
+Real time usage: 0.030 seconds
+Preprocessor visited node count: 19/1000000
+Revision size: 5106/2097152 bytes
+Post‐expand include size: 0/2097152 bytes
+Template argument size: 0/2097152 bytes
+Highest expansion depth: 2/100
+Expensive parser function count: 0/100
+Unstrip recursion depth: 0/20
+Unstrip post‐expand size: 0/5000000 bytes
+-->
+<!--
+Transclusion expansion time report (%,ms,calls,template)
+100.00%    0.000      1 -total
+-->
+
+<!-- Saved in parser cache with key nesdev_db-sneswiki_:pcache:109:|#|:idhash:canonical and timestamp 20260606160842 and revision id 902. Rendering was triggered because: page_view
+ -->
+</div>
+<div class="printfooter" data-nosnippet="">Retrieved from "<a dir="ltr" href="https://snes.nesdev.org/w/index.php?title=BRR_samples&amp;oldid=902">https://snes.nesdev.org/w/index.php?title=BRR_samples&amp;oldid=902</a>"</div></div>
+				<div id="catlinks" class="catlinks" data-mw="interface"><div id="mw-normal-catlinks" class="mw-normal-catlinks"><a href="/wiki/Special:Categories" title="Special:Categories">Category</a>: <ul><li><a href="/wiki/Category:Sound" title="Category:Sound">Sound</a></li></ul></div></div>
+				<!-- end content -->
+				<div class="visualClear"></div>
+			</div>
+		</div>
+		<div class="visualClear"></div>
+	</div>
+	<div id="column-one" >
+		<h2>Navigation menu</h2>
+		<div role="navigation" class="portlet" id="p-cactions" aria-labelledby="p-cactions-label">
+			<h3 id="p-cactions-label" >Page actions</h3>
+			<div class="pBody">
+				<ul >
+				<li id="ca-nstab-main" class="selected mw-list-item"><a href="/wiki/BRR_samples" title="View the content page [c]" accesskey="c">Page</a></li><li id="ca-talk" class="new mw-list-item"><a href="/w/index.php?title=Talk:BRR_samples&amp;action=edit&amp;redlink=1" rel="discussion" class="new" title="Discussion about the content page (page does not exist) [t]" accesskey="t">Discussion</a></li><li id="ca-view" class="selected mw-list-item"><a href="/wiki/BRR_samples">Read</a></li><li id="ca-viewsource" class="mw-list-item"><a href="/w/index.php?title=BRR_samples&amp;action=edit" title="This page is protected.&#10;You can view its source [e]" accesskey="e">View source</a></li><li id="ca-history" class="mw-list-item"><a href="/w/index.php?title=BRR_samples&amp;action=history" title="Past revisions of this page [h]" accesskey="h">History</a></li>
+				
+				</ul>
+			</div>
+		</div>
+		
+<div role="navigation" class="portlet mw-portlet mw-portlet-cactions-mobile"
+	id="p-cactions-mobile" aria-labelledby="p-cactions-mobile-label">
+	<h3 id="p-cactions-mobile-label" >Page actions</h3>
+	<div class="pBody">
+		<ul ><li id="main-mobile" class="selected mw-list-item"><a href="/wiki/BRR_samples" title="Page">Page</a></li><li id="talk-mobile" class="new mw-list-item"><a href="/w/index.php?title=Talk:BRR_samples&amp;action=edit&amp;redlink=1" title=" (page does not exist)" class="new">Discussion</a></li><li id="ca-more" class="mw-list-item"><a href="#p-cactions">More</a></li><li id="ca-tools" class="mw-list-item"><a href="#p-tb" title="Tools">Tools</a></li></ul>
+		
+	</div>
+</div>
+
+		<div role="navigation" class="portlet" id="p-personal" aria-labelledby="p-personal-label">
+			<h3 id="p-personal-label" >Personal tools</h3>
+			<div class="pBody">
+				<ul >
+				<li id="pt-createaccount" class="mw-list-item"><a href="/w/index.php?title=Special:CreateAccount&amp;returnto=BRR+samples" title="You are encouraged to create an account and log in; however, it is not mandatory">Create account</a></li><li id="pt-login" class="mw-list-item"><a href="/w/index.php?title=Special:UserLogin&amp;returnto=BRR+samples" title="You are encouraged to log in; however, it is not mandatory [o]" accesskey="o">Log in</a></li>
+				</ul>
+			</div>
+		</div>
+		<div class="portlet" id="p-logo" role="banner">
+			<a href="/wiki/SNESdev_Wiki" class="mw-wiki-logo"></a>
+		</div>
+		<div id="sidebar">
+		
+<div role="navigation" class="portlet mw-portlet mw-portlet-navigation"
+	id="p-navigation" aria-labelledby="p-navigation-label">
+	<h3 id="p-navigation-label" >Navigation</h3>
+	<div class="pBody">
+		<ul ><li id="n-Wiki-main-page" class="mw-list-item"><a href="/wiki/SNESdev_Wiki">Wiki main page</a></li><li id="n-Offline-wiki-snapshot" class="mw-list-item"><a rel="nofollow" href="https://archive.org/details/SNESDevWiki">Offline wiki snapshot</a></li><li id="n-NESdev-Forums" class="mw-list-item"><a rel="nofollow" href="https://forums.nesdev.org/">NESdev Forums</a></li><li id="n-NESdev-Discord" class="mw-list-item"><a rel="nofollow" href="https://discord.gg/SddKcS6ehE">NESdev Discord</a></li><li id="n-SNES-Discord" class="mw-list-item"><a rel="nofollow" href="https://discord.gg/yXNEV6p">SNES Discord</a></li><li id="n-recentchanges" class="mw-list-item"><a href="/wiki/Special:RecentChanges" title="A list of recent changes in the wiki [r]" accesskey="r">Recent changes</a></li></ul>
+		
+	</div>
+</div>
+
+		<div role="search" class="portlet" id="p-search">
+			<h3 id="p-search-label" ><label for="searchInput">Search</label></h3>
+			<div class="pBody" id="searchBody">
+				<form action="/w/index.php" id="searchform"><input type="hidden" value="Special:Search" name="title"><input type="search" name="search" placeholder="Search SNESdev Wiki" aria-label="Search SNESdev Wiki" autocapitalize="sentences" spellcheck="false" title="Search SNESdev Wiki [f]" accesskey="f" id="searchInput"><input type="submit" name="go" value="Go" title="Go to a page with this exact name if it exists" class="searchButton" id="searchButton"> <input type="submit" name="fulltext" value="Search" title="Search the pages for this text" class="searchButton mw-fallbackSearchButton" id="mw-searchButton"></form>
+			</div>
+		</div>
+		
+<div role="navigation" class="portlet mw-portlet mw-portlet-tb"
+	id="p-tb" aria-labelledby="p-tb-label">
+	<h3 id="p-tb-label" >Tools</h3>
+	<div class="pBody">
+		<ul ><li id="t-whatlinkshere" class="mw-list-item"><a href="/wiki/Special:WhatLinksHere/BRR_samples" title="A list of all wiki pages that link here [j]" accesskey="j">What links here</a></li><li id="t-recentchangeslinked" class="mw-list-item"><a href="/wiki/Special:RecentChangesLinked/BRR_samples" rel="nofollow" title="Recent changes in pages linked from this page [k]" accesskey="k">Related changes</a></li><li id="t-print" class="mw-list-item"><a href="javascript:print();" rel="alternate" title="Printable version of this page [p]" accesskey="p">Printable version</a></li><li id="t-permalink" class="mw-list-item"><a href="/w/index.php?title=BRR_samples&amp;oldid=902" title="Permanent link to this revision of this page">Permanent link</a></li><li id="t-info" class="mw-list-item"><a href="/w/index.php?title=BRR_samples&amp;action=info" title="More information about this page">Page information</a></li></ul>
+		
+	</div>
+</div>
+
+		
+		</div>
+		<a href="#sidebar" title="Jump to navigation"
+			class="menu-toggle" id="sidebar-toggle"></a>
+		<a href="#p-personal" title="user tools"
+			class="menu-toggle" id="p-personal-toggle"></a>
+		<a href="#globalWrapper" title="back to top"
+			class="menu-toggle" id="globalWrapper-toggle"></a>
+	</div>
+	<!-- end of the left (by default at least) column -->
+	<div class="visualClear"></div>
+	<div id="footer" class="mw-footer" role="contentinfo"
+		>
+		<div id="f-poweredbyico" class="footer-icons">
+			<a href="https://www.mediawiki.org/" class="cdx-button cdx-button--fake-button cdx-button--size-large cdx-button--fake-button--enabled"><picture><source media="(min-width: 500px)" srcset="/w/resources/assets/poweredby_mediawiki.svg" width="88" height="31"><img src="/w/resources/assets/mediawiki_compact.svg" alt="Powered by MediaWiki" lang="en" width="25" height="25" loading="lazy"></picture></a>
+		</div>
+		<ul id="f-list">
+			<li id="lastmod"> This page was last edited on 7 October 2022, at 05:45.</li><li id="copyright">Content is available under <a class="external" rel="nofollow" href="https://creativecommons.org/publicdomain/zero/1.0/">CC0 Public Domain</a> unless otherwise noted.</li>
+			<li id="privacy"><a href="/wiki/Snesdev_wiki:Privacy_policy">Privacy policy</a></li><li id="about"><a href="/wiki/Snesdev_wiki:About">About SNESdev Wiki</a></li><li id="disclaimers"><a href="/wiki/Snesdev_wiki:General_disclaimer">Disclaimers</a></li>
+		</ul>
+	</div>
+</div>
+<script>(RLQ=window.RLQ||[]).push(function(){mw.config.set({"wgBackendResponseTime":95,"wgPageParseReport":{"limitreport":{"cputime":"0.026","walltime":"0.030","ppvisitednodes":{"value":19,"limit":1000000},"revisionsize":{"value":5106,"limit":2097152},"postexpandincludesize":{"value":0,"limit":2097152},"templateargumentsize":{"value":0,"limit":2097152},"expansiondepth":{"value":2,"limit":100},"expensivefunctioncount":{"value":0,"limit":100},"unstrip-depth":{"value":0,"limit":20},"unstrip-size":{"value":0,"limit":5000000},"timingprofile":["100.00%    0.000      1 -total"]},"cachereport":{"timestamp":"20260606160842","ttl":86400,"transientcontent":false}}});});</script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v833ccba57c9e4d2798f2e76cebdd09a11778172276447" integrity="sha512-57MDmcccJXYtNnH+ZiBwzC4jb2rvgVCEokYN+L/nLlmO8rfYT/gIpW2A569iJ/3b+0UEasghjuZH/ma3wIs/EQ==" data-cf-beacon='{"version":"2024.11.0","token":"6c2a51884de146568600589c93ac5eda","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+</html>
