@@ -1,0 +1,17 @@
+build*/
+build/
+docs/
+tests/roms/
+tests/snes-tests/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+.DS_Store
+tmp.txt
