@@ -44,6 +44,8 @@ public:
     CartridgeRom(std::vector<uint8_t> bytes, CartridgeMap map);
 
     void load(std::vector<uint8_t> bytes, CartridgeMap map, size_t ramSize = 0);
+    std::vector<uint8_t>& sramData() { return sram; }
+    const std::vector<uint8_t>& sramData() const { return sram; }
     bool empty() const { return rom.empty(); }
     size_t size() const { return rom.size(); }
     CartridgeMap map() const { return mapping; }
@@ -105,7 +107,11 @@ public:
     void endApuFrame();
     apu::Apu& getApu() { return apuCore; }
 
-    bool irqEnabled() const { return hvIrqEnabled; }
+    void saveState(std::vector<uint8_t>& out);
+    bool loadState(const uint8_t* data, size_t size);
+
+    bool irqEnabled() const { return hvIrqMode != 0; }
+    uint8_t irqMode() const { return hvIrqMode; }
     uint16_t irqHTime() const { return irqHTimeVal; }
     uint16_t irqVTime() const { return irqVTimeVal; }
     bool irqFlag() const { return irqPending; }
@@ -204,7 +210,7 @@ private:
     uint16_t joypadCurrentState = 0;
     uint16_t joypadLatchedState = 0;
     uint8_t joypadReadIndex = 0;
-    bool hvIrqEnabled = false;
+    uint8_t hvIrqMode = 0; // NMITIMEN bits 5-4: 0=off, 1=H, 2=V, 3=H+V
     uint16_t irqHTimeVal = 0;
     uint16_t irqVTimeVal = 0;
     bool irqPending = false;

@@ -1,6 +1,30 @@
 #include "BUS/bus.h"
 
+#include <cstring>
+
 namespace snesquik::bus {
+
+namespace {
+
+template <typename T>
+void appendPod(std::vector<uint8_t>& out, const T& value)
+{
+    const auto* bytes = reinterpret_cast<const uint8_t*>(&value);
+    out.insert(out.end(), bytes, bytes + sizeof(T));
+}
+
+template <typename T>
+bool readPod(const uint8_t*& pos, const uint8_t* end, T& value)
+{
+    if (static_cast<size_t>(end - pos) < sizeof(T)) {
+        return false;
+    }
+    std::memcpy(&value, pos, sizeof(T));
+    pos += sizeof(T);
+    return true;
+}
+
+} // namespace
 
 namespace {
 
@@ -205,7 +229,7 @@ uint8_t SnesBus::read8(uint32_t address)
             openBusValue = static_cast<uint8_t>((nmiFlag ? 0x80 : 0x00) | 0x02);
             nmiFlag = false;
         } else if (mmioAddress == 0x4211) {
-            openBusValue = static_cast<uint8_t>((irqPending ? 0x80 : 0x00) | 0x01);
+            openBusValue = static_cast<uint8_t>((irqPending ? 0x80 : 0x00) | (openBusValue & 0x7f));
             irqPending = false;
         } else if (mmioAddress == 0x4212) {
             const bool hblank = ppuCore && ppuCore->hblank();
@@ -276,7 +300,11 @@ void SnesBus::write8(uint32_t address, uint8_t value)
             const bool wasNmiEnabled = nmiEnable;
             mmio[*mapped] = value;
             nmiEnable = (value & 0x80) != 0;
-            hvIrqEnabled = (value & 0x10) != 0;
+            hvIrqMode = (value >> 4) & 0x03;
+            if (hvIrqMode == 0) {
+                // Disabling H/V-IRQ acknowledges any pending IRQ.
+                irqPending = false;
+            }
             joypadAutoReadEnable = (value & 0x01) != 0;
             if (!wasNmiEnabled && nmiEnable && nmiFlag) {
                 nmiEdge = true;
@@ -451,21 +479,17 @@ void SnesBus::runHdmaScanline()
             continue;
         }
 
-        if (state.lineCounter == 0) {
-            reloadHdma(channel);
-            if (!state.active) {
-                continue;
-            }
-        }
-
         if (state.doTransfer) {
             transferHdma(channel);
-            if (state.repeat) {
-                state.doTransfer = false;
-            }
         }
 
         --state.lineCounter;
+        // With repeat set the unit is transferred every line; with it clear
+        // only on the first line of the entry.
+        state.doTransfer = state.repeat;
+        if (state.lineCounter == 0) {
+            reloadHdma(channel);
+        }
     }
 
     pendingDmaDots += 16;
@@ -473,30 +497,68 @@ void SnesBus::runHdmaScanline()
 
 void SnesBus::checkIrq(uint16_t h, uint16_t v)
 {
-    if (hvIrqEnabled && h == irqHTimeVal && v == irqVTimeVal) {
-        irqPending = true;
+    switch (hvIrqMode) {
+    case 1:
+        if (h == irqHTimeVal) {
+            irqPending = true;
+        }
+        break;
+    case 2:
+        if (v == irqVTimeVal && h == 0) {
+            irqPending = true;
+        }
+        break;
+    case 3:
+        if (h == irqHTimeVal && v == irqVTimeVal) {
+            irqPending = true;
+        }
+        break;
+    default:
+        break;
     }
 }
 
 void SnesBus::checkIrqCrossing(uint16_t prevH, uint16_t prevV, uint16_t currH, uint16_t currV)
 {
-    if (!hvIrqEnabled) {
+    if (hvIrqMode == 0) {
         return;
     }
 
     constexpr uint32_t dotsPerScanline = 341;
+    constexpr uint32_t scanlines = 262;
+    constexpr uint32_t frameDots = dotsPerScanline * scanlines;
     const uint32_t prevPos = static_cast<uint32_t>(prevV) * dotsPerScanline + prevH;
     const uint32_t currPos = static_cast<uint32_t>(currV) * dotsPerScanline + currH;
-    const uint32_t targetPos = static_cast<uint32_t>(irqVTimeVal) * dotsPerScanline + irqHTimeVal;
+    // Dots advanced this step; the trigger window is (prevPos, currPos].
+    const uint32_t span = (currPos + frameDots - prevPos) % frameDots;
 
-    if (currPos >= prevPos) {
-        if (targetPos >= prevPos && targetPos <= currPos) {
+    if (hvIrqMode == 1) {
+        // H-IRQ fires at H=HTIME on every scanline.
+        if (irqHTimeVal >= dotsPerScanline) {
+            return;
+        }
+        uint32_t delta = (irqHTimeVal + dotsPerScanline - (prevPos % dotsPerScanline)) % dotsPerScanline;
+        if (delta == 0) {
+            delta = dotsPerScanline;
+        }
+        if (delta <= span) {
             irqPending = true;
         }
-    } else {
-        if (targetPos >= prevPos || targetPos <= currPos) {
-            irqPending = true;
-        }
+        return;
+    }
+
+    // V-IRQ fires at the start of line VTIME; H+V at (VTIME, HTIME).
+    const uint32_t targetH = (hvIrqMode == 2) ? 0 : irqHTimeVal;
+    const uint32_t targetPos = static_cast<uint32_t>(irqVTimeVal) * dotsPerScanline + targetH;
+    if (targetPos >= frameDots) {
+        return;
+    }
+    uint32_t delta = (targetPos + frameDots - prevPos) % frameDots;
+    if (delta == 0) {
+        delta = frameDots;
+    }
+    if (delta <= span) {
+        irqPending = true;
     }
 }
 
@@ -504,6 +566,10 @@ void SnesBus::setVblank(bool active)
 {
     if (active && !vblankActive) {
         nmiFlag = true;
+    }
+    if (!active && vblankActive) {
+        // RDNMI bit 7 is cleared automatically at the end of vblank.
+        nmiFlag = false;
     }
     vblankActive = active;
     if (traceListener) {
@@ -523,7 +589,9 @@ void SnesBus::beginJoypadAutoRead()
 {
     if (joypadAutoReadEnable) {
         joypadAutoReadBusy = true;
-        joypadAutoReadCyclesRemaining = 152;
+        // Auto-read takes 4224 master clocks (~3 scanlines); cycles here are
+        // ~6 master clocks each.
+        joypadAutoReadCyclesRemaining = 704;
     }
 }
 
@@ -947,6 +1015,88 @@ void SnesBus::writeApuPort(uint16_t address, uint8_t value)
     apuPortLog.lastWrite[port] = value;
     apuPortLog.writeCount[port]++;
     apuPortLog.totalWrites++;
+}
+
+void SnesBus::saveState(std::vector<uint8_t>& out)
+{
+    appendPod(out, wram);
+    appendPod(out, mmio);
+    appendPod(out, openBusValue);
+    appendPod(out, wramPortAddr);
+    appendPod(out, wrmpya);
+    appendPod(out, wrmpyb);
+    appendPod(out, rdmpy);
+    appendPod(out, wrdiva);
+    appendPod(out, wrdivb);
+    appendPod(out, rddiv);
+    appendPod(out, nmiEnable);
+    appendPod(out, nmiFlag);
+    appendPod(out, vblankActive);
+    appendPod(out, joypadStrobe);
+    appendPod(out, joypadAutoReadEnable);
+    appendPod(out, joypadAutoReadBusy);
+    appendPod(out, joypadAutoReadCyclesRemaining);
+    appendPod(out, nmiEdge);
+    appendPod(out, joypadCurrentState);
+    appendPod(out, joypadLatchedState);
+    appendPod(out, joypadReadIndex);
+    appendPod(out, hvIrqMode);
+    appendPod(out, irqHTimeVal);
+    appendPod(out, irqVTimeVal);
+    appendPod(out, irqPending);
+    appendPod(out, hdma);
+    appendPod(out, pendingDmaDots);
+
+    const auto& sram = cart.sramData();
+    appendPod(out, static_cast<uint32_t>(sram.size()));
+    out.insert(out.end(), sram.begin(), sram.end());
+
+    std::vector<uint8_t> apuBlob;
+    apuCore.saveState(apuBlob);
+    appendPod(out, static_cast<uint32_t>(apuBlob.size()));
+    out.insert(out.end(), apuBlob.begin(), apuBlob.end());
+}
+
+bool SnesBus::loadState(const uint8_t* data, size_t size)
+{
+    const uint8_t* pos = data;
+    const uint8_t* end = data + size;
+
+    if (!readPod(pos, end, wram) || !readPod(pos, end, mmio) || !readPod(pos, end, openBusValue)
+        || !readPod(pos, end, wramPortAddr) || !readPod(pos, end, wrmpya) || !readPod(pos, end, wrmpyb)
+        || !readPod(pos, end, rdmpy) || !readPod(pos, end, wrdiva) || !readPod(pos, end, wrdivb)
+        || !readPod(pos, end, rddiv) || !readPod(pos, end, nmiEnable) || !readPod(pos, end, nmiFlag)
+        || !readPod(pos, end, vblankActive) || !readPod(pos, end, joypadStrobe)
+        || !readPod(pos, end, joypadAutoReadEnable) || !readPod(pos, end, joypadAutoReadBusy)
+        || !readPod(pos, end, joypadAutoReadCyclesRemaining) || !readPod(pos, end, nmiEdge)
+        || !readPod(pos, end, joypadCurrentState) || !readPod(pos, end, joypadLatchedState)
+        || !readPod(pos, end, joypadReadIndex) || !readPod(pos, end, hvIrqMode)
+        || !readPod(pos, end, irqHTimeVal) || !readPod(pos, end, irqVTimeVal)
+        || !readPod(pos, end, irqPending) || !readPod(pos, end, hdma)
+        || !readPod(pos, end, pendingDmaDots)) {
+        return false;
+    }
+
+    uint32_t sramSize = 0;
+    if (!readPod(pos, end, sramSize) || static_cast<size_t>(end - pos) < sramSize) {
+        return false;
+    }
+    auto& sram = cart.sramData();
+    if (sram.size() == sramSize) {
+        std::memcpy(sram.data(), pos, sramSize);
+    }
+    pos += sramSize;
+
+    uint32_t apuSize = 0;
+    if (!readPod(pos, end, apuSize) || static_cast<size_t>(end - pos) < apuSize) {
+        return false;
+    }
+    if (!apuCore.loadState(pos, apuSize)) {
+        return false;
+    }
+    pos += apuSize;
+
+    return pos == end;
 }
 
 void SnesBus::initApu()

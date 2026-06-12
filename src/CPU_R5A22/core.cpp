@@ -103,10 +103,42 @@ uint32_t CPU::step()
     return static_cast<uint32_t>(cycles - before);
 }
 
+CPU::SaveState CPU::saveState() const
+{
+    SaveState state;
+    state.registers = r;
+    state.cycles = cycles;
+    state.irqLine = irqLine;
+    state.nmiPending = nmiPending;
+    state.isStopped = isStopped;
+    state.isWaiting = isWaiting;
+    return state;
+}
+
+void CPU::loadState(const SaveState& state)
+{
+    r = state.registers;
+    cycles = state.cycles;
+    irqLine = state.irqLine;
+    nmiPending = state.nmiPending;
+    isStopped = state.isStopped;
+    isWaiting = state.isWaiting;
+}
+
 void CPU::requestIRQ()
 {
     irqLine = true;
     isWaiting = false;
+}
+
+void CPU::setIrqLine(bool level)
+{
+    // WAI resumes when the IRQ line is asserted even with interrupts
+    // disabled (execution continues after the WAI without vectoring).
+    if (level && !irqLine) {
+        isWaiting = false;
+    }
+    irqLine = level;
 }
 
 void CPU::requestNMI()

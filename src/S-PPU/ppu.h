@@ -3,6 +3,7 @@
 #include <array>
 #include <cstdint>
 #include <span>
+#include <vector>
 
 namespace snesquik::ppu {
 
@@ -16,6 +17,9 @@ public:
     static constexpr int hblankStart = 262;
 
     void reset();
+
+    void saveState(std::vector<uint8_t>& out) const;
+    bool loadState(const uint8_t* data, size_t size);
 
     uint8_t readRegister(uint16_t address);
     void writeRegister(uint16_t address, uint8_t value);

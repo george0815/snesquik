@@ -27,14 +27,16 @@ add_library(snesquik_apu
     src/APU_SPC700/snes_spc/snes_spc/SNES_SPC_misc.cpp
     src/APU_SPC700/snes_spc/snes_spc/SNES_SPC_state.cpp
     src/APU_SPC700/snes_spc/snes_spc/SPC_DSP.cpp
+    src/APU_SPC700/snes_spc/snes_spc/SPC_Filter.cpp
     src/APU_SPC700/snes_spc/snes_spc/spc.cpp
     src/APU_SPC700/snes_spc/snes_spc/dsp.cpp
 )
 target_include_directories(snesquik_apu PUBLIC src src/APU_SPC700/snes_spc)
-target_compile_definitions(snesquik_apu PRIVATE HAVE_STDINT_H SPC_NO_COPY_STATE_FUNCS=1)
+target_compile_definitions(snesquik_apu PRIVATE HAVE_STDINT_H)
 
 add_library(snesquik_bus
     src/BUS/bus.cpp
+    src/STATE/savestate.cpp
 )
 target_include_directories(snesquik_bus PUBLIC src)
 target_link_libraries(snesquik_bus PUBLIC snesquik_cpu snesquik_ppu snesquik_apu)

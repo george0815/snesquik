@@ -155,7 +155,14 @@ bool SdlGlRenderer::initialize(const char* title, int sourceWidth, int sourceHei
         shutdown();
         return false;
     }
-    SDL_GL_SetSwapInterval(1);
+    // Adaptive vsync: swap synchronises to vblank when a frame is ready in
+    // time (no tearing) but doesn't block when late. The frame limiter in
+    // the main loop still paces emulation to the SNES rate (60.0988 Hz) and
+    // the audio rate control absorbs any residual drift. Falls back to
+    // immediate swaps where adaptive vsync is unsupported.
+    if (SDL_GL_SetSwapInterval(-1) != 0) {
+        SDL_GL_SetSwapInterval(0);
+    }
 
     if (!loadGl()) {
         setError("failed to load required OpenGL entry points");

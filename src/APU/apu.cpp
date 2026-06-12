@@ -1,6 +1,8 @@
 #include "APU/apu.h"
 #include "APU_SPC700/snes_spc/snes_spc/SNES_SPC.h"
+#include "APU_SPC700/snes_spc/snes_spc/SPC_Filter.h"
 
+#include <algorithm>
 #include <cstring>
 
 namespace snesquik::apu {
@@ -22,7 +24,6 @@ constexpr uint8_t iplRom[64] = {
 };
 
 constexpr uint64_t kMasterClockRate = 21477272;
-constexpr uint32_t kSpcClockRate = 1024000;
 
 } // namespace
 
@@ -31,6 +32,14 @@ Apu::Apu() = default;
 Apu::~Apu()
 {
     delete spc;
+    delete filter;
+}
+
+void Apu::armOutputBuffer()
+{
+    if (spc) {
+        spc->set_output(sampleBuffer, sampleBufferSize);
+    }
 }
 
 void Apu::init()
@@ -38,10 +47,13 @@ void Apu::init()
     spc = new SNES_SPC;
     spc->init();
     spc->init_rom(iplRom);
-    spc->set_output(nullptr, 0);
     spc->reset();
+    filter = new SPC_Filter;
+    filter->clear();
+    armOutputBuffer();
     spcTimeAccum = 0;
     spcTime = 0;
+    outputSampleCount = 0;
 }
 
 void Apu::reset()
@@ -49,10 +61,12 @@ void Apu::reset()
     if (!spc) {
         return;
     }
-    spc->set_output(nullptr, 0);
     spc->reset();
+    filter->clear();
+    armOutputBuffer();
     spcTimeAccum = 0;
     spcTime = 0;
+    outputSampleCount = 0;
 }
 
 void Apu::softReset()
@@ -60,10 +74,12 @@ void Apu::softReset()
     if (!spc) {
         return;
     }
-    spc->set_output(nullptr, 0);
     spc->soft_reset();
+    filter->clear();
+    armOutputBuffer();
     spcTimeAccum = 0;
     spcTime = 0;
+    outputSampleCount = 0;
 }
 
 uint8_t Apu::readPort(int port)
@@ -113,6 +129,99 @@ void Apu::endFrame()
     spc->end_frame(spcTime);
     spcTime = 0;
     spcTimeAccum = 0;
+
+    outputSampleCount = std::min(spc->sample_count(), sampleBufferSize);
+    std::memcpy(outputSamples, sampleBuffer, static_cast<size_t>(outputSampleCount) * sizeof(int16_t));
+
+    // High-pass/gain stage matching the SNES DAC output; removes the DC
+    // offsets that otherwise pop audibly when voices key on.
+    if (filter && outputSampleCount > 0) {
+        filter->run(outputSamples, outputSampleCount);
+    }
+
+    // Re-arm the buffer for the next frame; this folds leftover clocks and
+    // carries over any extra samples the DSP generated past sample_count().
+    armOutputBuffer();
+}
+
+std::span<const int16_t> Apu::frameSamples() const
+{
+    return {outputSamples, static_cast<size_t>(outputSampleCount)};
+}
+
+namespace {
+
+void copyToBuffer(unsigned char** io, void* state, size_t size)
+{
+    std::memcpy(*io, state, size);
+    *io += size;
+}
+
+void copyFromBuffer(unsigned char** io, void* state, size_t size)
+{
+    std::memcpy(state, *io, size);
+    *io += size;
+}
+
+} // namespace
+
+void Apu::saveState(std::vector<uint8_t>& out)
+{
+    std::vector<uint8_t> buffer(SNES_SPC::state_size, 0);
+    if (spc) {
+        unsigned char* pos = buffer.data();
+        spc->copy_state(&pos, copyToBuffer);
+    }
+    out.insert(out.end(), buffer.begin(), buffer.end());
+    const auto* timeBytes = reinterpret_cast<const uint8_t*>(&spcTime);
+    out.insert(out.end(), timeBytes, timeBytes + sizeof(spcTime));
+    const auto* accumBytes = reinterpret_cast<const uint8_t*>(&spcTimeAccum);
+    out.insert(out.end(), accumBytes, accumBytes + sizeof(spcTimeAccum));
+}
+
+bool Apu::loadState(const uint8_t* data, size_t size)
+{
+    const size_t expected = SNES_SPC::state_size + sizeof(spcTime) + sizeof(spcTimeAccum);
+    if (!spc || size != expected) {
+        return false;
+    }
+    std::vector<uint8_t> buffer(data, data + SNES_SPC::state_size);
+    unsigned char* pos = buffer.data();
+    spc->copy_state(&pos, copyFromBuffer);
+    std::memcpy(&spcTime, data + SNES_SPC::state_size, sizeof(spcTime));
+    std::memcpy(&spcTimeAccum, data + SNES_SPC::state_size + sizeof(spcTime), sizeof(spcTimeAccum));
+    // copy_state invalidates the output buffer configuration.
+    if (filter) {
+        filter->clear();
+    }
+    outputSampleCount = 0;
+    armOutputBuffer();
+    return true;
+}
+
+int Apu::debugPc() const
+{
+    return spc ? spc->debug_pc() : -1;
+}
+
+const char* Apu::debugError() const
+{
+    return spc ? spc->debug_error() : nullptr;
+}
+
+int Apu::debugRam(int addr) const
+{
+    return spc ? spc->debug_ram(addr) : -1;
+}
+
+int Apu::debugOutPort(int port) const
+{
+    return spc ? spc->debug_out_port(port) : -1;
+}
+
+int Apu::debugInPort(int port) const
+{
+    return spc ? spc->debug_in_port(port) : -1;
 }
 
 } // namespace snesquik::apu

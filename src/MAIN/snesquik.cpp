@@ -4,12 +4,14 @@
 #include "DEBUG/probe.h"
 #include "MAIN/sdl_gl_renderer.h"
 #include "S-PPU/ppu.h"
+#include "STATE/savestate.h"
 
 #include <SDL.h>
 #include <SDL_keycode.h>
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <cstdint>
 #include <ctime>
 #include <fstream>
@@ -29,6 +31,8 @@ struct InputContext {
     uint16_t state = 0;
     bool logActive = false;
     bool f5WasDown = false;
+    bool saveStateRequested = false;
+    bool loadStateRequested = false;
 };
 
 
@@ -370,6 +374,14 @@ void handleKey(void* userData, int key, bool pressed)
             input->ppu->setDebugFlags(input->ppu->debugFlagsMask() ^ snesquik::ppu::Ppu::DebugForceBG3);
             return;
         }
+        if (key == SDLK_F6) {
+            input->saveStateRequested = true;
+            return;
+        }
+        if (key == SDLK_F7) {
+            input->loadStateRequested = true;
+            return;
+        }
         if (key == SDLK_F5) {
             if (!input->f5WasDown) {
                 input->logActive = !input->logActive;
@@ -444,6 +456,31 @@ int main(int argc, char** argv)
             const uint16_t mask = joypadMaskForName(argv[++i]);
             probeOptions.releaseFrame = static_cast<uint32_t>(std::strtoul(argv[++i], nullptr, 10));
             probeOptions.injectedButtons |= mask;
+        } else if (isOption(argv[i], "--load-state") && i + 1 < argc) {
+            probeOptions.loadStatePath = argv[++i];
+        } else if (isOption(argv[i], "--save-state") && i + 2 < argc) {
+            probeOptions.saveStateFrame = static_cast<uint32_t>(std::strtoul(argv[++i], nullptr, 10));
+            probeOptions.saveStatePath = argv[++i];
+        } else if (isOption(argv[i], "--dump-audio") && i + 1 < argc) {
+            probeOptions.dumpAudioPath = argv[++i];
+        } else if (isOption(argv[i], "--probe-poke") && i + 3 < argc) {
+            const uint32_t frame = static_cast<uint32_t>(std::strtoul(argv[++i], nullptr, 10));
+            const uint32_t addr = static_cast<uint32_t>(std::strtoul(argv[++i], nullptr, 16));
+            const uint8_t val = static_cast<uint8_t>(std::strtoul(argv[++i], nullptr, 16));
+            probeOptions.wramPokes.push_back({frame, addr, val});
+        } else if (isOption(argv[i], "--dump-state") && i + 1 < argc) {
+            probeOptions.dumpStateFrame = static_cast<uint32_t>(std::strtoul(argv[++i], nullptr, 10));
+        } else if (isOption(argv[i], "--probe-tap") && i + 2 < argc) {
+            const uint16_t mask = joypadMaskForName(argv[++i]);
+            const uint32_t frame = static_cast<uint32_t>(std::strtoul(argv[++i], nullptr, 10));
+            probeOptions.joypadEvents.push_back({frame, mask, true});
+            probeOptions.joypadEvents.push_back({frame + 10, mask, false});
+        } else if (isOption(argv[i], "--probe-hold") && i + 3 < argc) {
+            const uint16_t mask = joypadMaskForName(argv[++i]);
+            const uint32_t pressFrame = static_cast<uint32_t>(std::strtoul(argv[++i], nullptr, 10));
+            const uint32_t releaseFrame = static_cast<uint32_t>(std::strtoul(argv[++i], nullptr, 10));
+            probeOptions.joypadEvents.push_back({pressFrame, mask, true});
+            probeOptions.joypadEvents.push_back({releaseFrame, mask, false});
         } else if (isOption(argv[i], "--log-from") && i + 1 < argc) {
             logFromFrame = static_cast<uint32_t>(std::strtoul(argv[++i], nullptr, 10));
         }
@@ -474,7 +511,6 @@ int main(int argc, char** argv)
 
     snesquik::ppu::Ppu ppu;
     ppu.reset();
-    ppu.setDebugFlags(snesquik::ppu::Ppu::DebugNoColorMath);
 
     snesquik::bus::SnesBus bus;
     MainTraceListener trace;
@@ -487,8 +523,14 @@ bus.setTraceListener(&trace);
     cpu.reset();
 
     std::cout << parsed->header.title << " (" << snesquik::cartridge::cartridgeMapName(parsed->header.map) << ")\n";
+    if (parsed->header.chipset >= 0x03) {
+        std::cerr << "warning: cartridge requires an enhancement coprocessor (chipset $"
+                  << std::hex << static_cast<int>(parsed->header.chipset) << std::dec
+                  << ", e.g. Super FX/SA-1/DSP) which is not emulated; the game will not run correctly\n";
+    }
     std::cout << "reset PC: $" << std::hex << cpu.registers().pc << std::dec << '\n';
-    std::cout << "F1=color math  F2=windows  F3=BG3 only  F4=force BG3  F5=log\n";
+    std::cout << "F1=color math  F2=windows  F3=BG3 only  F4=force BG3  F5=log  F6=save state  F7=load state\n";
+    const std::string statePath = std::string(argv[1]) + ".state";
 
     snesquik::platform::SdlGlRenderer renderer;
     if (!renderer.initialize("snesquik", snesquik::ppu::Ppu::screenWidth, snesquik::ppu::Ppu::screenHeight)) {
@@ -498,9 +540,55 @@ bus.setTraceListener(&trace);
     InputContext input{&bus, &ppu, 0, false, false};
     renderer.setKeyCallback(handleKey, &input);
 
+    SDL_AudioDeviceID audioDevice = 0;
+    // SDL_GetQueuedAudioSize reports bytes in the *device* format, which can
+    // differ from what we queue (e.g. 48 kHz float on PipeWire); convert
+    // queue depth to seconds using the actual device spec.
+    double audioBytesPerSecond = 32000.0 * 4.0;
+    if (SDL_InitSubSystem(SDL_INIT_AUDIO) == 0) {
+        SDL_AudioSpec want{};
+        SDL_AudioSpec have{};
+        want.freq = snesquik::apu::Apu::sampleRate;
+        want.format = AUDIO_S16SYS;
+        want.channels = 2;
+        want.samples = 512;
+        audioDevice = SDL_OpenAudioDevice(nullptr, 0, &want, &have, 0);
+        if (audioDevice != 0) {
+            audioBytesPerSecond = static_cast<double>(have.freq) * have.channels
+                                * (SDL_AUDIO_BITSIZE(have.format) / 8);
+            // Prime the queue with ~100 ms of silence so small timing
+            // drift between vsync and the SNES frame rate doesn't
+            // immediately underrun (audible as crackle).
+            static const int16_t silence[3200 * 2] = {};
+            SDL_QueueAudio(audioDevice, silence, sizeof(silence));
+            SDL_PauseAudioDevice(audioDevice, 0);
+        } else {
+            std::cerr << "audio device unavailable: " << SDL_GetError() << '\n';
+        }
+    }
+
+    uint32_t audioUnderruns = 0;
+    uint32_t audioOverruns = 0;
+    uint32_t audioProducedLastSecond = 0;
+    double audioQueuedMsLastSample = 0.0;
+    double audioRatioLastSample = 1.0;
+    std::ofstream audioTee;
+    if (const char* teePath = std::getenv("SNESQUIK_AUDIO_DUMP")) {
+        audioTee.open(teePath, std::ios::binary | std::ios::trunc);
+        if (audioTee.is_open()) {
+            std::cout << "audio tee (s16le stereo 32000 Hz) -> " << teePath << '\n';
+        }
+    }
     uint32_t fpsFrameCount = 0;
     uint32_t fpsStartTime = SDL_GetTicks();
     float currentFps = 0.0f;
+
+    // Frame limiter: pace to the NTSC frame rate. One frame is
+    // 341 dots * 262 lines * 4 master clocks = 357368 clocks of the
+    // 21.477272 MHz master clock, i.e. ~60.0988 Hz.
+    const uint64_t perfFreq = SDL_GetPerformanceFrequency();
+    const double framePeriod = static_cast<double>(perfFreq) * 357368.0 / 21477272.0;
+    double frameDeadline = static_cast<double>(SDL_GetPerformanceCounter()) + framePeriod;
 
     bool running = true;
     uint32_t dotRemainder = 0;
@@ -525,14 +613,21 @@ bus.setTraceListener(&trace);
         uint16_t lastLine = ppu.verticalCounter();
         bus.setVblank(false);
         bus.beginFrame();
+        // Hardware performs the first HDMA transfer during scanline 0,
+        // before the first visible line is rendered.
+        bus.runHdmaScanline();
 
         while (dotsThisFrame < frameDots) {
             const uint32_t cpuCycles = cpu.step();
-            bus.stepApu(cpuCycles);
             const uint32_t dotAccum = cpuCycles * 3 + dotRemainder;
             uint32_t ppuDots = dotAccum / 2;
             dotRemainder = dotAccum % 2;
-            ppuDots += bus.consumeDmaDots();
+            const uint32_t dmaDots = bus.consumeDmaDots();
+            ppuDots += dmaDots;
+            // The SPC keeps running while the CPU is halted for DMA, so
+            // advance the APU for that time too (1 dot = 4 master clocks,
+            // 1 cycle ~= 6, hence dots * 2 / 3).
+            bus.stepApu(cpuCycles + dmaDots * 2 / 3);
 
             const uint16_t prevH = ppu.horizontalCounter();
             const uint16_t prevV = ppu.verticalCounter();
@@ -548,12 +643,10 @@ bus.setTraceListener(&trace);
                 }
             }
 
-            if (bus.irqEnabled()) {
-                bus.checkIrqCrossing(prevH, prevV, ppu.horizontalCounter(), ppu.verticalCounter());
-                if (bus.irqFlag() && !cpu.flag(snesquik::cpu_r5a22::InterruptDisable)) {
-                    cpu.requestIRQ();
-                }
-            }
+            bus.checkIrqCrossing(prevH, prevV, ppu.horizontalCounter(), ppu.verticalCounter());
+            // Level-triggered: the line stays asserted until the game acks
+            // via $4211 (or disables H/V-IRQ); the CPU takes it when I=0.
+            cpu.setIrqLine(bus.irqFlag());
 
             if (ppu.verticalCounter() != lastLine) {
                 const uint16_t completedLine = lastLine;
@@ -590,6 +683,92 @@ bus.setTraceListener(&trace);
 
         bus.endApuFrame();
 
+        if (audioDevice != 0) {
+            const auto samples = bus.getApu().frameSamples();
+            // Dynamic rate control: hold the queue near the 100 ms target by
+            // gently stretching audio when it drifts. The instantaneous
+            // queue depth jitters by a whole audio-callback chunk, so the
+            // measurement is smoothed and the ratio slew-limited; within the
+            // deadband samples pass through bit-exact (the frame limiter
+            // already matches production and consumption rates).
+            const double queuedSeconds =
+                static_cast<double>(SDL_GetQueuedAudioSize(audioDevice)) / audioBytesPerSecond;
+            if (!samples.empty() && queuedSeconds >= 0.25) {
+                // Dropping a frame of audio is an audible splice; track it.
+                ++audioOverruns;
+            } else if (!samples.empty()) {
+                constexpr double targetSeconds = 0.1;
+                static double queuedSmoothed = targetSeconds;
+                static double ratio = 1.0;
+                static double rateBias = 0.0;
+
+                if (queuedSeconds <= 0.0) {
+                    ++audioUnderruns;
+                }
+                queuedSmoothed += (queuedSeconds - queuedSmoothed) * 0.05;
+
+                double error = (targetSeconds - queuedSmoothed) / targetSeconds;
+                error = std::clamp(error, -1.0, 1.0);
+                // PI control: the integral learns the device's true clock
+                // rate, which can deviate from nominal by far more than the
+                // proportional band (measured ~+0.6% under PipeWire here).
+                rateBias = std::clamp(rateBias + error * 0.00005, -0.02, 0.02);
+                const double ratioTarget = std::clamp(1.0 + rateBias + error * 0.01, 0.97, 1.03);
+                ratio += std::clamp(ratioTarget - ratio, -0.0005, 0.0005);
+
+                audioProducedLastSecond += static_cast<uint32_t>(samples.size() / 2);
+                audioQueuedMsLastSample = queuedSeconds * 1000.0;
+                audioRatioLastSample = ratio;
+
+                const int16_t* out = samples.data();
+                size_t outCount = samples.size();
+                static std::vector<int16_t> resampled;
+                if (std::abs(ratio - 1.0) >= 0.0005) {
+                    const int inFrames = static_cast<int>(samples.size() / 2);
+                    const int outFrames = std::max(1, static_cast<int>(inFrames * ratio + 0.5));
+                    resampled.resize(static_cast<size_t>(outFrames) * 2);
+                    for (int i = 0; i < outFrames; ++i) {
+                        const double pos = static_cast<double>(i) * inFrames / outFrames;
+                        const int i0 = static_cast<int>(pos);
+                        const int i1 = std::min(i0 + 1, inFrames - 1);
+                        const double frac = pos - i0;
+                        for (int c = 0; c < 2; ++c) {
+                            const double a = samples[static_cast<size_t>(i0) * 2 + c];
+                            const double b = samples[static_cast<size_t>(i1) * 2 + c];
+                            resampled[static_cast<size_t>(i) * 2 + c] =
+                                static_cast<int16_t>(a + (b - a) * frac);
+                        }
+                    }
+                    out = resampled.data();
+                    outCount = resampled.size();
+                }
+                SDL_QueueAudio(audioDevice, out, static_cast<Uint32>(outCount * sizeof(int16_t)));
+                if (audioTee.is_open()) {
+                    audioTee.write(reinterpret_cast<const char*>(out),
+                                   static_cast<std::streamsize>(outCount * sizeof(int16_t)));
+                }
+            }
+        }
+
+        if (input.saveStateRequested) {
+            input.saveStateRequested = false;
+            std::string err;
+            if (snesquik::state::save(statePath, cpu, bus, ppu, &err)) {
+                std::cout << "state saved: " << statePath << '\n';
+            } else {
+                std::cerr << "state save failed: " << err << '\n';
+            }
+        }
+        if (input.loadStateRequested) {
+            input.loadStateRequested = false;
+            std::string err;
+            if (snesquik::state::load(statePath, cpu, bus, ppu, &err)) {
+                std::cout << "state loaded: " << statePath << '\n';
+            } else {
+                std::cerr << "state load failed: " << err << '\n';
+            }
+        }
+
         const bool shouldLog = input.logActive || frameNumber >= logFromFrame;
         if (shouldLog) {
             logFrameState(ppu, bus, cpu, frameNumber);
@@ -597,6 +776,25 @@ bus.setTraceListener(&trace);
 
         renderer.present(ppu.framebuffer());
         ++frameNumber;
+
+        uint64_t perfNow = SDL_GetPerformanceCounter();
+        if (static_cast<double>(perfNow) > frameDeadline + 4.0 * framePeriod) {
+            // Fell far behind (e.g. window dragged, heavy load): resync
+            // instead of fast-forwarding to catch up.
+            frameDeadline = static_cast<double>(perfNow) + framePeriod;
+        } else {
+            while (static_cast<double>(perfNow) < frameDeadline) {
+                const double remainingMs =
+                    (frameDeadline - static_cast<double>(perfNow)) * 1000.0 / static_cast<double>(perfFreq);
+                if (remainingMs > 2.0) {
+                    SDL_Delay(static_cast<Uint32>(remainingMs - 1.0));
+                } else {
+                    SDL_Delay(0);
+                }
+                perfNow = SDL_GetPerformanceCounter();
+            }
+            frameDeadline += framePeriod;
+        }
 
         ++fpsFrameCount;
         const uint32_t now = SDL_GetTicks();
@@ -606,12 +804,38 @@ bus.setTraceListener(&trace);
             fpsFrameCount = 0;
             fpsStartTime = now;
             char title[128];
-            std::snprintf(title, sizeof(title), "snesquik [F:%.1f] %s%s",
-                          currentFps,
-                          input.logActive ? "[LOG] " : "",
-                          parsed->header.title.c_str());
+            const bool audioVerbose = std::getenv("SNESQUIK_AUDIO_STATS") != nullptr;
+            if (audioVerbose && (audioUnderruns == 0 && audioOverruns == 0)) {
+                std::cerr << "audio: ur=0 ov=0 produced=" << audioProducedLastSecond
+                          << " queuedMs=" << static_cast<int>(audioQueuedMsLastSample)
+                          << " ratio=" << audioRatioLastSample
+                          << " fps=" << currentFps << '\n';
+            }
+            if (audioUnderruns > 0 || audioOverruns > 0) {
+                std::snprintf(title, sizeof(title), "snesquik [F:%.1f] [AUD ur:%u ov:%u] %s%s",
+                              currentFps, audioUnderruns, audioOverruns,
+                              input.logActive ? "[LOG] " : "",
+                              parsed->header.title.c_str());
+                std::cerr << "audio: ur=" << audioUnderruns << " ov=" << audioOverruns
+                          << " produced=" << audioProducedLastSecond
+                          << " queuedMs=" << static_cast<int>(audioQueuedMsLastSample)
+                          << " ratio=" << audioRatioLastSample
+                          << " fps=" << currentFps << '\n';
+                audioUnderruns = 0;
+                audioOverruns = 0;
+            } else {
+                std::snprintf(title, sizeof(title), "snesquik [F:%.1f] %s%s",
+                              currentFps,
+                              input.logActive ? "[LOG] " : "",
+                              parsed->header.title.c_str());
+            }
+            audioProducedLastSecond = 0;
             renderer.setWindowTitle(title);
         }
+    }
+
+    if (audioDevice != 0) {
+        SDL_CloseAudioDevice(audioDevice);
     }
 
     if (logFile.is_open()) {

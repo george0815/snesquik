@@ -2,8 +2,21 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 namespace snesquik::debug {
+
+struct JoypadEvent {
+    uint32_t frame = 0;
+    uint16_t buttons = 0;
+    bool press = true;
+};
+
+struct WramPoke {
+    uint32_t frame = 0;
+    uint32_t address = 0;
+    uint8_t value = 0;
+};
 
 struct ProbeOptions {
     std::string romPath;
@@ -14,6 +27,13 @@ struct ProbeOptions {
     uint32_t pressFrame = UINT32_MAX;
     uint32_t releaseFrame = UINT32_MAX;
     uint16_t injectedButtons = 0;
+    std::vector<JoypadEvent> joypadEvents;
+    std::vector<WramPoke> wramPokes;
+    uint32_t dumpStateFrame = UINT32_MAX;
+    std::string loadStatePath;
+    std::string saveStatePath;
+    uint32_t saveStateFrame = UINT32_MAX;
+    std::string dumpAudioPath;
 };
 
 struct ProbeResult {

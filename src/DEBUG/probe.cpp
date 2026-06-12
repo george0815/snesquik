@@ -4,6 +4,7 @@
 #include "CART/rom_parser.h"
 #include "CPU_R5A22/core.h"
 #include "S-PPU/ppu.h"
+#include "STATE/savestate.h"
 
 #include <array>
 #include <chrono>
@@ -159,35 +160,54 @@ public:
     {
     }
 
+    void setEnabled(bool value) { enabled = value; }
+
     void mmioRead(uint16_t address, uint8_t value) override
     {
+        if (!shouldLog()) {
+            return;
+        }
         if (address == 0x4016 || address == 0x4017 || address >= 0x4200 || address < 0x2144) {
             log << "MMIO R " << hexValue(address, 4) << " = " << hexValue(value, 2) << '\n';
+            ++linesWritten;
         }
     }
 
     void mmioWrite(uint16_t address, uint8_t value) override
     {
+        if (!shouldLog()) {
+            return;
+        }
         if (address == 0x4016 || address == 0x4017 || address >= 0x4200 || address < 0x2144) {
             log << "MMIO W " << hexValue(address, 4) << " = " << hexValue(value, 2) << '\n';
+            ++linesWritten;
         }
     }
 
     void dmaStart(uint8_t channel, uint16_t size) override
     {
+        if (!shouldLog()) {
+            return;
+        }
+        ++linesWritten;
         log << "DMA channel=" << static_cast<unsigned>(channel) << " size=" << (size == 0 ? 65536 : size) << '\n';
     }
 
     void vblank(bool active) override
     {
+        if (!shouldLog()) {
+            return;
+        }
+        ++linesWritten;
         log << "VBLANK " << (active ? "begin" : "end") << '\n';
     }
 
     void hdmaWrite(uint8_t channel, uint16_t address, uint8_t value) override
 {
-    if (!log.is_open()) {
+    if (!log.is_open() || !shouldLog()) {
         return;
     }
+    ++linesWritten;
 
     log << "HDMA"
         << " ch=" << static_cast<int>(channel)
@@ -204,9 +224,10 @@ void dmaTransfer(
     uint8_t value,
     uint16_t vramAddress) override
 {
-    if (!log.is_open()) {
+    if (!log.is_open() || !shouldLog()) {
         return;
     }
+    ++linesWritten;
 
     log << "DMA-XFER"
         << " ch=" << std::dec << static_cast<int>(channel)
@@ -218,7 +239,28 @@ void dmaTransfer(
 }
 
 private:
+    bool shouldLog()
+    {
+        if (!enabled) {
+            return false;
+        }
+        if (linesWritten >= maxLogLines) {
+            if (!truncated) {
+                truncated = true;
+                log << "... mmio log truncated at " << maxLogLines << " lines ...\n";
+            }
+            return false;
+        }
+        return true;
+    }
+
+    // Long probe runs can otherwise produce multi-gigabyte logs.
+    static constexpr uint64_t maxLogLines = 20'000'000;
+
     std::ofstream log;
+    uint64_t linesWritten = 0;
+    bool truncated = false;
+    bool enabled = true;
 };
 
 void logCpuStep(std::ofstream& log, uint64_t step, const cpu_r5a22::CPU& cpu)
@@ -273,6 +315,15 @@ ProbeResult runProbe(const ProbeOptions& options)
     cpu_r5a22::CPU cpu(bus);
     cpu.reset();
 
+    if (!options.loadStatePath.empty()) {
+        std::string stateError;
+        if (!state::load(options.loadStatePath, cpu, bus, ppu, &stateError)) {
+            result.message = "failed to load state: " + stateError;
+            return result;
+        }
+        summary << "loaded_state=" << options.loadStatePath << '\n';
+    }
+
     result.resetPc = cpu.registers().pc;
     summary << "title=" << parsed->header.title << '\n';
     summary << "map=" << cartridge::cartridgeMapName(parsed->header.map) << '\n';
@@ -285,7 +336,15 @@ ProbeResult runProbe(const ProbeOptions& options)
 
     uint64_t globalStep = 0;
     uint16_t injectedJoypadState = 0;
+    uint32_t irqFires = 0;
+    std::vector<int16_t> audioCapture;
     for (uint32_t frame = 0; frame < options.frames; ++frame) {
+        irqFires = 0;
+        if (options.dumpStateFrame != UINT32_MAX) {
+            // With a dump frame set, restrict the bulky MMIO/DMA logging to
+            // the window leading up to it.
+            trace.setEnabled(frame + 2500 >= options.dumpStateFrame && frame <= options.dumpStateFrame);
+        }
         if (options.injectedButtons != 0 && frame == options.pressFrame) {
             injectedJoypadState |= options.injectedButtons;
             bus.setJoypadState(injectedJoypadState);
@@ -296,6 +355,33 @@ ProbeResult runProbe(const ProbeOptions& options)
             bus.setJoypadState(injectedJoypadState);
             summary << "released_frame=" << frame << '\n';
         }
+        if (frame == options.saveStateFrame && !options.saveStatePath.empty()) {
+            std::string stateError;
+            if (state::save(options.saveStatePath, cpu, bus, ppu, &stateError)) {
+                summary << "saved_state=" << options.saveStatePath << " frame=" << frame << '\n';
+            } else {
+                summary << "state_save_failed=" << stateError << '\n';
+            }
+        }
+        for (const WramPoke& poke : options.wramPokes) {
+            if (poke.frame == frame) {
+                bus.writeWram(poke.address, poke.value);
+                summary << "poke_frame=" << frame << " addr=" << hexValue(poke.address, 6)
+                        << " val=" << hexValue(poke.value, 2) << '\n';
+            }
+        }
+        for (const JoypadEvent& event : options.joypadEvents) {
+            if (event.frame != frame) {
+                continue;
+            }
+            if (event.press) {
+                injectedJoypadState |= event.buttons;
+            } else {
+                injectedJoypadState &= static_cast<uint16_t>(~event.buttons);
+            }
+            bus.setJoypadState(injectedJoypadState);
+            summary << (event.press ? "pressed_frame=" : "released_frame=") << frame << '\n';
+        }
 
         uint32_t dotsThisFrame = 0;
         bool nmiRequested = false;
@@ -304,6 +390,7 @@ ProbeResult runProbe(const ProbeOptions& options)
         uint16_t lastLine = ppu.verticalCounter();
         bus.setVblank(false);
         bus.beginFrame();
+        bus.runHdmaScanline();
 
         while (dotsThisFrame < frameDots && !cpu.stopped()) {
             const uint32_t cpuCycles = cpu.step();
@@ -314,10 +401,21 @@ ProbeResult runProbe(const ProbeOptions& options)
             ++globalStep;
 
             const uint32_t dotAccum = cpuCycles * 3 + dotRemainder;
-            const uint32_t ppuDots = dotAccum / 2;
+            uint32_t ppuDots = dotAccum / 2;
             dotRemainder = dotAccum % 2;
+            ppuDots += bus.consumeDmaDots();
+
+            const uint16_t prevH = ppu.horizontalCounter();
+            const uint16_t prevV = ppu.verticalCounter();
             ppu.tick(ppuDots);
             dotsThisFrame += ppuDots;
+
+            const bool irqBefore = bus.irqFlag();
+            bus.checkIrqCrossing(prevH, prevV, ppu.horizontalCounter(), ppu.verticalCounter());
+            if (!irqBefore && bus.irqFlag()) {
+                ++irqFires;
+            }
+            cpu.setIrqLine(bus.irqFlag());
 
             if (ppu.verticalCounter() != lastLine) {
                 const uint16_t completedLine = lastLine;
@@ -325,7 +423,7 @@ ProbeResult runProbe(const ProbeOptions& options)
                 if (completedLine < static_cast<uint16_t>(ppu.visibleHeight())) {
                     ppu.renderScanline(completedLine);
                 }
-                if (lastLine < static_cast<uint16_t>(ppu.visibleHeight())) {
+                if (lastLine <= static_cast<uint16_t>(ppu.visibleHeight())) {
                     bus.runHdmaScanline();
                 }
             }
@@ -349,11 +447,98 @@ ProbeResult runProbe(const ProbeOptions& options)
 
         bus.endApuFrame();
 
+        if (!options.dumpAudioPath.empty()) {
+            const auto frameAudio = bus.getApu().frameSamples();
+            audioCapture.insert(audioCapture.end(), frameAudio.begin(), frameAudio.end());
+        }
+
+        if (frame == options.dumpStateFrame) {
+            std::ofstream vramOut(std::filesystem::path(options.outputDirectory) / "vram.bin", std::ios::binary);
+            for (size_t i = 0; i < 32 * 1024; ++i) {
+                const uint16_t w = ppu.vramWord(i);
+                vramOut.put(static_cast<char>(w & 0xff));
+                vramOut.put(static_cast<char>(w >> 8));
+            }
+            std::ofstream cgramOut(std::filesystem::path(options.outputDirectory) / "cgram.bin", std::ios::binary);
+            for (size_t i = 0; i < 256; ++i) {
+                const uint16_t w = ppu.cgramColor(i);
+                cgramOut.put(static_cast<char>(w & 0xff));
+                cgramOut.put(static_cast<char>(w >> 8));
+            }
+            std::ofstream oamOut(std::filesystem::path(options.outputDirectory) / "oam.bin", std::ios::binary);
+            for (size_t i = 0; i < 544; ++i) {
+                oamOut.put(static_cast<char>(ppu.oamByte(i)));
+            }
+            std::ofstream wramOut(std::filesystem::path(options.outputDirectory) / "wram.bin", std::ios::binary);
+            for (uint32_t i = 0; i < 128 * 1024; ++i) {
+                wramOut.put(static_cast<char>(bus.readWram(i)));
+            }
+            std::ofstream regsOut(std::filesystem::path(options.outputDirectory) / "ppu_regs.txt");
+            for (uint16_t reg = 0x2100; reg <= 0x2133; ++reg) {
+                regsOut << hexValue(reg, 4) << " = " << hexValue(ppu.readRegister(reg), 2) << '\n';
+            }
+            for (size_t bg = 1; bg <= 4; ++bg) {
+                regsOut << "bg" << bg << "hofs = " << hexValue(ppu.bgHorizontalScroll(bg), 4)
+                        << " bg" << bg << "vofs = " << hexValue(ppu.bgVerticalScroll(bg), 4) << '\n';
+            }
+        }
+
         if (options.snapshotEvery != 0 && frame % options.snapshotEvery == 0) {
             std::ostringstream name;
             name << "frame_" << std::setw(4) << std::setfill('0') << frame << ".png";
             savePng(std::filesystem::path(options.outputDirectory) / name.str(), ppu.framebuffer(), ppu::Ppu::screenWidth, ppu::Ppu::screenHeight);
+            const auto& reg = cpu.registers();
+            const auto& apl = bus.getApuPortLog();
+            summary << "frame=" << frame
+                    << " pc=" << hexValue(reg.pb, 2) << ':' << hexValue(reg.pc, 4)
+                    << " p=" << hexValue(reg.p, 2)
+                    << " apuR=" << apl.totalReads
+                    << " apuW=" << apl.totalWrites
+                    << " apuP0R=" << hexValue(apl.lastRead[0], 2)
+                    << " apuP0W=" << hexValue(apl.lastWrite[0], 2)
+                    << " spcPc=" << hexValue(static_cast<uint64_t>(bus.getApu().debugPc()) & 0xffff, 4)
+                    << " spcErr=" << (bus.getApu().debugError() ? bus.getApu().debugError() : "-")
+                    << " spcIn=" << hexValue(static_cast<uint64_t>(bus.getApu().debugInPort(0)), 2)
+                    << ',' << hexValue(static_cast<uint64_t>(bus.getApu().debugInPort(1)), 2)
+                    << ',' << hexValue(static_cast<uint64_t>(bus.getApu().debugInPort(2)), 2)
+                    << ',' << hexValue(static_cast<uint64_t>(bus.getApu().debugInPort(3)), 2)
+                    << " spcOut=" << hexValue(static_cast<uint64_t>(bus.getApu().debugOutPort(0)), 2)
+                    << ',' << hexValue(static_cast<uint64_t>(bus.getApu().debugOutPort(1)), 2)
+                    << ',' << hexValue(static_cast<uint64_t>(bus.getApu().debugOutPort(2)), 2)
+                    << ',' << hexValue(static_cast<uint64_t>(bus.getApu().debugOutPort(3)), 2)
+                    << " joy=" << hexValue(bus.readMmio(0x4218) | (bus.readMmio(0x4219) << 8), 4)
+                    << " inidisp=" << hexValue(ppu.readRegister(0x2100), 2)
+                    << " bgmode=" << hexValue(ppu.readRegister(0x2105), 2)
+                    << " tm=" << hexValue(ppu.readRegister(0x212c), 2)
+                    << " nmitimen=" << hexValue(bus.readMmio(0x4200), 2)
+                    << " vtime=" << hexValue(bus.readMmio(0x4209) | (bus.readMmio(0x420a) << 8), 4)
+                    << " htime=" << hexValue(bus.readMmio(0x4207) | (bus.readMmio(0x4208) << 8), 4)
+                    << " irqstage=" << hexValue(bus.readWram(0xAB), 2)
+                    << " irqFires=" << irqFires
+                    << " cpuI=" << (cpu.flag(cpu_r5a22::InterruptDisable) ? 1 : 0)
+                    << " w6A=" << hexValue(bus.readWram(0x6A), 2)
+                    << " hdmaObj=" << hexValue(bus.readWram(0x18B0) | (bus.readWram(0x18B1) << 8), 4)
+                    << " blend=" << hexValue(bus.readWram(0x1982) | (bus.readWram(0x1983) << 8), 4)
+                    << '/' << hexValue(bus.readWram(0x1986) | (bus.readWram(0x1987) << 8), 4)
+                    << " hdmaen=" << hexValue(bus.readMmio(0x420c), 2)
+                    << '\n';
+            bus.resetApuPortLog();
         }
+    }
+
+    if (!options.dumpAudioPath.empty()) {
+        std::ofstream wav(options.dumpAudioPath, std::ios::binary);
+        const uint32_t dataBytes = static_cast<uint32_t>(audioCapture.size() * sizeof(int16_t));
+        const uint32_t sampleRate = 32000;
+        const uint32_t byteRate = sampleRate * 4;
+        auto w32 = [&](uint32_t v) { wav.write(reinterpret_cast<const char*>(&v), 4); };
+        auto w16 = [&](uint16_t v) { wav.write(reinterpret_cast<const char*>(&v), 2); };
+        wav.write("RIFF", 4); w32(36 + dataBytes); wav.write("WAVE", 4);
+        wav.write("fmt ", 4); w32(16); w16(1); w16(2); w32(sampleRate); w32(byteRate); w16(4); w16(16);
+        wav.write("data", 4); w32(dataBytes);
+        wav.write(reinterpret_cast<const char*>(audioCapture.data()), dataBytes);
+        summary << "audio_dump=" << options.dumpAudioPath
+                << " samples=" << audioCapture.size() / 2 << '\n';
     }
 
     result.ok = true;

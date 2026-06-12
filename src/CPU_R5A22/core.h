@@ -110,13 +110,25 @@ struct Registers {
 
 class CPU {
 public:
+    struct SaveState {
+        Registers registers;
+        uint64_t cycles = 0;
+        bool irqLine = false;
+        bool nmiPending = false;
+        bool isStopped = false;
+        bool isWaiting = false;
+    };
+
     explicit CPU(Bus& bus);
 
     void reset();
     uint32_t step();
+    SaveState saveState() const;
+    void loadState(const SaveState& state);
     void requestIRQ();
     void requestNMI();
     void clearIRQ();
+    void setIrqLine(bool level);
     void stop();
     void waitForInterrupt();
 

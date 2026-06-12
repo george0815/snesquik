@@ -190,6 +190,21 @@ void testJoypadAutoReadRegisters()
     requireEq(bus.read8(0x004219), 0x10, "$4219 reports high joypad byte with Start on bit 4");
 }
 
+void testApuGeneratesAudioSamples()
+{
+    SnesBus bus;
+    bus.initApu();
+    // Run roughly one video frame of CPU time (~60000 cycles at ~6 master
+    // clocks each); expect ~534 stereo pairs at 32 kHz.
+    for (int i = 0; i < 60; ++i) {
+        bus.stepApu(1000);
+    }
+    bus.endApuFrame();
+    const auto samples = bus.getApu().frameSamples();
+    require(samples.size() > 800 && samples.size() < 1400,
+            "APU produces roughly one frame of stereo samples");
+}
+
 void testApuIplReadySignature()
 {
     SnesBus bus;
@@ -244,38 +259,41 @@ void configureHdmaChannel0(SnesBus& bus, uint8_t dmap, uint8_t bbad, uint16_t ta
     bus.write8(0x00420c, 0x01);
 }
 
-void testHdmaDirectTableReloadsAndTransfersPerLine()
+void testHdmaRepeatTableTransfersPerLine()
 {
     SnesBus bus;
     configureHdmaChannel0(bus, 0x00, 0x00, 0x1000, 0x7e);
-    bus.writeWram(0x1000, 0x02);
+    // Repeat entry (bit 7 set): a new unit is transferred every scanline.
+    bus.writeWram(0x1000, 0x82);
     bus.writeWram(0x1001, 0x0f);
     bus.writeWram(0x1002, 0x8f);
     bus.writeWram(0x1003, 0x00);
 
     bus.beginFrame();
     bus.runHdmaScanline();
-    requireEq(bus.readMmio(0x2100), 0x0f, "HDMA direct first line writes B-bus register");
+    requireEq(bus.readMmio(0x2100), 0x0f, "HDMA repeat first line writes B-bus register");
     bus.runHdmaScanline();
-    requireEq(bus.readMmio(0x2100), 0x8f, "HDMA direct second line advances table data");
+    requireEq(bus.readMmio(0x2100), 0x8f, "HDMA repeat second line advances table data");
     bus.runHdmaScanline();
     requireEq(bus.readMmio(0x2100), 0x8f, "HDMA terminator stops channel");
 }
 
-void testHdmaRepeatLineDoesNotRetransfer()
+void testHdmaNonRepeatLineDoesNotRetransfer()
 {
     SnesBus bus;
     configureHdmaChannel0(bus, 0x00, 0x00, 0x1100, 0x7e);
-    bus.writeWram(0x1100, 0x82);
+    // Non-repeat entry: the unit transfers once, then holds for the
+    // remaining lines of the entry.
+    bus.writeWram(0x1100, 0x02);
     bus.writeWram(0x1101, 0x0f);
     bus.writeWram(0x1102, 0x00);
 
     bus.beginFrame();
     bus.runHdmaScanline();
-    requireEq(bus.readMmio(0x2100), 0x0f, "HDMA repeat line transfers first line");
+    requireEq(bus.readMmio(0x2100), 0x0f, "HDMA non-repeat line transfers first line");
     bus.writeMmio(0x2100, 0x44);
     bus.runHdmaScanline();
-    requireEq(bus.readMmio(0x2100), 0x44, "HDMA repeat line suppresses later transfers");
+    requireEq(bus.readMmio(0x2100), 0x44, "HDMA non-repeat line suppresses later transfers");
 }
 
 void testHdmaIndirectReloadsSourcePointer()
@@ -283,7 +301,7 @@ void testHdmaIndirectReloadsSourcePointer()
     SnesBus bus;
     configureHdmaChannel0(bus, 0x40, 0x00, 0x1200, 0x7e);
     bus.write8(0x004307, 0x7f);
-    bus.writeWram(0x1200, 0x02);
+    bus.writeWram(0x1200, 0x82);
     bus.writeWram(0x1201, 0x00);
     bus.writeWram(0x1202, 0x20);
     bus.writeWram(0x1203, 0x00);
@@ -425,10 +443,11 @@ int main()
         run("VBlank and NMI registers", testVblankAndNmiRegisters);
         run("manual joypad serial read", testManualJoypadSerialRead);
         run("joypad auto-read registers", testJoypadAutoReadRegisters);
+        run("APU generates audio samples", testApuGeneratesAudioSamples);
         run("APU IPL ready signature", testApuIplReadySignature);
         run("APU IPL port 0 acknowledgement", testApuIplPort0Acknowledgement);
-        run("HDMA direct table reloads and transfers per line", testHdmaDirectTableReloadsAndTransfersPerLine);
-        run("HDMA repeat line suppresses later transfers", testHdmaRepeatLineDoesNotRetransfer);
+        run("HDMA repeat table transfers per line", testHdmaRepeatTableTransfersPerLine);
+        run("HDMA non-repeat line suppresses later transfers", testHdmaNonRepeatLineDoesNotRetransfer);
         run("HDMA indirect reloads source pointer", testHdmaIndirectReloadsSourcePointer);
         run("HDMA mode 1 writes two B-bus registers", testHdmaMode1WritesTwoBbusRegisters);
         run("WRAM port read/write", testWramPortReadWrite);

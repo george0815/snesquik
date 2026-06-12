@@ -2,8 +2,26 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <cstring>
+#include <type_traits>
 
 namespace snesquik::ppu {
+
+void Ppu::saveState(std::vector<uint8_t>& out) const
+{
+    static_assert(std::is_trivially_copyable_v<Ppu>, "Ppu state must be a flat blob");
+    const auto* bytes = reinterpret_cast<const uint8_t*>(this);
+    out.insert(out.end(), bytes, bytes + sizeof(Ppu));
+}
+
+bool Ppu::loadState(const uint8_t* data, size_t size)
+{
+    if (size != sizeof(Ppu)) {
+        return false;
+    }
+    std::memcpy(reinterpret_cast<uint8_t*>(this), data, sizeof(Ppu));
+    return true;
+}
 
 namespace {
 
@@ -16,6 +34,8 @@ uint8_t clamp5(int value)
 {
     return static_cast<uint8_t>(std::clamp(value, 0, 31));
 }
+
+uint16_t remapVramAddress(uint16_t address, uint8_t vmain);
 
 } // namespace
 
@@ -236,11 +256,11 @@ void Ppu::writeRegister(uint16_t address, uint8_t value)
         break;
     case 0x2116:
         vramAddress = static_cast<uint16_t>((vramAddress & 0xff00) | value);
-        vramReadLatch = vram[vramAddress & 0x7fff];
+        vramReadLatch = vram[remapVramAddress(vramAddress, vmain) & 0x7fff];
         break;
     case 0x2117:
         vramAddress = static_cast<uint16_t>((vramAddress & 0x00ff) | (value << 8));
-        vramReadLatch = vram[vramAddress & 0x7fff];
+        vramReadLatch = vram[remapVramAddress(vramAddress, vmain) & 0x7fff];
         break;
     case 0x2118:
         writeVramDataLow(value);
@@ -323,6 +343,7 @@ void Ppu::writeRegister(uint16_t address, uint8_t value)
 
 void Ppu::renderFrame()
 {
+    tileCacheKeys.fill(0);
     frame.fill(0xff000000);
     priorityFrame.fill(0);
     spriteTimeOver = false;
@@ -571,16 +592,20 @@ void Ppu::renderObjLine(int y)
         const int xEnd = std::min(screenWidth, sprite.x + sprite.width);
 
         for (int x = xStart; x < xEnd; ++x) {
+            // Among overlapping sprites the lowest OAM index wins the pixel
+            // regardless of its OBJ priority (which only orders it against
+            // backgrounds). Games layer sprites by OAM position alone.
+            if (objOpaque[x]) {
+                continue;
+            }
             Pixel p = sampleSpritePixel(sprite.spriteIndex, x - sprite.x, y - sprite.y);
             if (!p.opaque) {
                 continue;
             }
-            if (p.priority >= objPriBuffer[x]) {
-                objLineBuffer[x] = p.color;
-                objPriBuffer[x] = p.priority;
-                objOpaque[x] = 1;
-                objPalBuffer[x] = p.objPalette;
-            }
+            objLineBuffer[x] = p.color;
+            objPriBuffer[x] = p.priority;
+            objOpaque[x] = 1;
+            objPalBuffer[x] = p.objPalette;
         }
     }
 }
@@ -643,6 +668,13 @@ void Ppu::tick(uint32_t dots)
 
 void Ppu::beginFrame()
 {
+    // VRAM is only writable during blanking, so any CHR data uploaded since
+    // the last frame invalidates the decoded-tile cache. The cache key has
+    // no VRAM-content component, so stale entries would otherwise serve
+    // pixels from overwritten tiles (e.g. SM's pause menu reuses the
+    // gameplay CHR base).
+    tileCacheKeys.fill(0);
+
     hCounter = 0;
     vCounter = 0;
     evenField = !evenField;
@@ -714,18 +746,23 @@ void Ppu::writeVramDataHigh(uint8_t value)
 uint8_t Ppu::readVramDataLow()
 {
     const uint8_t value = static_cast<uint8_t>(vramReadLatch);
-    incrementVramAddress(false);
-    const uint16_t effective = remapVramAddress(vramAddress, vmain);
-    vramReadLatch = vram[effective & 0x7fff];
+    if ((vmain & 0x80) == 0) {
+        // Increment-trigger read: the prefetch latch reloads from the
+        // current (pre-increment) address, then the address advances.
+        // Games rely on this for the "dummy read" convention.
+        vramReadLatch = vram[remapVramAddress(vramAddress, vmain) & 0x7fff];
+        incrementVramAddress(false);
+    }
     return value;
 }
 
 uint8_t Ppu::readVramDataHigh()
 {
     const uint8_t value = static_cast<uint8_t>(vramReadLatch >> 8);
-    incrementVramAddress(true);
-    const uint16_t effective = remapVramAddress(vramAddress, vmain);
-    vramReadLatch = vram[effective & 0x7fff];
+    if ((vmain & 0x80) != 0) {
+        vramReadLatch = vram[remapVramAddress(vramAddress, vmain) & 0x7fff];
+        incrementVramAddress(true);
+    }
     return value;
 }
 
@@ -778,42 +815,60 @@ void Ppu::incrementVramAddress(bool highAccess)
     vramAddress = static_cast<uint16_t>(vramAddress + increment);
 }
 
+// Layer ordering values per mode (higher = in front), matching hardware.
+// All values within a mode are distinct so composition order can't matter.
 uint8_t Ppu::bgPriorityValue(size_t bg, bool priorityBit) const
 {
     const uint8_t mode = bgmode & 0x07;
     const bool bg3pri = (bgmode & 0x08) != 0;
+    const int p = priorityBit ? 1 : 0;
 
-    if (mode == 0) {
+    switch (mode) {
+    case 0: {
         static constexpr uint8_t tbl[2][4] = {
+            {8, 7, 2, 1},
             {11, 10, 5, 4},
-            {14, 13, 7, 6},
         };
-        return tbl[priorityBit ? 1 : 0][bg < 4 ? bg : 0];
+        return tbl[p][bg & 3];
     }
-
-    if (mode == 1) {
+    case 1: {
         if (bg3pri) {
+            // BGMODE bit 3 promotes only BG3's high-priority tiles to the
+            // front; its low-priority tiles stay the backmost layer.
             static constexpr uint8_t tbl[2][4] = {
-                {4, 3, 6, 0},
-                {9, 8, 12, 0},
+                {5, 4, 1, 0},
+                {8, 7, 10, 0},
             };
-            return tbl[priorityBit ? 1 : 0][bg < 4 ? bg : 0];
+            return tbl[p][bg & 3];
         }
         static constexpr uint8_t tbl[2][4] = {
-            {11, 10, 6, 0},
-            {14, 13, 7, 0},
+            {6, 5, 1, 0},
+            {9, 8, 3, 0},
         };
-        return tbl[priorityBit ? 1 : 0][bg < 4 ? bg : 0];
+        return tbl[p][bg & 3];
     }
-
-    if (bg < 2) {
+    case 6: {
+        static constexpr uint8_t tbl[2] = {2, 5};
+        return bg == 0 ? tbl[p] : 0;
+    }
+    case 7: {
+        if (extBg()) {
+            if (bg == 0) {
+                return 3;
+            }
+            static constexpr uint8_t tbl[2] = {1, 5};
+            return bg == 1 ? tbl[p] : 0;
+        }
+        return bg == 0 ? 2 : 0;
+    }
+    default: { // modes 2-5
         static constexpr uint8_t tbl[2][2] = {
-            {11, 10},
-            {14, 13},
+            {3, 1},
+            {7, 5},
         };
-        return tbl[priorityBit ? 1 : 0][bg];
+        return bg < 2 ? tbl[p][bg] : 0;
     }
-    return 0;
+    }
 }
 
 uint8_t Ppu::objPriorityValue(uint8_t objPri) const
@@ -821,13 +876,36 @@ uint8_t Ppu::objPriorityValue(uint8_t objPri) const
     const uint8_t mode = bgmode & 0x07;
     const bool bg3pri = (bgmode & 0x08) != 0;
 
-    if (mode == 1 && bg3pri) {
-        static constexpr uint8_t tbl[4] = {6, 8, 12, 15};
+    switch (mode) {
+    case 0: {
+        static constexpr uint8_t tbl[4] = {3, 6, 9, 12};
         return tbl[objPri & 3];
     }
-
-    static constexpr uint8_t tbl[4] = {8, 9, 12, 15};
-    return tbl[objPri & 3];
+    case 1: {
+        if (bg3pri) {
+            static constexpr uint8_t tbl[4] = {2, 3, 6, 9};
+            return tbl[objPri & 3];
+        }
+        static constexpr uint8_t tbl[4] = {2, 4, 7, 10};
+        return tbl[objPri & 3];
+    }
+    case 6: {
+        static constexpr uint8_t tbl[4] = {1, 3, 4, 6};
+        return tbl[objPri & 3];
+    }
+    case 7: {
+        if (extBg()) {
+            static constexpr uint8_t tbl[4] = {2, 4, 6, 7};
+            return tbl[objPri & 3];
+        }
+        static constexpr uint8_t tbl[4] = {1, 3, 4, 5};
+        return tbl[objPri & 3];
+    }
+    default: { // modes 2-5
+        static constexpr uint8_t tbl[4] = {2, 4, 6, 8};
+        return tbl[objPri & 3];
+    }
+    }
 }
 
 void Ppu::writeBgScroll(size_t bg, bool vertical, uint8_t value)
@@ -958,10 +1036,23 @@ Ppu::Pixel Ppu::sampleMode7(size_t bg, int x, int y, bool subScreenPixel) const
     const int cy = static_cast<int16_t>(sign13(m7y));
     const int hofs = static_cast<int16_t>(sign13(m7hofs));
     const int vofs = static_cast<int16_t>(sign13(m7vofs));
-    const int relX = screenX - cx;
-    const int relY = screenY - cy;
-    int mapX = ((static_cast<int16_t>(m7a) * relX + static_cast<int16_t>(m7b) * relY) >> 8) + hofs + cx;
-    int mapY = ((static_cast<int16_t>(m7c) * relX + static_cast<int16_t>(m7d) * relY) >> 8) + vofs + cy;
+
+    // Hardware formula (anomie's register doc): scroll offsets are applied
+    // inside the matrix transform, clipped to signed 11 bits, and the
+    // per-term products are truncated to multiples of 64.
+    const auto clip10 = [](int v) {
+        return (v & 0x2000) != 0 ? (v | ~0x3ff) : (v & 0x3ff);
+    };
+    const int a = static_cast<int16_t>(m7a);
+    const int b = static_cast<int16_t>(m7b);
+    const int c = static_cast<int16_t>(m7c);
+    const int d = static_cast<int16_t>(m7d);
+    const int ox = clip10(hofs - cx);
+    const int oy = clip10(vofs - cy);
+    const int originX = ((a * ox) & ~63) + ((b * oy) & ~63) + (cx << 8);
+    const int originY = ((c * ox) & ~63) + ((d * oy) & ~63) + (cy << 8);
+    int mapX = (originX + ((b * screenY) & ~63) + a * screenX) >> 8;
+    int mapY = (originY + ((d * screenY) & ~63) + c * screenX) >> 8;
 
     const bool outside = mapX < 0 || mapX >= 1024 || mapY < 0 || mapY >= 1024;
     if (outside && (m7sel & 0x80) != 0) {
@@ -994,7 +1085,8 @@ Ppu::Pixel Ppu::sampleMode7(size_t bg, int x, int y, bool subScreenPixel) const
     Pixel result;
     result.paletteIndex = pixel;
     result.color = (cgwsel & 0x01) != 0 ? directColor(0, pixel) : cgram[pixel];
-    result.priority = static_cast<uint8_t>(bg == 1 ? 10 : 11);
+    // EXTBG BG2 pixels reaching this point carry the high-priority bit.
+    result.priority = bgPriorityValue(bg, bg == 1);
     result.layer = static_cast<uint8_t>(bg);
     result.opaque = true;
     return result;
@@ -1191,7 +1283,9 @@ uint16_t Ppu::tilemapEntry(size_t bg, int tileX, int tileY) const
         } else if (wide) {
             quadrant = quadrantX;
         } else if (tall) {
-            quadrant = quadrantY * 2;
+            // 32x64: the lower 32x32 screen immediately follows the upper
+            // one at base + $400 (unlike 64x64 where rows are at +$800).
+            quadrant = quadrantY;
         } else {
             quadrant = 0;
         }

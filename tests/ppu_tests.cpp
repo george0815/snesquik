@@ -272,6 +272,78 @@ void testBgScrollSelectsDifferentTile()
     requireEq(p.framebuffer()[ppu::Ppu::screenWidth], 0xffff0000, "horizontal scroll samples second tile");
 }
 
+void testMode1Bg3PriorityLowTilesStayBack()
+{
+    ppu::Ppu p;
+    p.reset();
+    p.writeRegister(0x2100, 0x0f);
+    p.writeRegister(0x2105, 0x09); // mode 1 + BG3 priority
+    p.writeRegister(0x2108, 0x04); // BG2 tilemap $0400
+    p.writeRegister(0x2109, 0x08); // BG3 tilemap $0800
+    p.writeRegister(0x210b, 0x10); // BG2 CHR $1000 (high nibble)
+    p.writeRegister(0x210c, 0x02); // BG3 CHR $2000
+    p.writeRegister(0x212c, 0x06); // BG2 + BG3 on main screen
+    writeCgramColor(p, 1, 0x03e0); // green (BG2 pixel 1, palette 0)
+    writeCgramColor(p, 5, 0x001f); // red (BG3 pixel 1, palette 1)
+    // BG2: low-priority opaque tile; BG3: low-priority opaque tile.
+    // With BGMODE bit 3 set, only BG3's HIGH-priority tiles move to the
+    // front; its low-priority tiles are the backmost layer, so BG2 wins.
+    writeVramWord(p, 0x0400, 0x0000);
+    writeVramWord(p, 0x0800, 0x0400); // palette 1, priority clear
+    writeSolidTile(p, 0x1000, 0, 4, 1);
+    writeSolidTile(p, 0x2000, 0, 2, 1);
+
+    p.renderFrame();
+    requireEq(p.framebuffer()[0], 0xff00ff00, "BG2 low priority renders above BG3 low priority in BG3-priority mode");
+}
+
+void testTileCacheInvalidatedOnNewFrame()
+{
+    ppu::Ppu p;
+    p.reset();
+    p.writeRegister(0x2100, 0x0f);
+    p.writeRegister(0x2105, 0x01);
+    p.writeRegister(0x2107, 0x00);
+    p.writeRegister(0x210b, 0x01);
+    p.writeRegister(0x212c, 0x01);
+    writeCgramColor(p, 1, 0x03e0);
+    writeCgramColor(p, 2, 0x001f);
+    writeVramWord(p, 0x0000, 0x0000);
+    writeSolidTile(p, 0x1000, 0, 4, 1);
+    p.renderFrame();
+    requireEq(p.framebuffer()[0], 0xff00ff00, "first render caches tile pixels");
+
+    // Overwrite the same tile's CHR (as games do when loading new graphics
+    // over the same base, e.g. SM's pause menu) and render again.
+    writeSolidTile(p, 0x1000, 0, 4, 2);
+    p.renderFrame();
+    requireEq(p.framebuffer()[0], 0xffff0000, "rewritten CHR replaces cached tile pixels");
+}
+
+void testTallTilemapLowerScreenAddress()
+{
+    ppu::Ppu p;
+    p.reset();
+    p.writeRegister(0x2100, 0x0f);
+    p.writeRegister(0x2105, 0x01);
+    p.writeRegister(0x2107, 0x02); // BG1 tilemap at $0000, 32x64 (tall)
+    p.writeRegister(0x210b, 0x01);
+    p.writeRegister(0x212c, 0x01);
+    // Scroll down 256 px so the visible window is in the lower 32x32 screen,
+    // which lives at base + $400 words.
+    p.writeRegister(0x210e, 0x00);
+    p.writeRegister(0x210e, 0x01);
+    writeCgramColor(p, 1, 0x03e0);
+    writeCgramColor(p, 2, 0x001f);
+    writeVramWord(p, 0x0000, 0x0000);
+    writeVramWord(p, 0x0400, 0x0001); // first entry of the lower screen
+    writeSolidTile(p, 0x1000, 0, 4, 1);
+    writeSolidTile(p, 0x1000, 1, 4, 2);
+
+    p.renderFrame();
+    requireEq(p.framebuffer()[ppu::Ppu::screenWidth], 0xffff0000, "tall tilemap lower screen reads base + $400");
+}
+
 void testBgPriorityChoosesFrontPixel()
 {
     ppu::Ppu p;
@@ -572,7 +644,7 @@ void testIrqHvCounterMatch()
     snesBus.write8(0x004208, 0x00);
     snesBus.write8(0x004209, 0x01);
     snesBus.write8(0x00420a, 0x00);
-    snesBus.write8(0x004200, 0x10);
+    snesBus.write8(0x004200, 0x30);
 
     require(snesBus.irqEnabled(), "IRQ enabled after $4200 write");
     requireEq(static_cast<uint32_t>(snesBus.irqHTime()), 6u, "HTIME latch");
@@ -610,6 +682,9 @@ int main()
         run("Mode 1 BG1 tile rendering", testMode1Bg1TileRendering);
         run("Mode 0 per-BG palette windows", testMode0PaletteWindowsPerBackground);
         run("BG scroll selects tile", testBgScrollSelectsDifferentTile);
+        run("mode 1 BG3-priority low tiles stay back", testMode1Bg3PriorityLowTilesStayBack);
+        run("tile cache invalidated on new frame", testTileCacheInvalidatedOnNewFrame);
+        run("tall tilemap lower screen address", testTallTilemapLowerScreenAddress);
         run("BG priority composition", testBgPriorityChoosesFrontPixel);
         run("OBJ palette rendering", testSpriteRenderingUsesObjPalette);
         run("OBJ horizontal flip", testSpriteHorizontalFlip);
