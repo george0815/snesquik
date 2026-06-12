@@ -1,11 +1,13 @@
 #pragma once
 
+#include "APU/apu.h"
 #include "CPU_R5A22/core.h"
 #include "S-PPU/ppu.h"
 
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <fstream>
 #include <optional>
 #include <span>
 #include <utility>
@@ -69,6 +71,15 @@ public:
     virtual void mmioWrite(uint16_t address, uint8_t value) = 0;
     virtual void dmaStart(uint8_t channel, uint16_t size) = 0;
     virtual void vblank(bool active) = 0;
+
+    virtual void dmaTransfer(
+    uint8_t channel,
+    uint32_t sourceAddress,
+    uint8_t bbad,
+    uint8_t value,
+    uint16_t vramAddress) = 0;
+
+    virtual void hdmaWrite(uint8_t channel, uint16_t address, uint8_t value) = 0;
 };
 
 class SnesBus final : public cpu_r5a22::Bus {
@@ -81,17 +92,40 @@ public:
     void setTraceListener(TraceListener* listener);
     const CartridgeRom& cartridge() const { return cart; }
 
+
+
     void beginFrame();
     void runDma(uint8_t channelMask);
     void runHdmaScanline();
     void setVblank(bool active);
     bool nmiEnabled() const { return nmiEnable; }
 
+    void initApu();
+    void stepApu(uint32_t cpuCycles);
+    void endApuFrame();
+    apu::Apu& getApu() { return apuCore; }
+
+    bool irqEnabled() const { return hvIrqEnabled; }
+    uint16_t irqHTime() const { return irqHTimeVal; }
+    uint16_t irqVTime() const { return irqVTimeVal; }
+    bool irqFlag() const { return irqPending; }
+    void clearIrqFlag() { irqPending = false; }
+    void setIrq() { irqPending = true; }
+    void checkIrq(uint16_t h, uint16_t v);
+    void checkIrqCrossing(uint16_t prevH, uint16_t prevV, uint16_t currH, uint16_t currV);
+
+    uint32_t consumeDmaDots();
+
     void setJoypadState(uint16_t state);
     uint16_t joypadState() const { return joypadCurrentState; }
     void beginJoypadAutoRead();
     void finishJoypadAutoRead();
+    void tickJoypadAutoRead(uint32_t cpuCycles);
     bool joypadAutoReadEnabled() const { return joypadAutoReadEnable; }
+    bool joypadAutoReadIsBusy() const { return joypadAutoReadBusy; }
+
+    bool nmiEdgePending() const { return nmiEdge; }
+    void clearNmiEdge() { nmiEdge = false; }
 
     uint8_t readWram(uint32_t offset) const;
     void writeWram(uint32_t offset, uint8_t value);
@@ -100,6 +134,26 @@ public:
     void writeMmio(uint16_t address, uint8_t value);
 
     uint8_t openBus() const { return openBusValue; }
+
+    struct ApuPortLog {
+        uint8_t lastWrite[4] = {};
+        uint8_t lastRead[4] = {};
+        uint32_t writeCount[4] = {};
+        uint32_t readCount[4] = {};
+        uint32_t totalWrites = 0;
+        uint32_t totalReads = 0;
+        void reset() { writeCount[0]=writeCount[1]=writeCount[2]=writeCount[3]=0; readCount[0]=readCount[1]=readCount[2]=readCount[3]=0; totalWrites=0; totalReads=0; }
+    };
+    void resetApuPortLog() { apuPortLog.reset(); }
+    const ApuPortLog& getApuPortLog() const { return apuPortLog; }
+
+    struct GameFlagLog {
+        uint32_t writeCount = 0;
+        uint8_t lastValueWritten = 0;
+        void reset() { writeCount = 0; lastValueWritten = 0; }
+    };
+    void resetGameFlagLog() { gameFlagLog.reset(); }
+    const GameFlagLog& getGameFlagLog() const { return gameFlagLog; }
 
 private:
     std::optional<size_t> mapWram(uint32_t address) const;
@@ -122,27 +176,38 @@ private:
     void latchJoypad();
     uint8_t readJoypadSerial();
     void storeJoypadAutoReadResult();
-    uint8_t readApuPort(uint16_t address) const;
+    uint8_t readApuPort(uint16_t address);
     void writeApuPort(uint16_t address, uint8_t value);
 
     std::array<uint8_t, 128 * 1024> wram{};
     std::array<uint8_t, 0x4000> mmio{};
-    std::array<uint8_t, 4> apuCpuToSmp{};
-    std::array<uint8_t, 4> apuSmpToCpu{0xaa, 0xbb, 0x00, 0x00};
+    apu::Apu apuCore;
     CartridgeRom cart;
     ppu::Ppu* ppuCore = nullptr;
     TraceListener* traceListener = nullptr;
     uint8_t openBusValue = 0xff;
+    uint32_t wramPortAddr = 0;
+    uint8_t wrmpya = 0xff;
+    uint8_t wrmpyb = 0xff;
+    uint16_t rdmpy = 0;
+    uint16_t wrdiva = 0;
+    uint8_t wrdivb = 0xff;
+    uint16_t rddiv = 0;
     bool nmiEnable = false;
     bool nmiFlag = false;
     bool vblankActive = false;
     bool joypadStrobe = false;
     bool joypadAutoReadEnable = false;
     bool joypadAutoReadBusy = false;
+    uint32_t joypadAutoReadCyclesRemaining = 0;
+    bool nmiEdge = false;
     uint16_t joypadCurrentState = 0;
     uint16_t joypadLatchedState = 0;
     uint8_t joypadReadIndex = 0;
-    bool apuIplTransferStarted = false;
+    bool hvIrqEnabled = false;
+    uint16_t irqHTimeVal = 0;
+    uint16_t irqVTimeVal = 0;
+    bool irqPending = false;
 
     struct HdmaChannel {
         bool active = false;
@@ -151,6 +216,11 @@ private:
         uint8_t lineCounter = 0;
     };
     std::array<HdmaChannel, 8> hdma{};
+
+    uint32_t pendingDmaDots = 0;
+
+    ApuPortLog apuPortLog;
+    GameFlagLog gameFlagLog;
 };
 
 } // namespace snesquik::bus

@@ -1,5 +1,6 @@
 build*/
 build/
+release/
 docs/
 tests/roms/
 tests/snes-tests/
@@ -15,3 +16,5 @@ compile_commands.json
 *.exe
 .DS_Store
 tmp.txt
+disasm_loop.py
+snesquik_log.txt

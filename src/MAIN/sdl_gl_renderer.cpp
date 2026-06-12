@@ -233,6 +233,13 @@ void SdlGlRenderer::setKeyCallback(KeyCallback callback, void* userData)
     keyCallbackUserData = userData;
 }
 
+void SdlGlRenderer::setWindowTitle(const char* title)
+{
+    if (window) {
+        SDL_SetWindowTitle(window, title);
+    }
+}
+
 bool SdlGlRenderer::createProgram()
 {
     static constexpr const char* vertexShader = R"glsl(

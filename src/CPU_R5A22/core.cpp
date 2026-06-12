@@ -68,16 +68,17 @@ uint32_t CPU::step()
 {
     const uint64_t before = cycles;
 
-    if (isStopped) {
-        addCycles(1);
-        return static_cast<uint32_t>(cycles - before);
-    }
-
     if (nmiPending) {
         nmiPending = false;
         isWaiting = false;
+        isStopped = false;
         interrupt(Interrupt::NMI);
         addCycles(r.emulation ? 7 : 8);
+        return static_cast<uint32_t>(cycles - before);
+    }
+
+    if (isStopped) {
+        addCycles(1);
         return static_cast<uint32_t>(cycles - before);
     }
 

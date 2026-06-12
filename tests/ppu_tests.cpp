@@ -153,7 +153,7 @@ void testCgramWritesAndBackdropRendering()
 
     requireEq(p.cgramColor(0), 0x001f, "CGRAM stores low/high color writes");
     p.renderFrame();
-    requireEq(p.framebuffer()[0], 0xffff0000, "backdrop red renders to RGBA framebuffer");
+    requireEq(p.framebuffer()[ppu::Ppu::screenWidth], 0xffff0000, "backdrop red renders to RGBA framebuffer");
 }
 
 void testForceBlankRendersBlack()
@@ -166,7 +166,7 @@ void testForceBlankRendersBlack()
     p.writeRegister(0x2122, 0x00);
     p.renderFrame();
 
-    requireEq(p.framebuffer()[0], 0xff000000, "force blank renders black");
+    requireEq(p.framebuffer()[ppu::Ppu::screenWidth], 0xff000000, "force blank renders black");
 }
 
 void testVramWritesIncrementOnHighByte()
@@ -199,7 +199,7 @@ void testPpuMmioThroughBus()
     p.renderFrame();
 
     requireEq(p.cgramColor(0), 0x7c00, "bus routes CGRAM writes to PPU");
-    requireEq(p.framebuffer()[0], 0xff0000ff, "bus-written blue backdrop renders");
+    requireEq(p.framebuffer()[ppu::Ppu::screenWidth], 0xff0000ff, "bus-written blue backdrop renders");
 }
 
 void testOamWrites()
@@ -229,7 +229,7 @@ void testMode1Bg1TileRendering()
     writeSolidTile(p, 0x1000, 0, 4, 1);
 
     p.renderFrame();
-    requireEq(p.framebuffer()[0], 0xff00ff00, "Mode 1 BG1 4bpp tile renders through palette");
+    requireEq(p.framebuffer()[ppu::Ppu::screenWidth], 0xff00ff00, "Mode 1 BG1 4bpp tile renders through palette");
 }
 
 void testMode0PaletteWindowsPerBackground()
@@ -246,7 +246,7 @@ void testMode0PaletteWindowsPerBackground()
     writeSolidTile(p, 0x1000, 0, 2, 1);
 
     p.renderFrame();
-    requireEq(p.framebuffer()[0], 0xffff0000, "Mode 0 BG3 uses its own 32-color CGRAM window");
+    requireEq(p.framebuffer()[ppu::Ppu::screenWidth], 0xffff0000, "Mode 0 BG3 uses its own 32-color CGRAM window");
 }
 
 void testBgScrollSelectsDifferentTile()
@@ -269,7 +269,7 @@ void testBgScrollSelectsDifferentTile()
 
     p.renderFrame();
     requireEq(p.bgHorizontalScroll(1), 8, "BG1 scroll latch builds 10-bit scroll value");
-    requireEq(p.framebuffer()[0], 0xffff0000, "horizontal scroll samples second tile");
+    requireEq(p.framebuffer()[ppu::Ppu::screenWidth], 0xffff0000, "horizontal scroll samples second tile");
 }
 
 void testBgPriorityChoosesFrontPixel()
@@ -290,7 +290,7 @@ void testBgPriorityChoosesFrontPixel()
     writeSolidTile(p, 0x2000, 1, 4, 2);
 
     p.renderFrame();
-    requireEq(p.framebuffer()[0], 0xffff0000, "priority tilemap bit places BG2 over BG1");
+    requireEq(p.framebuffer()[ppu::Ppu::screenWidth], 0xffff0000, "priority tilemap bit places BG2 over BG1");
 }
 
 void testSpriteRenderingUsesObjPalette()
@@ -303,10 +303,10 @@ void testSpriteRenderingUsesObjPalette()
     hideSprites(p);
     writeCgramColor(p, 129, 0x03e0);
     writeSolidTile(p, 0x0000, 0, 4, 1);
-    writeSprite(p, 0, 0, 0, 0, 0x30);
+    writeSprite(p, 0, 0, 1, 0, 0x30);
 
     p.renderFrame();
-    requireEq(p.framebuffer()[0], 0xff00ff00, "OBJ tile renders through sprite CGRAM window");
+    requireEq(p.framebuffer()[ppu::Ppu::screenWidth], 0xff00ff00, "OBJ tile renders through sprite CGRAM window");
 }
 
 void testSpriteHorizontalFlip()
@@ -319,11 +319,11 @@ void testSpriteHorizontalFlip()
     hideSprites(p);
     writeCgramColor(p, 129, 0x001f);
     writeSinglePixelTile(p, 0x0000, 0, 4, 0, 0, 1);
-    writeSprite(p, 0, 0, 0, 0, 0x70);
+    writeSprite(p, 0, 0, 1, 0, 0x70);
 
     p.renderFrame();
-    requireEq(p.framebuffer()[0], 0xff000000, "hflipped OBJ leaves original left pixel transparent");
-    requireEq(p.framebuffer()[7], 0xffff0000, "hflipped OBJ moves left tile pixel to right edge");
+    requireEq(p.framebuffer()[ppu::Ppu::screenWidth], 0xff000000, "hflipped OBJ leaves original left pixel transparent");
+    requireEq(p.framebuffer()[ppu::Ppu::screenWidth + 7], 0xffff0000, "hflipped OBJ moves left tile pixel to right edge");
 }
 
 void testMode7RendersChunkyTileData()
@@ -340,7 +340,7 @@ void testMode7RendersChunkyTileData()
     writeVramWord(p, 0x0040, 0x0200);
 
     p.renderFrame();
-    requireEq(p.framebuffer()[0], 0xffff0000, "Mode 7 samples tilemap low bytes and chunky tile high bytes");
+    requireEq(p.framebuffer()[ppu::Ppu::screenWidth], 0xffff0000, "Mode 7 samples tilemap low bytes and chunky tile high bytes");
 }
 
 void testWindowMasksMainBackground()
@@ -361,8 +361,8 @@ void testWindowMasksMainBackground()
     writeSolidTile(p, 0x1000, 0, 4, 1);
 
     p.renderFrame();
-    requireEq(p.framebuffer()[0], 0xff000000, "window masks BG1 inside WH0-WH1");
-    requireEq(p.framebuffer()[8], 0xff00ff00, "BG1 renders outside window mask");
+    requireEq(p.framebuffer()[ppu::Ppu::screenWidth], 0xff000000, "window masks BG1 inside WH0-WH1");
+    requireEq(p.framebuffer()[ppu::Ppu::screenWidth + 8], 0xff00ff00, "BG1 renders outside window mask");
 }
 
 void testMosaicSamplesTopLeftPixelOfBlock()
@@ -380,7 +380,7 @@ void testMosaicSamplesTopLeftPixelOfBlock()
     writeSinglePixelTile(p, 0x1000, 0, 4, 0, 0, 1);
 
     p.renderFrame();
-    requireEq(p.framebuffer()[1], 0xffff0000, "mosaic reuses the first pixel in the block");
+    requireEq(p.framebuffer()[ppu::Ppu::screenWidth + 1], 0xffff0000, "mosaic reuses the first pixel in the block");
 }
 
 void testColorMathAddsFixedColorBeforeBrightness()
@@ -399,7 +399,7 @@ void testColorMathAddsFixedColorBeforeBrightness()
     writeSolidTile(p, 0x1000, 0, 4, 1);
 
     p.renderFrame();
-    requireEq(p.framebuffer()[0], 0xffffff00, "fixed color math adds in SNES 5-bit color space");
+    requireEq(p.framebuffer()[ppu::Ppu::screenWidth], 0xffffff00, "fixed color math adds in SNES 5-bit color space");
 }
 
 void testBrightnessScalesFinalColor()
@@ -410,7 +410,7 @@ void testBrightnessScalesFinalColor()
     writeCgramColor(p, 0, 0x001f);
 
     p.renderFrame();
-    requireEq(p.framebuffer()[0], 0xff770000, "brightness scales final DAC output");
+    requireEq(p.framebuffer()[ppu::Ppu::screenWidth], 0xff770000, "brightness scales final DAC output");
 }
 
 void testOverscanAndInterlaceState()
@@ -470,11 +470,131 @@ void testSpriteScanlineLimitsSetStatusFlags()
     writeCgramColor(p, 129, 0x001f);
     writeSolidTile(p, 0x0000, 0, 4, 1);
     for (uint8_t sprite = 0; sprite < 18; ++sprite) {
-        writeSprite(p, sprite, static_cast<uint8_t>(sprite * 8), 0, 0, 0x30);
+        writeSprite(p, sprite, static_cast<uint8_t>(sprite * 8), 1, 0, 0x30);
     }
 
     p.renderFrame();
     require((p.readRegister(0x213e) & 0x40) != 0, "sprite tile overflow sets range-over flag");
+}
+
+void testMode2OffsetPerTileHorizontal()
+{
+    ppu::Ppu p;
+    p.reset();
+    p.writeRegister(0x2100, 0x0f);
+    p.writeRegister(0x2105, 0x02);
+    p.writeRegister(0x2107, 0x00);
+    p.writeRegister(0x210b, 0x01);
+    p.writeRegister(0x212c, 0x01);
+
+    writeCgramColor(p, 1, 0x03e0);
+    writeCgramColor(p, 2, 0x001f);
+    writeVramWord(p, 0x0000, 0x0000);
+    writeVramWord(p, 0x0001, 0x0001);
+    writeVramWord(p, 0x0002, 0x0000);
+    writeSolidTile(p, 0x1000, 0, 4, 1);
+    writeSolidTile(p, 0x1000, 1, 4, 2);
+
+    const uint16_t bg3Base = 0x0800;
+    p.writeRegister(0x2109, static_cast<uint8_t>((bg3Base >> 8) & 0x3f));
+    writeVramWord(p, bg3Base, 0xa008);
+    writeVramWord(p, bg3Base + 32, 0x2000);
+
+    p.renderFrame();
+    requireEq(p.framebuffer()[ppu::Ppu::screenWidth + 8], 0xff00ff00, "Mode 2 OPT shifts tile column 1 horizontally");
+}
+
+void testMode2OffsetPerTileLeftmostColumnUnchanged()
+{
+    ppu::Ppu p;
+    p.reset();
+    p.writeRegister(0x2100, 0x0f);
+    p.writeRegister(0x2105, 0x02);
+    p.writeRegister(0x2107, 0x00);
+    p.writeRegister(0x210b, 0x01);
+    p.writeRegister(0x212c, 0x01);
+
+    writeCgramColor(p, 1, 0x03e0);
+    writeCgramColor(p, 2, 0x001f);
+    writeVramWord(p, 0x0000, 0x0000);
+    writeVramWord(p, 0x0001, 0x0001);
+    writeSolidTile(p, 0x1000, 0, 4, 1);
+    writeSolidTile(p, 0x1000, 1, 4, 2);
+
+    const uint16_t bg3Base = 0x0800;
+    p.writeRegister(0x2109, static_cast<uint8_t>((bg3Base >> 8) & 0x3f));
+    writeVramWord(p, bg3Base, 0xa008);
+
+    p.renderFrame();
+    requireEq(p.framebuffer()[ppu::Ppu::screenWidth], 0xff00ff00, "Mode 2 OPT leftmost column unaffected by offset");
+}
+
+void testHBlankFlagTiming()
+{
+    ppu::Ppu p;
+    p.reset();
+    p.writeRegister(0x2100, 0x0f);
+
+    require(!p.hblank(), "HBlank clear at dot 0");
+
+    p.tick(262);
+    require(p.hblank(), "HBlank set at dot 262");
+
+    p.tick(ppu::Ppu::dotsPerScanline - 262);
+    require(!p.hblank(), "HBlank clear after scanline wraps");
+}
+
+void testHBlankThroughBus()
+{
+    ppu::Ppu p;
+    p.reset();
+    p.writeRegister(0x2100, 0x0f);
+    bus::SnesBus snesBus;
+    snesBus.attachPpu(&p);
+
+    snesBus.write8(0x004200, 0x00);
+    uint8_t val = snesBus.read8(0x004212);
+    require((val & 0x40) == 0, "$4212 HBlank clear at start");
+
+    p.tick(262);
+    val = snesBus.read8(0x004212);
+    require((val & 0x40) != 0, "$4212 HBlank set after dot 262");
+}
+
+void testIrqHvCounterMatch()
+{
+    ppu::Ppu p;
+    p.reset();
+    bus::SnesBus snesBus;
+    snesBus.attachPpu(&p);
+
+    snesBus.write8(0x004207, 0x06);
+    snesBus.write8(0x004208, 0x00);
+    snesBus.write8(0x004209, 0x01);
+    snesBus.write8(0x00420a, 0x00);
+    snesBus.write8(0x004200, 0x10);
+
+    require(snesBus.irqEnabled(), "IRQ enabled after $4200 write");
+    requireEq(static_cast<uint32_t>(snesBus.irqHTime()), 6u, "HTIME latch");
+    requireEq(static_cast<uint32_t>(snesBus.irqVTime()), 1u, "VTIME latch");
+
+    p.tick(6);
+    snesBus.checkIrq(p.horizontalCounter(), p.verticalCounter());
+    require(!snesBus.irqFlag(), "IRQ not yet set before V match");
+
+    p.tick(ppu::Ppu::dotsPerScanline);
+    snesBus.checkIrq(p.horizontalCounter(), p.verticalCounter());
+    require(snesBus.irqFlag(), "IRQ flag set when H/V match");
+}
+
+void testIrqFlagClearOnRead()
+{
+    bus::SnesBus snesBus;
+    snesBus.setIrq();
+    require(snesBus.irqFlag(), "IRQ flag set");
+
+    snesBus.read8(0x004211);
+    require(!snesBus.irqFlag(), "IRQ flag cleared after $4211 read");
 }
 
 } // namespace
@@ -502,6 +622,12 @@ int main()
         run("H/V counter latch", testHvCountersLatchAndToggle);
         run("DMA to PPU", testDmaWritesToPpuRegisters);
         run("sprite scanline limits", testSpriteScanlineLimitsSetStatusFlags);
+        run("Mode 2 OPT horizontal", testMode2OffsetPerTileHorizontal);
+        run("Mode 2 OPT leftmost column", testMode2OffsetPerTileLeftmostColumnUnchanged);
+        run("HBlank flag timing", testHBlankFlagTiming);
+        run("HBlank through bus", testHBlankThroughBus);
+        run("IRQ H/V counter match", testIrqHvCounterMatch);
+        run("IRQ flag clear on read", testIrqFlagClearOnRead);
     } catch (const std::exception& error) {
         std::cerr << "[fail] " << error.what() << '\n';
         return 1;

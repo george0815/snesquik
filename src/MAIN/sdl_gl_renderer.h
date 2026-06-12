@@ -24,6 +24,7 @@ public:
     void present(std::span<const uint32_t> rgbaPixels);
     void shutdown();
     void setKeyCallback(KeyCallback callback, void* userData);
+    void setWindowTitle(const char* title);
 
     const std::string& lastError() const { return error; }
 

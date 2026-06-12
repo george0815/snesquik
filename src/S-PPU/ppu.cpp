@@ -61,7 +61,7 @@ void Ppu::reset()
     internalOamAddress = 0;
     oamLatch = 0;
     oamHighByte = false;
-    bgofsLatch = 0;
+    bgofsLatches = {};
     mode7Latch = 0;
     m7hofs = 0;
     m7vofs = 0;
@@ -145,6 +145,8 @@ void Ppu::writeRegister(uint16_t address, uint8_t value)
     switch (address) {
     case 0x2100:
         inidisp = value;
+        inidispWriteCount++;
+        lastInidispWritten = value;
         break;
     case 0x2101:
         objsel = value;
@@ -337,27 +339,292 @@ void Ppu::renderScanline(uint16_t y)
         return;
     }
 
-    if (forceBlank() || y >= static_cast<uint16_t>(visibleHeight())) {
+    if (forceBlank() || y > static_cast<uint16_t>(visibleHeight())) {
+        const size_t base = static_cast<size_t>(y * screenWidth);
+        std::fill_n(&frame[base], screenWidth, 0xff000000);
+        std::fill_n(&priorityFrame[base], screenWidth, 0);
+        return;
+    }
+
+    tileCacheKeys.fill(0);
+    buildVisibleSpriteList(y);
+
+    if ((debugFlags & DebugOnlyBG3) != 0) {
+        renderBgLine(2, y);
         for (int x = 0; x < screenWidth; ++x) {
             const size_t offset = static_cast<size_t>(y * screenWidth + x);
-            frame[offset] = 0xff000000;
-            priorityFrame[offset] = 0;
+            if (bgOpaque[2][x]) {
+                frame[offset] = rgbaFromSnesColor(bgLineBuffer[2][x]);
+            } else {
+                frame[offset] = rgbaFromSnesColor(cgram[0]);
+            }
+            priorityFrame[offset] = bgPriBuffer[2][x];
         }
         return;
     }
 
-    for (int x = 0; x < screenWidth; ++x) {
-        Pixel main = composeScreenPixel(x, y, false);
-        Pixel sub = composeScreenPixel(x, y, true);
-        if (colorWindowRegionActive((cgwsel >> 6) & 0x03, x)) {
-            main.color = 0;
+    const uint8_t eitherScreen = static_cast<uint8_t>(mainScreen | subScreen);
+    for (size_t bg = 0; bg < 4; ++bg) {
+        if (eitherScreen & (1u << bg)) {
+            renderBgLine(bg, y);
         }
+    }
+    if (eitherScreen & 0x10) {
+        renderObjLine(y);
+    }
 
-        const uint16_t color = applyColorMath(main, sub, x);
+    for (int x = 0; x < screenWidth; ++x) {
+        Pixel main = composeFromBuffers(x, false);
+
+        uint16_t color;
+        if ((debugFlags & DebugNoColorMath) != 0) {
+            color = main.color;
+        } else {
+            Pixel sub = composeFromBuffers(x, true);
+            color = applyColorMath(main, sub, x);
+        }
         const size_t offset = static_cast<size_t>(y * screenWidth + x);
         frame[offset] = rgbaFromSnesColor(color);
         priorityFrame[offset] = main.priority;
     }
+}
+
+void Ppu::buildVisibleSpriteList(int y)
+{
+    visibleSpriteCount = 0;
+    int spritesOnLine = 0;
+    int tilesOnLine = 0;
+
+    for (int sprite = 0; sprite < 128; ++sprite) {
+        int spriteY = 0;
+        int width = 0;
+        int height = 0;
+        if (!spriteVisibleOnLine(sprite, y, spriteY, width, height)) {
+            continue;
+        }
+
+        if (spritesOnLine >= 32) {
+            spriteTimeOver = true;
+            continue;
+        }
+        ++spritesOnLine;
+
+        const int spriteTiles = std::max(1, width / 8);
+        if (tilesOnLine + spriteTiles > 34) {
+            spriteRangeOver = true;
+            continue;
+        }
+        tilesOnLine += spriteTiles;
+
+        int spriteX = 0;
+        int fullY = 0;
+        int fullWidth = 0;
+        int fullHeight = 0;
+        if (!spriteBounds(sprite, spriteX, fullY, fullWidth, fullHeight)) {
+            continue;
+        }
+
+        auto& entry = visibleSprites[visibleSpriteCount++];
+        entry.spriteIndex = sprite;
+        entry.x = spriteX;
+        entry.y = spriteY;
+        entry.width = fullWidth;
+        entry.height = fullHeight;
+        entry.priority = objPriorityValue(static_cast<uint8_t>((oam[sprite * 4 + 3] >> 4) & 0x03));
+    }
+}
+
+void Ppu::renderBgLine(size_t bg, int y)
+{
+    auto& colorBuf = bgLineBuffer[bg];
+    auto& priBuf = bgPriBuffer[bg];
+    auto& opaqueBuf = bgOpaque[bg];
+
+    std::fill_n(&colorBuf[0], screenWidth, uint16_t(0));
+    std::fill_n(&priBuf[0], screenWidth, uint8_t(0));
+    std::fill_n(&opaqueBuf[0], screenWidth, uint8_t(0));
+
+    if ((bgmode & 0x07) == 7) {
+        for (int x = 0; x < screenWidth; ++x) {
+            Pixel p = sampleMode7(bg, x, y, false);
+            if (p.opaque) {
+                colorBuf[x] = p.color;
+                priBuf[x] = p.priority;
+                opaqueBuf[x] = 1;
+            }
+        }
+        return;
+    }
+
+    const uint8_t bpp = bppForBg(bg);
+    if (bpp == 0) {
+        return;
+    }
+
+    const uint8_t mode = bgmode & 0x07;
+    const BgState& state = bgState[bg];
+    const int mosaicSize = ((mosaic >> 4) & 0x0f) + 1;
+    const bool largeTiles = (bgmode & (0x10u << bg)) != 0;
+    const int tileSize = largeTiles ? 16 : 8;
+
+    const bool isOptMode = (mode == 2 || mode == 4 || mode == 6) && bg < 2;
+    const BgState& bg3 = bgState[2];
+
+    std::array<int16_t, 33> tileHScroll{};
+    std::array<int16_t, 33> tileVScroll{};
+
+    if (isOptMode) {
+        const int bg3FineY = bg3.vscroll & 0x07;
+        for (int t = 0; t <= 32; ++t) {
+            if (t == 0) {
+                tileHScroll[0] = static_cast<int16_t>(state.hscroll);
+                tileVScroll[0] = static_cast<int16_t>(state.vscroll);
+                continue;
+            }
+            const int offsetCol = ((t - 1) + (bg3.hscroll >> 3)) & 0x1f;
+            const uint16_t hEntry = offsetMapEntry(offsetCol, bg3FineY);
+            const uint16_t vEntry = offsetMapEntry(offsetCol, (bg3FineY + 8) & 0x1f);
+            const bool hApplies = (bg == 0) ? ((hEntry & 0x2000) != 0) : ((hEntry & 0x4000) != 0);
+            const bool vApplies = (bg == 0) ? ((vEntry & 0x2000) != 0) : ((vEntry & 0x4000) != 0);
+            if (!hApplies && !vApplies) {
+                tileHScroll[t] = static_cast<int16_t>(state.hscroll);
+                tileVScroll[t] = static_cast<int16_t>(state.vscroll);
+                continue;
+            }
+            if (mode == 4) {
+                const bool isVertical = (hEntry & 0x8000) != 0;
+                if (isVertical) {
+                    tileHScroll[t] = static_cast<int16_t>(state.hscroll);
+                    tileVScroll[t] = static_cast<int16_t>(vApplies ? (vEntry & 0x03ff) : state.vscroll);
+                } else {
+                    tileHScroll[t] = static_cast<int16_t>(hApplies ? ((hEntry & 0x1ff8) | (state.hscroll & 0x07)) : state.hscroll);
+                    tileVScroll[t] = static_cast<int16_t>(state.vscroll);
+                }
+            } else {
+                tileHScroll[t] = static_cast<int16_t>(hApplies ? ((hEntry & 0x1ff8) | (state.hscroll & 0x07)) : state.hscroll);
+                tileVScroll[t] = static_cast<int16_t>(vApplies ? (vEntry & 0x03ff) : state.vscroll);
+            }
+        }
+    }
+
+    for (int x = 0; x < screenWidth; ++x) {
+        int sampleX = x;
+        int sampleY = y;
+        if ((mosaic & (1u << bg)) != 0 && mosaicSize > 1) {
+            sampleX -= sampleX % mosaicSize;
+            sampleY -= sampleY % mosaicSize;
+        }
+
+        int16_t hscroll = state.hscroll;
+        int16_t vscroll = state.vscroll;
+
+        if (isOptMode) {
+            const int fineX = sampleX & 0x07;
+            const int baseTileX = (sampleX + state.hscroll) >> 3;
+            const int tileCol = (baseTileX - (state.hscroll >> 3)) & 0x1f;
+            hscroll = tileHScroll[tileCol];
+            vscroll = tileVScroll[tileCol];
+            sampleX = (sampleX & ~7) | fineX;
+        }
+
+        const int worldX = (sampleX + hscroll) & 0x03ff;
+        const int worldY = (sampleY + vscroll) & 0x03ff;
+        const int tileX = worldX / tileSize;
+        const int tileY = worldY / tileSize;
+        const uint16_t entry = tilemapEntry(bg, tileX, tileY);
+        const uint16_t baseTile = entry & 0x03ff;
+        const uint8_t palette = static_cast<uint8_t>((entry >> 10) & 0x07);
+        const bool priorityBit = (entry & 0x2000) != 0;
+        const bool hflip = (entry & 0x4000) != 0;
+        const bool vflip = (entry & 0x8000) != 0;
+
+        int pixelX = worldX & (tileSize - 1);
+        int pixelY = worldY & (tileSize - 1);
+        uint16_t tile = baseTile;
+        if (largeTiles) {
+            if (pixelX >= 8) { tile += 1; pixelX -= 8; }
+            if (pixelY >= 8) { tile += 16; pixelY -= 8; }
+        }
+
+        const uint8_t pixel = decodeTilePixel(tile, bpp, pixelX, pixelY, hflip, vflip, chrBase(bg));
+        if (pixel == 0) {
+            continue;
+        }
+
+        const uint8_t idx = cgramIndexForPixel(bg, bpp, palette, pixel);
+        colorBuf[x] = ((cgwsel & 0x01) != 0 && bpp == 8) ? directColor(palette, pixel) : cgram[idx];
+        priBuf[x] = bgPriorityValue(bg, priorityBit);
+        opaqueBuf[x] = 1;
+    }
+}
+
+void Ppu::renderObjLine(int y)
+{
+    std::fill_n(&objLineBuffer[0], screenWidth, uint16_t(0));
+    std::fill_n(&objPriBuffer[0], screenWidth, uint8_t(0));
+    std::fill_n(&objOpaque[0], screenWidth, uint8_t(0));
+    std::fill_n(&objPalBuffer[0], screenWidth, uint8_t(0));
+
+    for (int s = 0; s < visibleSpriteCount; ++s) {
+        const auto& sprite = visibleSprites[s];
+        const int xStart = std::max(0, sprite.x);
+        const int xEnd = std::min(screenWidth, sprite.x + sprite.width);
+
+        for (int x = xStart; x < xEnd; ++x) {
+            Pixel p = sampleSpritePixel(sprite.spriteIndex, x - sprite.x, y - sprite.y);
+            if (!p.opaque) {
+                continue;
+            }
+            if (p.priority >= objPriBuffer[x]) {
+                objLineBuffer[x] = p.color;
+                objPriBuffer[x] = p.priority;
+                objOpaque[x] = 1;
+                objPalBuffer[x] = p.objPalette;
+            }
+        }
+    }
+}
+
+Ppu::Pixel Ppu::composeFromBuffers(int x, bool sub) const
+{
+    const uint8_t screenMask = sub ? subScreen : mainScreen;
+    const bool forceBG3 = (debugFlags & DebugForceBG3) != 0;
+
+    Pixel best;
+    best.layer = 5;
+    best.color = cgram[0];
+    best.opaque = true;
+
+    for (size_t bg = 0; bg < 4; ++bg) {
+        if ((screenMask & (1u << bg)) == 0 || layerWindowMasked(static_cast<uint8_t>(bg), x, sub)) {
+            continue;
+        }
+        if (!bgOpaque[bg][x]) {
+            continue;
+        }
+        if (forceBG3 && bg == 2) {
+            best.color = bgLineBuffer[bg][x];
+            best.priority = bgPriBuffer[bg][x];
+            best.layer = static_cast<uint8_t>(bg);
+            break;
+        }
+        if (bgPriBuffer[bg][x] >= best.priority) {
+            best.color = bgLineBuffer[bg][x];
+            best.priority = bgPriBuffer[bg][x];
+            best.layer = static_cast<uint8_t>(bg);
+        }
+    }
+
+    if ((screenMask & 0x10) != 0 && !layerWindowMasked(4, x, sub)) {
+        if (objOpaque[x] && objPriBuffer[x] >= best.priority) {
+            best.color = objLineBuffer[x];
+            best.priority = objPriBuffer[x];
+            best.layer = 4;
+            best.objPalette = objPalBuffer[x];
+        }
+    }
+
+    return best;
 }
 
 void Ppu::tick(uint32_t dots)
@@ -381,8 +648,15 @@ void Ppu::beginFrame()
     evenField = !evenField;
     spriteTimeOver = false;
     spriteRangeOver = false;
-    frame.fill(0xff000000);
-    priorityFrame.fill(0);
+    inidispWriteCount = 0;
+    lastInidispWritten = inidisp;
+
+    const int vh = visibleHeight();
+    for (int y = vh; y < screenHeight; ++y) {
+        const size_t base = static_cast<size_t>(y * screenWidth);
+        std::fill_n(&frame[base], screenWidth, 0xff000000);
+        std::fill_n(&priorityFrame[base], screenWidth, 0);
+    }
 }
 
 void Ppu::writeOamData(uint8_t value)
@@ -403,16 +677,36 @@ void Ppu::writeOamData(uint8_t value)
     oam[internalOamAddress++ % oam.size()] = value;
 }
 
+namespace {
+
+uint16_t remapVramAddress(uint16_t address, uint8_t vmain)
+{
+    const uint8_t mapping = (vmain >> 2) & 0x03;
+    switch (mapping) {
+    case 0x01:
+        return static_cast<uint16_t>((address & 0xff00) | ((address & 0x00e0) >> 5) | ((address & 0x001f) << 5));
+    case 0x02:
+    case 0x03:
+        return static_cast<uint16_t>((address & 0xff00) | ((address & 0x00c0) >> 6) | ((address & 0x003f) << 6));
+    default:
+        return address;
+    }
+}
+
+} // namespace
+
 void Ppu::writeVramDataLow(uint8_t value)
 {
-    uint16_t& word = vram[vramAddress & 0x7fff];
+    const uint16_t effective = remapVramAddress(vramAddress, vmain);
+    uint16_t& word = vram[effective & 0x7fff];
     word = static_cast<uint16_t>((word & 0xff00) | value);
     incrementVramAddress(false);
 }
 
 void Ppu::writeVramDataHigh(uint8_t value)
 {
-    uint16_t& word = vram[vramAddress & 0x7fff];
+    const uint16_t effective = remapVramAddress(vramAddress, vmain);
+    uint16_t& word = vram[effective & 0x7fff];
     word = static_cast<uint16_t>((word & 0x00ff) | (value << 8));
     incrementVramAddress(true);
 }
@@ -421,7 +715,8 @@ uint8_t Ppu::readVramDataLow()
 {
     const uint8_t value = static_cast<uint8_t>(vramReadLatch);
     incrementVramAddress(false);
-    vramReadLatch = vram[vramAddress & 0x7fff];
+    const uint16_t effective = remapVramAddress(vramAddress, vmain);
+    vramReadLatch = vram[effective & 0x7fff];
     return value;
 }
 
@@ -429,7 +724,8 @@ uint8_t Ppu::readVramDataHigh()
 {
     const uint8_t value = static_cast<uint8_t>(vramReadLatch >> 8);
     incrementVramAddress(true);
-    vramReadLatch = vram[vramAddress & 0x7fff];
+    const uint16_t effective = remapVramAddress(vramAddress, vmain);
+    vramReadLatch = vram[effective & 0x7fff];
     return value;
 }
 
@@ -482,17 +778,70 @@ void Ppu::incrementVramAddress(bool highAccess)
     vramAddress = static_cast<uint16_t>(vramAddress + increment);
 }
 
+uint8_t Ppu::bgPriorityValue(size_t bg, bool priorityBit) const
+{
+    const uint8_t mode = bgmode & 0x07;
+    const bool bg3pri = (bgmode & 0x08) != 0;
+
+    if (mode == 0) {
+        static constexpr uint8_t tbl[2][4] = {
+            {11, 10, 5, 4},
+            {14, 13, 7, 6},
+        };
+        return tbl[priorityBit ? 1 : 0][bg < 4 ? bg : 0];
+    }
+
+    if (mode == 1) {
+        if (bg3pri) {
+            static constexpr uint8_t tbl[2][4] = {
+                {4, 3, 6, 0},
+                {9, 8, 12, 0},
+            };
+            return tbl[priorityBit ? 1 : 0][bg < 4 ? bg : 0];
+        }
+        static constexpr uint8_t tbl[2][4] = {
+            {11, 10, 6, 0},
+            {14, 13, 7, 0},
+        };
+        return tbl[priorityBit ? 1 : 0][bg < 4 ? bg : 0];
+    }
+
+    if (bg < 2) {
+        static constexpr uint8_t tbl[2][2] = {
+            {11, 10},
+            {14, 13},
+        };
+        return tbl[priorityBit ? 1 : 0][bg];
+    }
+    return 0;
+}
+
+uint8_t Ppu::objPriorityValue(uint8_t objPri) const
+{
+    const uint8_t mode = bgmode & 0x07;
+    const bool bg3pri = (bgmode & 0x08) != 0;
+
+    if (mode == 1 && bg3pri) {
+        static constexpr uint8_t tbl[4] = {6, 8, 12, 15};
+        return tbl[objPri & 3];
+    }
+
+    static constexpr uint8_t tbl[4] = {8, 9, 12, 15};
+    return tbl[objPri & 3];
+}
+
 void Ppu::writeBgScroll(size_t bg, bool vertical, uint8_t value)
 {
     BgState& state = bgState[bg & 3];
+    const size_t latchIdx = (bg & 3) * 2 + (vertical ? 1 : 0);
     if (vertical) {
-        state.vscroll = static_cast<uint16_t>(((value & 0x03) << 8) | bgofsLatch);
-        bgofsLatch = value;
+        state.vscroll = static_cast<uint16_t>(((value & 0x03) << 8) | bgofsLatches[latchIdx]);
+        bgofsLatches[latchIdx] = value;
         return;
     }
 
-    state.hscroll = static_cast<uint16_t>(((value & 0x03) << 8) | (bgofsLatch & 0xf8) | (value & 0x07));
-    bgofsLatch = value;
+    state.hscroll = static_cast<uint16_t>(((value & 0x03) << 8) | bgofsLatches[latchIdx]);
+    bgofsLatches[latchIdx] = value;
 }
 
 void Ppu::writeMode7Pair(uint16_t& target, uint8_t value)
@@ -587,7 +936,7 @@ Ppu::Pixel Ppu::sampleBackground(size_t bg, int x, int y, bool subScreenPixel) c
     Pixel result;
     result.paletteIndex = cgramIndexForPixel(bg, bpp, palette, pixel);
     result.color = ((cgwsel & 0x01) != 0 && bpp == 8) ? directColor(palette, pixel) : cgram[result.paletteIndex];
-    result.priority = static_cast<uint8_t>((priorityBit ? 8 : 0) + (3 - bg));
+    result.priority = bgPriorityValue(bg, priorityBit);
     result.layer = static_cast<uint8_t>(bg);
     result.opaque = true;
     return result;
@@ -603,7 +952,8 @@ Ppu::Pixel Ppu::sampleMode7(size_t bg, int x, int y, bool subScreenPixel) const
     }
 
     int screenX = (m7sel & 0x01) != 0 ? screenWidth - 1 - x : x;
-    int screenY = (m7sel & 0x02) != 0 ? visibleHeight() - 1 - y : y;
+    const int renderY = y - 1;
+    int screenY = (m7sel & 0x02) != 0 ? visibleHeight() - 1 - renderY : renderY;
     const int cx = static_cast<int16_t>(sign13(m7x));
     const int cy = static_cast<int16_t>(sign13(m7y));
     const int hofs = static_cast<int16_t>(sign13(m7hofs));
@@ -644,7 +994,7 @@ Ppu::Pixel Ppu::sampleMode7(size_t bg, int x, int y, bool subScreenPixel) const
     Pixel result;
     result.paletteIndex = pixel;
     result.color = (cgwsel & 0x01) != 0 ? directColor(0, pixel) : cgram[pixel];
-    result.priority = static_cast<uint8_t>(bg == 1 ? 9 : 4);
+    result.priority = static_cast<uint8_t>(bg == 1 ? 10 : 11);
     result.layer = static_cast<uint8_t>(bg);
     result.opaque = true;
     return result;
@@ -765,7 +1115,7 @@ Ppu::Pixel Ppu::sampleSpritePixel(size_t sprite, int x, int y) const
     Pixel result;
     result.paletteIndex = static_cast<uint8_t>(128 + (((attrs >> 1) & 0x07) << 4) + pixel);
     result.color = cgram[result.paletteIndex];
-    result.priority = static_cast<uint8_t>(((attrs >> 4) & 0x03) + 12);
+    result.priority = objPriorityValue(static_cast<uint8_t>((attrs >> 4) & 0x03));
     result.layer = 4;
     result.objPalette = static_cast<uint8_t>((attrs >> 1) & 0x07);
     result.opaque = true;
@@ -812,6 +1162,18 @@ uint16_t Ppu::chrBase(size_t bg) const
     return static_cast<uint16_t>(nibble << 12);
 }
 
+uint16_t Ppu::offsetMapEntry(int tileCol, int row) const
+{
+    const BgState& bg3 = bgState[2];
+    const uint16_t base = tilemapBase(2);
+
+    const int mapY = row & 0x1f;
+    const int mapX = tileCol & 0x1f;
+
+    const uint16_t address = static_cast<uint16_t>(base + mapY * 32 + mapX);
+    return vram[address & 0x7fff];
+}
+
 uint16_t Ppu::tilemapEntry(size_t bg, int tileX, int tileY) const
 {
     const uint8_t screen = bgState[bg & 3].screen;
@@ -819,11 +1181,20 @@ uint16_t Ppu::tilemapEntry(size_t bg, int tileX, int tileY) const
     const bool tall = (screen & 0x02) != 0;
     const int mapX = wide ? tileX & 0x3f : tileX & 0x1f;
     const int mapY = tall ? tileY & 0x3f : tileY & 0x1f;
-    const int quadrantX = mapX / 32;
-    const int quadrantY = mapY / 32;
-    const int localX = mapX & 0x1f;
-    const int localY = mapY & 0x1f;
-    const int quadrant = quadrantX + (wide ? quadrantY * 2 : quadrantY);
+        const int quadrantX = mapX / 32;
+        const int quadrantY = mapY / 32;
+        const int localX = mapX & 0x1f;
+        const int localY = mapY & 0x1f;
+        int quadrant;
+        if (wide && tall) {
+            quadrant = quadrantX + quadrantY * 2;
+        } else if (wide) {
+            quadrant = quadrantX;
+        } else if (tall) {
+            quadrant = quadrantY * 2;
+        } else {
+            quadrant = 0;
+        }
     const uint16_t address = static_cast<uint16_t>(tilemapBase(bg) + quadrant * 0x400 + localY * 32 + localX);
     return vram[address & 0x7fff];
 }
@@ -837,19 +1208,44 @@ uint8_t Ppu::decodeTilePixel(uint16_t tileIndex, uint8_t bpp, int pixelX, int pi
         pixelY = 7 - pixelY;
     }
 
-    const uint16_t wordsPerTile = static_cast<uint16_t>(bpp * 4);
-    const uint16_t tileBase = static_cast<uint16_t>(base + tileIndex * wordsPerTile);
-    const int bit = 7 - (pixelX & 7);
-    uint8_t result = 0;
+    const uint64_t key = (static_cast<uint64_t>(base) << 20)
+                       | (static_cast<uint64_t>(tileIndex) << 8)
+                       | (static_cast<uint64_t>(bpp) << 5)
+                       | static_cast<uint64_t>(pixelY);
+    const size_t idx = (static_cast<size_t>(base >> 12)
+                      ^ static_cast<size_t>(tileIndex)
+                      ^ static_cast<size_t>(bpp << 4)
+                      ^ static_cast<size_t>(pixelY)) & (tileCacheSize - 1);
 
-    for (uint8_t plane = 0; plane < bpp; ++plane) {
-        const uint16_t planeGroup = plane / 2;
-        const uint16_t word = vram[(tileBase + planeGroup * 8 + (pixelY & 7)) & 0x7fff];
-        const uint8_t byte = (plane & 1) == 0 ? static_cast<uint8_t>(word) : static_cast<uint8_t>(word >> 8);
-        result |= static_cast<uint8_t>(((byte >> bit) & 1) << plane);
+    if (tileCacheKeys[idx] == key) {
+        return tileCachePixels[idx][pixelX];
     }
 
-    return result;
+    const uint16_t wordsPerTile = static_cast<uint16_t>(bpp * 4);
+    const uint16_t tileBase = static_cast<uint16_t>(base + tileIndex * wordsPerTile);
+
+    uint8_t planeBytes[8];
+    for (uint8_t plane = 0; plane < bpp; ++plane) {
+        const uint16_t planeGroup = plane / 2;
+        const uint16_t word = vram[(tileBase + planeGroup * 8 + pixelY) & 0x7fff];
+        planeBytes[plane] = (plane & 1) == 0
+            ? static_cast<uint8_t>(word)
+            : static_cast<uint8_t>(word >> 8);
+    }
+
+    std::array<uint8_t, 8> row{};
+    for (int px = 0; px < 8; ++px) {
+        const int bit = 7 - px;
+        uint8_t result = 0;
+        for (uint8_t plane = 0; plane < bpp; ++plane) {
+            result |= static_cast<uint8_t>(((planeBytes[plane] >> bit) & 1) << plane);
+        }
+        row[px] = result;
+    }
+
+    tileCacheKeys[idx] = key;
+    tileCachePixels[idx] = row;
+    return row[pixelX];
 }
 
 uint8_t Ppu::cgramIndexForPixel(size_t bg, uint8_t bpp, uint8_t palette, uint8_t pixel) const
@@ -902,6 +1298,10 @@ void Ppu::objSize(uint8_t sizeSelect, bool large, int& width, int& height) const
 
 bool Ppu::layerWindowMasked(uint8_t layer, int x, bool subScreenPixel) const
 {
+    if ((debugFlags & DebugNoWindows) != 0) {
+        return false;
+    }
+
     const uint8_t windowMask = subScreenPixel ? tsw : tmw;
     if ((windowMask & (1u << layer)) == 0) {
         return false;
@@ -999,18 +1399,18 @@ bool Ppu::singleWindowOutput(bool enable, bool invert, uint8_t left, uint8_t rig
 
 uint16_t Ppu::applyColorMath(const Pixel& main, const Pixel& sub, int x) const
 {
+    if ((debugFlags & DebugNoColorMath) != 0) {
+        return main.color;
+    }
     if (!colorMathEnabledForLayer(main)) {
         return main.color;
     }
 
-    uint16_t addend = fixedColor();
-    if ((cgwsel & 0x02) != 0) {
-        if (colorWindowRegionActive((cgwsel >> 4) & 0x03, x)) {
-            return main.color;
-        }
-        addend = sub.color;
+    if ((cgwsel & 0x02) != 0 && colorWindowRegionActive((cgwsel >> 4) & 0x03, x)) {
+        return main.color;
     }
 
+    const uint16_t addend = (cgwsel & 0x01) ? sub.color : fixedColor();
     return blendColors(main.color, addend);
 }
 

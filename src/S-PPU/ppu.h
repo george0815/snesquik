@@ -13,6 +13,7 @@ public:
     static constexpr size_t framebufferPixels = screenWidth * screenHeight;
     static constexpr int dotsPerScanline = 341;
     static constexpr int ntscScanlines = 262;
+    static constexpr int hblankStart = 262;
 
     void reset();
 
@@ -33,12 +34,26 @@ public:
     int visibleHeight() const { return overscan() ? 239 : 224; }
     uint16_t horizontalCounter() const { return hCounter; }
     uint16_t verticalCounter() const { return vCounter; }
+    bool hblank() const { return hCounter >= hblankStart; }
+
+    uint32_t getInidispWriteCount() const { return inidispWriteCount; }
+    uint8_t getLastInidispWritten() const { return lastInidispWritten; }
 
     bool forceBlank() const { return (inidisp & 0x80) != 0; }
     uint8_t brightness() const { return inidisp & 0x0f; }
     bool overscan() const { return (setini & 0x04) != 0; }
     bool interlace() const { return (setini & 0x01) != 0; }
     bool extBg() const { return (setini & 0x40) != 0; }
+
+    void setDebugFlags(uint8_t flags) { debugFlags = flags; }
+    uint8_t debugFlagsMask() const { return debugFlags; }
+    static constexpr uint8_t DebugNoColorMath = 0x01;
+    static constexpr uint8_t DebugNoWindows = 0x02;
+    static constexpr uint8_t DebugOnlyBG3 = 0x04;
+    static constexpr uint8_t DebugForceBG3 = 0x08;
+    uint8_t inidisp = 0x80;
+        uint16_t vramAddress = 0;
+
 
 private:
     struct BgState {
@@ -63,6 +78,15 @@ private:
         uint8_t subEnableMask = 0;
     };
 
+    struct SpriteLineEntry {
+        int spriteIndex;
+        int x;
+        int y;
+        int width;
+        int height;
+        uint8_t priority;
+    };
+
     void writeOamData(uint8_t value);
     void writeVramDataLow(uint8_t value);
     void writeVramDataHigh(uint8_t value);
@@ -71,6 +95,8 @@ private:
     void writeCgramData(uint8_t value);
     uint8_t readCgramData();
     void incrementVramAddress(bool highAccess);
+    uint8_t bgPriorityValue(size_t bg, bool priorityBit) const;
+    uint8_t objPriorityValue(uint8_t objPri) const;
     void writeBgScroll(size_t bg, bool vertical, uint8_t value);
     void writeMode7Pair(uint16_t& target, uint8_t value);
     Pixel composeScreenPixel(int x, int y, bool subScreenPixel) const;
@@ -85,6 +111,7 @@ private:
     uint16_t tilemapBase(size_t bg) const;
     uint16_t chrBase(size_t bg) const;
     uint16_t tilemapEntry(size_t bg, int tileX, int tileY) const;
+    uint16_t offsetMapEntry(int tileCol, int row) const;
     uint8_t decodeTilePixel(uint16_t tileIndex, uint8_t bpp, int pixelX, int pixelY, bool hflip, bool vflip, uint16_t chrBase) const;
     uint8_t cgramIndexForPixel(size_t bg, uint8_t bpp, uint8_t palette, uint8_t pixel) const;
     uint16_t directColor(uint8_t palette, uint8_t pixel) const;
@@ -102,6 +129,27 @@ private:
     uint16_t sign13(uint16_t value) const;
     uint32_t rgbaFromSnesColor(uint16_t color) const;
 
+    void buildVisibleSpriteList(int y);
+    void renderBgLine(size_t bg, int y);
+    void renderObjLine(int y);
+    Pixel composeFromBuffers(int x, bool sub) const;
+
+    static constexpr int tileCacheSize = 128;
+    mutable std::array<uint64_t, tileCacheSize> tileCacheKeys{};
+    mutable std::array<std::array<uint8_t, 8>, tileCacheSize> tileCachePixels{};
+
+    std::array<std::array<uint16_t, screenWidth>, 4> bgLineBuffer{};
+    std::array<std::array<uint8_t, screenWidth>, 4> bgPriBuffer{};
+    std::array<std::array<uint8_t, screenWidth>, 4> bgOpaque{};
+
+    std::array<uint16_t, screenWidth> objLineBuffer{};
+    std::array<uint8_t, screenWidth> objPriBuffer{};
+    std::array<uint8_t, screenWidth> objOpaque{};
+    std::array<uint8_t, screenWidth> objPalBuffer{};
+
+    std::array<SpriteLineEntry, 32> visibleSprites{};
+    int visibleSpriteCount = 0;
+
     std::array<uint16_t, 32 * 1024> vram{};
     std::array<uint16_t, 256> cgram{};
     std::array<uint8_t, 544> oam{};
@@ -110,7 +158,6 @@ private:
 
     std::array<uint8_t, 0x40> registers{};
 
-    uint8_t inidisp = 0x80;
     uint8_t objsel = 0;
     uint8_t bgmode = 0;
     uint8_t mosaic = 0;
@@ -134,7 +181,6 @@ private:
     uint8_t cgwsel = 0;
     uint8_t cgadsub = 0;
     uint16_t coldata = 0;
-    uint16_t vramAddress = 0;
     uint8_t vmain = 0;
     uint16_t vramReadLatch = 0;
     uint8_t cgramAddress = 0;
@@ -144,7 +190,7 @@ private:
     uint16_t internalOamAddress = 0;
     uint8_t oamLatch = 0;
     bool oamHighByte = false;
-    uint8_t bgofsLatch = 0;
+    std::array<uint8_t, 8> bgofsLatches{};
     uint8_t mode7Latch = 0;
     uint16_t m7hofs = 0;
     uint16_t m7vofs = 0;
@@ -165,7 +211,11 @@ private:
     bool evenField = true;
     mutable bool spriteTimeOver = false;
     mutable bool spriteRangeOver = false;
+    uint8_t debugFlags = 0;
     std::array<BgState, 4> bgState{};
+
+    uint32_t inidispWriteCount = 0;
+    uint8_t lastInidispWritten = 0x80;
 };
 
 } // namespace snesquik::ppu

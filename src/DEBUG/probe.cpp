@@ -18,7 +18,6 @@ namespace snesquik::debug {
 
 namespace {
 
-constexpr uint32_t cpuCycleToPpuDots = 6;
 constexpr uint32_t frameDots = ppu::Ppu::dotsPerScanline * ppu::Ppu::ntscScanlines;
 
 std::vector<uint8_t> readFile(const std::string& path)
@@ -184,6 +183,40 @@ public:
         log << "VBLANK " << (active ? "begin" : "end") << '\n';
     }
 
+    void hdmaWrite(uint8_t channel, uint16_t address, uint8_t value) override
+{
+    if (!log.is_open()) {
+        return;
+    }
+
+    log << "HDMA"
+        << " ch=" << static_cast<int>(channel)
+        << " addr=$" << std::hex << address
+        << " value=$" << static_cast<int>(value)
+        << std::dec << '\n';
+}
+
+
+void dmaTransfer(
+    uint8_t channel,
+    uint32_t sourceAddress,
+    uint8_t bbad,
+    uint8_t value,
+    uint16_t vramAddress) override
+{
+    if (!log.is_open()) {
+        return;
+    }
+
+    log << "DMA-XFER"
+        << " ch=" << std::dec << static_cast<int>(channel)
+        << " src=" << hexValue(sourceAddress, 6)
+        << " bbad=$" << std::hex << static_cast<int>(bbad)
+        << " value=$" << static_cast<int>(value)
+        << " vmadd=$" << vramAddress
+        << std::dec << '\n';
+}
+
 private:
     std::ofstream log;
 };
@@ -235,6 +268,7 @@ ProbeResult runProbe(const ProbeOptions& options)
     bus.attachPpu(&ppu);
     bus.attachCartridge(parsed->rom, parsed->header.map, parsed->header.declaredRamSizeBytes());
     bus.setTraceListener(&trace);
+    bus.initApu();
 
     cpu_r5a22::CPU cpu(bus);
     cpu.reset();
@@ -265,22 +299,23 @@ ProbeResult runProbe(const ProbeOptions& options)
 
         uint32_t dotsThisFrame = 0;
         bool nmiRequested = false;
+        uint32_t dotRemainder = 0;
         ppu.beginFrame();
         uint16_t lastLine = ppu.verticalCounter();
         bus.setVblank(false);
         bus.beginFrame();
-        if (lastLine < static_cast<uint16_t>(ppu.visibleHeight())) {
-            bus.runHdmaScanline();
-        }
 
         while (dotsThisFrame < frameDots && !cpu.stopped()) {
             const uint32_t cpuCycles = cpu.step();
+            bus.stepApu(cpuCycles);
             if (globalStep < options.traceSteps) {
                 logCpuStep(cpuLog, globalStep, cpu);
             }
             ++globalStep;
 
-            const uint32_t ppuDots = cpuCycles * cpuCycleToPpuDots;
+            const uint32_t dotAccum = cpuCycles * 3 + dotRemainder;
+            const uint32_t ppuDots = dotAccum / 2;
+            dotRemainder = dotAccum % 2;
             ppu.tick(ppuDots);
             dotsThisFrame += ppuDots;
 
@@ -298,13 +333,21 @@ ProbeResult runProbe(const ProbeOptions& options)
             if (!nmiRequested && ppu.verticalCounter() >= static_cast<uint16_t>(ppu.visibleHeight())) {
                 bus.setVblank(true);
                 bus.beginJoypadAutoRead();
-                bus.finishJoypadAutoRead();
                 if (bus.nmiEnabled()) {
                     cpu.requestNMI();
                 }
                 nmiRequested = true;
             }
+
+            bus.tickJoypadAutoRead(cpuCycles);
+
+            if (bus.nmiEdgePending() && bus.nmiEnabled()) {
+                cpu.requestNMI();
+                bus.clearNmiEdge();
+            }
         }
+
+        bus.endApuFrame();
 
         if (options.snapshotEvery != 0 && frame % options.snapshotEvery == 0) {
             std::ostringstream name;

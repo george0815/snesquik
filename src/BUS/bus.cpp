@@ -1,7 +1,5 @@
 #include "BUS/bus.h"
 
-#include <algorithm>
-
 namespace snesquik::bus {
 
 namespace {
@@ -160,9 +158,30 @@ std::optional<size_t> CartridgeRom::headerOffset(CartridgeMap map, size_t romSiz
     return offset;
 }
 
+
 uint8_t SnesBus::read8(uint32_t address)
 {
     address = mask24(address);
+    const uint8_t bank = static_cast<uint8_t>(address >> 16);
+    const uint16_t offset = static_cast<uint16_t>(address);
+
+    if (bank == 0x7e || bank == 0x7f) {
+        openBusValue = wram[((bank - 0x7e) << 16) + offset];
+        return openBusValue;
+    }
+
+    if (bank <= 0x3f || (bank >= 0x80 && bank <= 0xbf)) {
+        if (offset <= 0x1fff) {
+            openBusValue = wram[offset];
+            return openBusValue;
+        }
+        if (offset >= 0x8000) {
+            if (auto mapped = cart.mapCpuAddress(address)) {
+                openBusValue = cart.read(*mapped);
+                return openBusValue;
+            }
+        }
+    }
 
     if (auto mapped = mapWram(address)) {
         openBusValue = wram[*mapped];
@@ -175,6 +194,9 @@ uint8_t SnesBus::read8(uint32_t address)
             openBusValue = ppuCore->readRegister(mmioAddress);
         } else if (mmioAddress >= 0x2140 && mmioAddress <= 0x2143) {
             openBusValue = readApuPort(mmioAddress);
+        } else if (mmioAddress == 0x2180) {
+            openBusValue = wram[wramPortAddr & 0x1ffff];
+            wramPortAddr = (wramPortAddr + 1) & 0x1ffff;
         } else if (mmioAddress == 0x4016) {
             openBusValue = readJoypadSerial();
         } else if (mmioAddress == 0x4017) {
@@ -182,8 +204,20 @@ uint8_t SnesBus::read8(uint32_t address)
         } else if (mmioAddress == 0x4210) {
             openBusValue = static_cast<uint8_t>((nmiFlag ? 0x80 : 0x00) | 0x02);
             nmiFlag = false;
+        } else if (mmioAddress == 0x4211) {
+            openBusValue = static_cast<uint8_t>((irqPending ? 0x80 : 0x00) | 0x01);
+            irqPending = false;
         } else if (mmioAddress == 0x4212) {
-            openBusValue = static_cast<uint8_t>((vblankActive ? 0x80 : 0x00) | (joypadAutoReadBusy ? 0x01 : 0x00));
+            const bool hblank = ppuCore && ppuCore->hblank();
+            openBusValue = static_cast<uint8_t>((vblankActive ? 0x80 : 0x00) | (hblank ? 0x40 : 0x00) | (joypadAutoReadBusy ? 0x01 : 0x00));
+        } else if (mmioAddress == 0x4214) {
+            openBusValue = static_cast<uint8_t>(rddiv);
+        } else if (mmioAddress == 0x4215) {
+            openBusValue = static_cast<uint8_t>(rddiv >> 8);
+        } else if (mmioAddress == 0x4216) {
+            openBusValue = static_cast<uint8_t>(rdmpy);
+        } else if (mmioAddress == 0x4217) {
+            openBusValue = static_cast<uint8_t>(rdmpy >> 8);
         } else if (mmioAddress == 0x4218) {
             openBusValue = static_cast<uint8_t>(joypadLatchedState);
         } else if (mmioAddress == 0x4219) {
@@ -217,6 +251,10 @@ void SnesBus::write8(uint32_t address, uint8_t value)
 
     if (auto mapped = mapWram(address)) {
         wram[*mapped] = value;
+        if (*mapped == 0x05B4) {
+            gameFlagLog.writeCount++;
+            gameFlagLog.lastValueWritten = value;
+        }
         return;
     }
 
@@ -235,9 +273,34 @@ void SnesBus::write8(uint32_t address, uint8_t value)
             return;
         }
         if (mmioAddress == 0x4200) {
+            const bool wasNmiEnabled = nmiEnable;
             mmio[*mapped] = value;
             nmiEnable = (value & 0x80) != 0;
+            hvIrqEnabled = (value & 0x10) != 0;
             joypadAutoReadEnable = (value & 0x01) != 0;
+            if (!wasNmiEnabled && nmiEnable && nmiFlag) {
+                nmiEdge = true;
+            }
+            return;
+        }
+        if (mmioAddress == 0x4207) {
+            mmio[*mapped] = value;
+            irqHTimeVal = static_cast<uint16_t>((irqHTimeVal & 0x100) | value);
+            return;
+        }
+        if (mmioAddress == 0x4208) {
+            mmio[*mapped] = value;
+            irqHTimeVal = static_cast<uint16_t>((irqHTimeVal & 0x0ff) | ((value & 0x01) << 8));
+            return;
+        }
+        if (mmioAddress == 0x4209) {
+            mmio[*mapped] = value;
+            irqVTimeVal = static_cast<uint16_t>((irqVTimeVal & 0x100) | value);
+            return;
+        }
+        if (mmioAddress == 0x420a) {
+            mmio[*mapped] = value;
+            irqVTimeVal = static_cast<uint16_t>((irqVTimeVal & 0x0ff) | ((value & 0x01) << 8));
             return;
         }
         if (mmioAddress == 0x420b) {
@@ -247,6 +310,56 @@ void SnesBus::write8(uint32_t address, uint8_t value)
         }
         if (mmioAddress == 0x420c) {
             mmio[*mapped] = value;
+            return;
+        }
+        if (mmioAddress == 0x4202) {
+            mmio[*mapped] = value;
+            wrmpya = value;
+            return;
+        }
+        if (mmioAddress == 0x4203) {
+            mmio[*mapped] = value;
+            wrmpyb = value;
+            rdmpy = static_cast<uint16_t>(wrmpya * wrmpyb);
+            return;
+        }
+        if (mmioAddress == 0x4204) {
+            mmio[*mapped] = value;
+            wrdiva = static_cast<uint16_t>((wrdiva & 0xff00) | value);
+            return;
+        }
+        if (mmioAddress == 0x4205) {
+            mmio[*mapped] = value;
+            wrdiva = static_cast<uint16_t>((wrdiva & 0x00ff) | (static_cast<uint16_t>(value) << 8));
+            return;
+        }
+        if (mmioAddress == 0x4206) {
+            mmio[*mapped] = value;
+            wrdivb = value;
+            if (wrdivb == 0) {
+                rddiv = 0xffff;
+                rdmpy = wrdiva;
+            } else {
+                rddiv = static_cast<uint16_t>(wrdiva / wrdivb);
+                rdmpy = static_cast<uint16_t>(wrdiva % wrdivb);
+            }
+            return;
+        }
+        if (mmioAddress == 0x2180) {
+            wram[wramPortAddr & 0x1ffff] = value;
+            wramPortAddr = (wramPortAddr + 1) & 0x1ffff;
+            return;
+        }
+        if (mmioAddress == 0x2181) {
+            wramPortAddr = (wramPortAddr & 0x1ff00) | value;
+            return;
+        }
+        if (mmioAddress == 0x2182) {
+            wramPortAddr = (wramPortAddr & 0x100ff) | (static_cast<uint32_t>(value) << 8);
+            return;
+        }
+        if (mmioAddress == 0x2183) {
+            wramPortAddr = (wramPortAddr & 0x0ffff) | (static_cast<uint32_t>(value & 0x01) << 16);
             return;
         }
         if (mmioAddress >= 0x2140 && mmioAddress <= 0x2143) {
@@ -283,6 +396,7 @@ void SnesBus::setTraceListener(TraceListener* listener)
 
 void SnesBus::beginFrame()
 {
+    gameFlagLog.reset();
     const uint8_t channelMask = mmio[0x420c - 0x2000];
     for (uint8_t channel = 0; channel < 8; ++channel) {
         HdmaChannel& state = hdma[channel];
@@ -316,7 +430,16 @@ void SnesBus::runDma(uint8_t channelMask)
             transferDmaByte(channel, static_cast<uint16_t>(index));
         }
         setDmaSize(channel, 0);
+
+        pendingDmaDots += size * 2;
     }
+}
+
+uint32_t SnesBus::consumeDmaDots()
+{
+    const uint32_t dots = pendingDmaDots;
+    pendingDmaDots = 0;
+    return dots;
 }
 
 void SnesBus::runHdmaScanline()
@@ -344,6 +467,37 @@ void SnesBus::runHdmaScanline()
 
         --state.lineCounter;
     }
+
+    pendingDmaDots += 16;
+}
+
+void SnesBus::checkIrq(uint16_t h, uint16_t v)
+{
+    if (hvIrqEnabled && h == irqHTimeVal && v == irqVTimeVal) {
+        irqPending = true;
+    }
+}
+
+void SnesBus::checkIrqCrossing(uint16_t prevH, uint16_t prevV, uint16_t currH, uint16_t currV)
+{
+    if (!hvIrqEnabled) {
+        return;
+    }
+
+    constexpr uint32_t dotsPerScanline = 341;
+    const uint32_t prevPos = static_cast<uint32_t>(prevV) * dotsPerScanline + prevH;
+    const uint32_t currPos = static_cast<uint32_t>(currV) * dotsPerScanline + currH;
+    const uint32_t targetPos = static_cast<uint32_t>(irqVTimeVal) * dotsPerScanline + irqHTimeVal;
+
+    if (currPos >= prevPos) {
+        if (targetPos >= prevPos && targetPos <= currPos) {
+            irqPending = true;
+        }
+    } else {
+        if (targetPos >= prevPos || targetPos <= currPos) {
+            irqPending = true;
+        }
+    }
 }
 
 void SnesBus::setVblank(bool active)
@@ -369,6 +523,7 @@ void SnesBus::beginJoypadAutoRead()
 {
     if (joypadAutoReadEnable) {
         joypadAutoReadBusy = true;
+        joypadAutoReadCyclesRemaining = 152;
     }
 }
 
@@ -379,6 +534,18 @@ void SnesBus::finishJoypadAutoRead()
         storeJoypadAutoReadResult();
     }
     joypadAutoReadBusy = false;
+    joypadAutoReadCyclesRemaining = 0;
+}
+
+void SnesBus::tickJoypadAutoRead(uint32_t cpuCycles)
+{
+    if (joypadAutoReadBusy && joypadAutoReadCyclesRemaining > 0) {
+        if (cpuCycles >= joypadAutoReadCyclesRemaining) {
+            finishJoypadAutoRead();
+        } else {
+            joypadAutoReadCyclesRemaining -= cpuCycles;
+        }
+    }
 }
 
 uint8_t SnesBus::readWram(uint32_t offset) const
@@ -448,6 +615,23 @@ uint8_t SnesBus::readRaw(uint32_t address)
         if (mmioAddress >= 0x2140 && mmioAddress <= 0x2143) {
             return readApuPort(mmioAddress);
         }
+        if (mmioAddress == 0x2180) {
+            uint8_t v = wram[wramPortAddr & 0x1ffff];
+            wramPortAddr = (wramPortAddr + 1) & 0x1ffff;
+            return v;
+        }
+        if (mmioAddress == 0x4214) {
+            return static_cast<uint8_t>(rddiv);
+        }
+        if (mmioAddress == 0x4215) {
+            return static_cast<uint8_t>(rddiv >> 8);
+        }
+        if (mmioAddress == 0x4216) {
+            return static_cast<uint8_t>(rdmpy);
+        }
+        if (mmioAddress == 0x4217) {
+            return static_cast<uint8_t>(rdmpy >> 8);
+        }
         if (mmioAddress == 0x4218) {
             return static_cast<uint8_t>(joypadLatchedState);
         }
@@ -482,6 +666,56 @@ void SnesBus::writeRaw(uint32_t address, uint8_t value)
             writeApuPort(mmioAddress, value);
             return;
         }
+        if (mmioAddress == 0x2180) {
+            wram[wramPortAddr & 0x1ffff] = value;
+            wramPortAddr = (wramPortAddr + 1) & 0x1ffff;
+            return;
+        }
+        if (mmioAddress == 0x2181) {
+            wramPortAddr = (wramPortAddr & 0x1ff00) | value;
+            return;
+        }
+        if (mmioAddress == 0x2182) {
+            wramPortAddr = (wramPortAddr & 0x100ff) | (static_cast<uint32_t>(value) << 8);
+            return;
+        }
+        if (mmioAddress == 0x2183) {
+            wramPortAddr = (wramPortAddr & 0x0ffff) | (static_cast<uint32_t>(value & 0x01) << 16);
+            return;
+        }
+        if (mmioAddress == 0x4202) {
+            mmio[*mapped] = value;
+            wrmpya = value;
+            return;
+        }
+        if (mmioAddress == 0x4203) {
+            mmio[*mapped] = value;
+            wrmpyb = value;
+            rdmpy = static_cast<uint16_t>(wrmpya * wrmpyb);
+            return;
+        }
+        if (mmioAddress == 0x4204) {
+            mmio[*mapped] = value;
+            wrdiva = static_cast<uint16_t>((wrdiva & 0xff00) | value);
+            return;
+        }
+        if (mmioAddress == 0x4205) {
+            mmio[*mapped] = value;
+            wrdiva = static_cast<uint16_t>((wrdiva & 0x00ff) | (static_cast<uint16_t>(value) << 8));
+            return;
+        }
+        if (mmioAddress == 0x4206) {
+            mmio[*mapped] = value;
+            wrdivb = value;
+            if (wrdivb == 0) {
+                rddiv = 0xffff;
+                rdmpy = wrdiva;
+            } else {
+                rddiv = static_cast<uint16_t>(wrdiva / wrdivb);
+                rdmpy = static_cast<uint16_t>(wrdiva % wrdivb);
+            }
+            return;
+        }
         mmio[*mapped] = value;
         return;
     }
@@ -504,6 +738,18 @@ void SnesBus::transferDmaByte(uint8_t channel, uint16_t index)
         writeRaw(aaddr, value);
     } else {
         const uint8_t value = readRaw(aaddr);
+
+        if (traceListener && ppuCore &&
+            (bbad == 0x18 || bbad == 0x19 || bbad == 0x04 || bbad == 0x22)) {
+            traceListener->dmaTransfer(
+                channel,
+                aaddr,
+                bbad,
+                value,
+                ppuCore->vramAddress
+            );
+        }
+
         writeRaw(0x002100 + baddr, value);
     }
 
@@ -570,7 +816,15 @@ void SnesBus::transferHdma(uint8_t channel)
             value = readRaw((static_cast<uint32_t>(bank) << 16) | table);
             setHdmaTableAddress(channel, static_cast<uint16_t>(table + 1));
         }
-        writeRaw(0x002100 + dmaBAddress(dmap & 0x07, bbad, index), value);
+        const uint16_t target = static_cast<uint16_t>(
+            0x2100 + dmaBAddress(dmap & 0x07, bbad, index)
+        );
+
+        if (traceListener) {
+            traceListener->hdmaWrite(channel, target, value);
+        }
+
+        writeRaw(target, value);
     }
 }
 
@@ -676,36 +930,38 @@ void SnesBus::storeJoypadAutoReadResult()
     mmio[0x4219 - 0x2000] = static_cast<uint8_t>(joypadLatchedState >> 8);
 }
 
-uint8_t SnesBus::readApuPort(uint16_t address) const
+uint8_t SnesBus::readApuPort(uint16_t address)
 {
-    return apuSmpToCpu[(address - 0x2140) & 0x03];
+    const uint8_t port = static_cast<uint8_t>((address - 0x2140) & 0x03);
+    const uint8_t val = apuCore.readPort(port);
+    apuPortLog.lastRead[port] = val;
+    apuPortLog.readCount[port]++;
+    apuPortLog.totalReads++;
+    return val;
 }
 
 void SnesBus::writeApuPort(uint16_t address, uint8_t value)
 {
     const uint8_t port = static_cast<uint8_t>((address - 0x2140) & 0x03);
-    apuCpuToSmp[port] = value;
-    mmio[address - 0x2000] = value;
+    apuCore.writePort(port, value);
+    apuPortLog.lastWrite[port] = value;
+    apuPortLog.writeCount[port]++;
+    apuPortLog.totalWrites++;
+}
 
-    if (std::all_of(apuCpuToSmp.begin(), apuCpuToSmp.end(), [](uint8_t byte) { return byte == 0; })) {
-        apuIplTransferStarted = false;
-        apuSmpToCpu = {0xaa, 0xbb, 0x00, 0x00};
-        return;
-    }
+void SnesBus::initApu()
+{
+    apuCore.init();
+}
 
-    // Minimal IPL handshake shim: after reset the S-SMP exposes AA/BB on
-    // ports 0/1 and ignores port 0 preamble writes until the CPU sends $CC.
-    // Once transfer starts, IPL acknowledges each CPU write to port 0 with the
-    // same value. This lets ROMs upload their SPC program before full APU
-    // emulation exists.
-    if (port == 0) {
-        if (value == 0xcc) {
-            apuIplTransferStarted = true;
-        }
-        if (apuIplTransferStarted) {
-            apuSmpToCpu[0] = value;
-        }
-    }
+void SnesBus::stepApu(uint32_t cpuCycles)
+{
+    apuCore.step(cpuCycles);
+}
+
+void SnesBus::endApuFrame()
+{
+    apuCore.endFrame();
 }
 
 } // namespace snesquik::bus
