@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <cstdio>
 #include <cstring>
 #include <type_traits>
 
@@ -384,6 +385,10 @@ void Ppu::renderScanline(uint16_t y)
         return;
     }
 
+    if (std::getenv("SNESQUIK_TMLOG") && (y % 28) == 0) {
+        std::fprintf(stderr, "[tm] y=%u bgmode=%02x main=%02x sub=%02x m7sel=%02x\n",
+                     y, bgmode, mainScreen, subScreen, m7sel);
+    }
     const uint8_t eitherScreen = static_cast<uint8_t>(mainScreen | subScreen);
     for (size_t bg = 0; bg < 4; ++bg) {
         if (eitherScreen & (1u << bg)) {
@@ -1027,6 +1032,15 @@ Ppu::Pixel Ppu::sampleMode7(size_t bg, int x, int y, bool subScreenPixel) const
     }
     if (layerWindowMasked(static_cast<uint8_t>(bg), x, subScreenPixel)) {
         return {};
+    }
+
+    if (std::getenv("SNESQUIK_M7FILL")) {
+        Pixel marker;
+        marker.color = (m7sel & 0x01) != 0 ? 0x7c1f : 0x03e0; // rear=magenta, fwd=green
+        marker.priority = bgPriorityValue(bg, false);
+        marker.layer = static_cast<uint8_t>(bg);
+        marker.opaque = true;
+        return marker;
     }
 
     int screenX = (m7sel & 0x01) != 0 ? screenWidth - 1 - x : x;

@@ -5,6 +5,7 @@ docs/
 tests/roms/
 tests/snes-tests/
 CMakeFiles/
+__pycache__/
 CMakeCache.txt
 cmake_install.cmake
 compile_commands.json

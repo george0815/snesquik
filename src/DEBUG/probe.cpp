@@ -309,6 +309,21 @@ ProbeResult runProbe(const ProbeOptions& options)
     bus::SnesBus bus;
     bus.attachPpu(&ppu);
     bus.attachCartridge(parsed->rom, parsed->header.map, parsed->header.declaredRamSizeBytes());
+    if (parsed->header.hasSuperFx()) {
+        bus.attachGsu(parsed->header.superFxRamSizeBytes());
+    }
+    if (parsed->header.hasSa1()) {
+        bus.attachSa1(parsed->header.sa1BwRamSizeBytes());
+    }
+    if (parsed->header.hasDsp()) {
+        std::string dspPath;
+        if (const char* env = std::getenv("SNESQUIK_DSP1_ROM")) {
+            dspPath = env;
+        } else {
+            dspPath = "tests/roms/dsp1b.rom";
+        }
+        bus.attachDsp(dspPath, parsed->header.map);
+    }
     bus.setTraceListener(&trace);
     bus.initApu();
 
@@ -355,6 +370,12 @@ ProbeResult runProbe(const ProbeOptions& options)
             bus.setJoypadState(injectedJoypadState);
             summary << "released_frame=" << frame << '\n';
         }
+        if (frame == options.gsuTraceFrame && options.gsuTraceCount > 0) {
+            static std::FILE* gsuTraceFile =
+                std::fopen((std::filesystem::path(options.outputDirectory) / "gsu_trace.log").c_str(), "w");
+            bus.getGsu().traceSink = gsuTraceFile;
+            bus.getGsu().traceRemaining = options.gsuTraceCount;
+        }
         if (frame == options.saveStateFrame && !options.saveStatePath.empty()) {
             std::string stateError;
             if (state::save(options.saveStatePath, cpu, bus, ppu, &stateError)) {
@@ -394,7 +415,6 @@ ProbeResult runProbe(const ProbeOptions& options)
 
         while (dotsThisFrame < frameDots && !cpu.stopped()) {
             const uint32_t cpuCycles = cpu.step();
-            bus.stepApu(cpuCycles);
             if (globalStep < options.traceSteps) {
                 logCpuStep(cpuLog, globalStep, cpu);
             }
@@ -403,7 +423,14 @@ ProbeResult runProbe(const ProbeOptions& options)
             const uint32_t dotAccum = cpuCycles * 3 + dotRemainder;
             uint32_t ppuDots = dotAccum / 2;
             dotRemainder = dotAccum % 2;
-            ppuDots += bus.consumeDmaDots();
+            const uint32_t dmaDots = bus.consumeDmaDots();
+            ppuDots += dmaDots;
+            // The SPC keeps running while the CPU is halted for DMA (see
+            // the main loop in snesquik.cpp).
+            bus.stepApu(cpuCycles + dmaDots * 2 / 3);
+            bus.stepGsu(cpuCycles * 6 + dmaDots * 4);
+            bus.stepSa1(cpuCycles * 6 + dmaDots * 4);
+            bus.stepDsp(cpuCycles + dmaDots);
 
             const uint16_t prevH = ppu.horizontalCounter();
             const uint16_t prevV = ppu.verticalCounter();
@@ -415,7 +442,7 @@ ProbeResult runProbe(const ProbeOptions& options)
             if (!irqBefore && bus.irqFlag()) {
                 ++irqFires;
             }
-            cpu.setIrqLine(bus.irqFlag());
+            cpu.setIrqLine(bus.irqFlag() || bus.gsuIrqPending() || bus.sa1IrqPending());
 
             if (ppu.verticalCounter() != lastLine) {
                 const uint16_t completedLine = lastLine;
@@ -473,6 +500,18 @@ ProbeResult runProbe(const ProbeOptions& options)
             for (uint32_t i = 0; i < 128 * 1024; ++i) {
                 wramOut.put(static_cast<char>(bus.readWram(i)));
             }
+            if (bus.hasGsu()) {
+                std::ofstream gsuOut(std::filesystem::path(options.outputDirectory) / "gsuram.bin", std::ios::binary);
+                const size_t gn = bus.getGsu().ramSize();
+                for (size_t i = 0; i < gn; ++i) {
+                    gsuOut.put(static_cast<char>(bus.getGsu().readRam(static_cast<uint32_t>(i))));
+                }
+                auto& g = bus.getGsu();
+                std::ofstream gr(std::filesystem::path(options.outputDirectory) / "gsu_regs.txt");
+                gr << "scbr=" << hexValue(g.scbr, 2) << " scmrHt=" << static_cast<int>(g.scmrHt)
+                   << " scmrMd=" << static_cast<int>(g.scmrMd) << " por=" << hexValue(g.por, 2)
+                   << " ron=" << g.scmrRon << " ran=" << g.scmrRan << " clsr=" << g.clsr << '\n';
+            }
             std::ofstream regsOut(std::filesystem::path(options.outputDirectory) / "ppu_regs.txt");
             for (uint16_t reg = 0x2100; reg <= 0x2133; ++reg) {
                 regsOut << hexValue(reg, 4) << " = " << hexValue(ppu.readRegister(reg), 2) << '\n';
@@ -514,6 +553,17 @@ ProbeResult runProbe(const ProbeOptions& options)
                     << " vtime=" << hexValue(bus.readMmio(0x4209) | (bus.readMmio(0x420a) << 8), 4)
                     << " htime=" << hexValue(bus.readMmio(0x4207) | (bus.readMmio(0x4208) << 8), 4)
                     << " irqstage=" << hexValue(bus.readWram(0xAB), 2)
+                    << " gsu=" << (bus.getGsu().running() ? "GO" : "--")
+                    << ' ' << hexValue(bus.getGsu().pbr, 2) << ':' << hexValue(bus.getGsu().reg(15), 4)
+                    << " sfr=" << hexValue(bus.getGsu().sfr, 4)
+                    << " scmr=" << (bus.getGsu().scmrRon ? "RON" : "ron") << (bus.getGsu().scmrRan ? "+RAN" : "+ran")
+                    << " md=" << static_cast<int>(bus.getGsu().scmrMd)
+                    << " stops=" << bus.getGsu().stopCount
+                    << " gins=" << bus.getGsu().instructionCount
+                    << " mb=" << hexValue(bus.readWram(0x070B) | (bus.readWram(0x070C) << 8), 4)
+                    << ',' << hexValue(bus.readWram(0x070D) | (bus.readWram(0x070E) << 8), 4)
+                    << ',' << hexValue(bus.readWram(0x070F) | (bus.readWram(0x0710) << 8), 4)
+                    << " gsuirq=" << (bus.gsuIrqPending() ? 1 : 0)
                     << " irqFires=" << irqFires
                     << " cpuI=" << (cpu.flag(cpu_r5a22::InterruptDisable) ? 1 : 0)
                     << " w6A=" << hexValue(bus.readWram(0x6A), 2)
@@ -521,6 +571,15 @@ ProbeResult runProbe(const ProbeOptions& options)
                     << " blend=" << hexValue(bus.readWram(0x1982) | (bus.readWram(0x1983) << 8), 4)
                     << '/' << hexValue(bus.readWram(0x1986) | (bus.readWram(0x1987) << 8), 4)
                     << " hdmaen=" << hexValue(bus.readMmio(0x420c), 2)
+                    << " sa1=" << (bus.hasSa1() ? (bus.getSa1().running() ? "GO" : "--") : "no")
+                    << ' ' << hexValue(bus.getSa1().cpu().registers().pb, 2)
+                    << ':' << hexValue(bus.getSa1().cpu().registers().pc, 4)
+                    << " sa1cyc=" << bus.getSa1().cpu().totalCycles()
+                    << " sa1irq=" << (bus.sa1IrqPending() ? 1 : 0)
+                    << " dsp=" << (bus.hasDsp() ? (bus.getDsp().loaded() ? "ld" : "--") : "no")
+                    << " pc=" << hexValue(bus.getDsp().regs.pc, 4)
+                    << " sr=" << hexValue(bus.getDsp().sr, 4)
+                    << " dr=" << hexValue(bus.getDsp().dr, 4)
                     << '\n';
             bus.resetApuPortLog();
         }

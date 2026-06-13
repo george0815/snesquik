@@ -30,6 +30,8 @@ struct ProbeOptions {
     std::vector<JoypadEvent> joypadEvents;
     std::vector<WramPoke> wramPokes;
     uint32_t dumpStateFrame = UINT32_MAX;
+    uint32_t gsuTraceFrame = UINT32_MAX;
+    uint32_t gsuTraceCount = 0;
     std::string loadStatePath;
     std::string saveStatePath;
     uint32_t saveStateFrame = UINT32_MAX;

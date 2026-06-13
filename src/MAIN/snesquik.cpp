@@ -130,6 +130,27 @@ bool isOption(const char* text, const char* option)
     return std::string(text) == option;
 }
 
+// Locate the DSP-1 program+data ROM dump. Honors $SNESQUIK_DSP1_ROM, then
+// falls back to the common dump filenames under tests/roms/. Returns the
+// first path that exists, or "" if none do.
+std::string resolveDspRomPath()
+{
+    std::vector<std::string> candidates;
+    if (const char* env = std::getenv("SNESQUIK_DSP1_ROM")) {
+        candidates.emplace_back(env);
+    }
+    candidates.emplace_back("tests/roms/dsp1b.rom");
+    candidates.emplace_back("tests/roms/dsp1.rom");
+    candidates.emplace_back("tests/roms/dsp1a.rom");
+    for (const auto& path : candidates) {
+        std::ifstream file(path, std::ios::binary);
+        if (file.good()) {
+            return path;
+        }
+    }
+    return std::string();
+}
+
 uint16_t joypadMaskForKey(int key)
 {
     using namespace snesquik::bus;
@@ -463,6 +484,9 @@ int main(int argc, char** argv)
             probeOptions.saveStatePath = argv[++i];
         } else if (isOption(argv[i], "--dump-audio") && i + 1 < argc) {
             probeOptions.dumpAudioPath = argv[++i];
+        } else if (isOption(argv[i], "--gsu-trace") && i + 2 < argc) {
+            probeOptions.gsuTraceFrame = static_cast<uint32_t>(std::strtoul(argv[++i], nullptr, 10));
+            probeOptions.gsuTraceCount = static_cast<uint32_t>(std::strtoul(argv[++i], nullptr, 10));
         } else if (isOption(argv[i], "--probe-poke") && i + 3 < argc) {
             const uint32_t frame = static_cast<uint32_t>(std::strtoul(argv[++i], nullptr, 10));
             const uint32_t addr = static_cast<uint32_t>(std::strtoul(argv[++i], nullptr, 16));
@@ -518,15 +542,37 @@ bus.setTraceListener(&trace);
     bus.attachPpu(&ppu);
     bus.attachCartridge(parsed->rom, parsed->header.map, parsed->header.declaredRamSizeBytes());
     bus.initApu();
+    if (parsed->header.hasSuperFx()) {
+        bus.attachGsu(parsed->header.superFxRamSizeBytes());
+        std::cout << "Super FX (GSU) coprocessor attached, "
+                  << parsed->header.superFxRamSizeBytes() / 1024 << " KB RAM\n";
+    }
+    if (parsed->header.hasSa1()) {
+        bus.attachSa1(parsed->header.sa1BwRamSizeBytes());
+        std::cout << "SA-1 coprocessor attached, "
+                  << parsed->header.sa1BwRamSizeBytes() / 1024 << " KB BW-RAM\n";
+    }
+    if (parsed->header.hasDsp()) {
+        std::string dspPath = resolveDspRomPath();
+        bus.attachDsp(dspPath, parsed->header.map);
+        if (bus.getDsp().loaded()) {
+            std::cout << "DSP-1 coprocessor attached (" << dspPath << ")\n";
+        } else {
+            std::cerr << "warning: DSP-1 cartridge but no usable ROM dump found "
+                         "(set SNESQUIK_DSP1_ROM or place tests/roms/dsp1b.rom); "
+                         "the DSP is inert and the game will not run correctly\n";
+        }
+    }
 
     snesquik::cpu_r5a22::CPU cpu(bus);
     cpu.reset();
 
     std::cout << parsed->header.title << " (" << snesquik::cartridge::cartridgeMapName(parsed->header.map) << ")\n";
-    if (parsed->header.chipset >= 0x03) {
+    if (parsed->header.chipset >= 0x03 && !parsed->header.hasSuperFx()
+        && !parsed->header.hasSa1() && !parsed->header.hasDsp()) {
         std::cerr << "warning: cartridge requires an enhancement coprocessor (chipset $"
                   << std::hex << static_cast<int>(parsed->header.chipset) << std::dec
-                  << ", e.g. Super FX/SA-1/DSP) which is not emulated; the game will not run correctly\n";
+                  << ") which is not emulated; the game will not run correctly\n";
     }
     std::cout << "reset PC: $" << std::hex << cpu.registers().pc << std::dec << '\n';
     std::cout << "F1=color math  F2=windows  F3=BG3 only  F4=force BG3  F5=log  F6=save state  F7=load state\n";
@@ -628,6 +674,13 @@ bus.setTraceListener(&trace);
             // advance the APU for that time too (1 dot = 4 master clocks,
             // 1 cycle ~= 6, hence dots * 2 / 3).
             bus.stepApu(cpuCycles + dmaDots * 2 / 3);
+            // The GSU runs in parallel as well (units: master clocks).
+            bus.stepGsu(cpuCycles * 6 + dmaDots * 4);
+            // The SA-1 second 65816 likewise runs in parallel (master clocks).
+            bus.stepSa1(cpuCycles * 6 + dmaDots * 4);
+            // The DSP-1 runs continuously; advance it proportional to S-CPU
+            // cycles (the RQM handshake handles exact synchronization).
+            bus.stepDsp(cpuCycles + dmaDots);
 
             const uint16_t prevH = ppu.horizontalCounter();
             const uint16_t prevV = ppu.verticalCounter();
@@ -645,8 +698,8 @@ bus.setTraceListener(&trace);
 
             bus.checkIrqCrossing(prevH, prevV, ppu.horizontalCounter(), ppu.verticalCounter());
             // Level-triggered: the line stays asserted until the game acks
-            // via $4211 (or disables H/V-IRQ); the CPU takes it when I=0.
-            cpu.setIrqLine(bus.irqFlag());
+            // via $4211 / $3031 (or disables the source); taken when I=0.
+            cpu.setIrqLine(bus.irqFlag() || bus.gsuIrqPending() || bus.sa1IrqPending());
 
             if (ppu.verticalCounter() != lastLine) {
                 const uint16_t completedLine = lastLine;

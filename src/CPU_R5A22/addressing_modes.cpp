@@ -39,13 +39,16 @@ uint16_t directIndexed(CPU& cpu, uint8_t offset, uint16_t index)
 uint16_t readDirect16(CPU& cpu, uint16_t address)
 {
     auto& r = cpu.mutableRegisters();
-    if (r.emulation || (r.d & 0x00ff) == 0) {
+    // The 16-bit pointer fetch wraps within the direct page only in
+    // emulation mode with DL = 0; otherwise it wraps at the bank-0
+    // 16-bit boundary.
+    if (r.emulation && (r.d & 0x00ff) == 0) {
         const uint16_t page = address & 0xff00;
         const uint16_t lo = cpu.read8(address);
         const uint16_t hi = cpu.read8(page | static_cast<uint8_t>(address + 1));
         return static_cast<uint16_t>(lo | (hi << 8));
     }
-    return cpu.read16(address);
+    return cpu.read16BankWrap(0, address);
 }
 
 uint32_t readDirect24(CPU& cpu, uint16_t address)
@@ -136,10 +139,21 @@ Operand directIndirectX(CPU& cpu)
 {
     auto& r = cpu.mutableRegisters();
     const uint16_t ptr = directIndexed(cpu, cpu.fetch8(), r.x);
+    uint16_t base;
+    if (r.emulation && (r.d & 0x00ff) != 0) {
+        // Undocumented (dp,X) quirk: the low pointer byte is read without
+        // page wrapping, but the +1 for the high byte wraps within the
+        // page. Applies only to this addressing mode.
+        const uint16_t lo = cpu.read8(ptr);
+        const uint16_t hi = cpu.read8((ptr & 0xff00) | static_cast<uint8_t>(ptr + 1));
+        base = static_cast<uint16_t>(lo | (hi << 8));
+    } else {
+        base = readDirect16(cpu, ptr);
+    }
     Operand operand;
     operand.hasAddress = true;
     operand.size = cpu.accumulatorWidth();
-    operand.address = banked(r.db, readDirect16(cpu, ptr));
+    operand.address = banked(r.db, base);
     return operand;
 }
 

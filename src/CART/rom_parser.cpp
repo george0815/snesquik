@@ -176,6 +176,9 @@ std::optional<RomHeader> parseRomHeaderCandidate(std::span<const uint8_t> rom, b
     header.checksumComplement = readLe16(rom, *headerOffset + 0x1c);
     header.checksum = readLe16(rom, *headerOffset + 0x1e);
     header.headerOffset = *headerOffset;
+    if (*headerOffset >= 3) {
+        header.expansionRamSizeCode = rom[*headerOffset - 3];
+    }
 
     const auto mapFromHeader = mapFromHeaderByte(header.mapModeByte);
     if (mapFromHeader && *mapFromHeader == map) {

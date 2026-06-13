@@ -247,6 +247,31 @@ uint16_t CPU::pull16()
     return static_cast<uint16_t>(lo | (hi << 8));
 }
 
+void CPU::push8NoWrap(uint8_t value)
+{
+    write8(banked(0, r.s), value);
+    r.s = static_cast<uint16_t>(r.s - 1);
+}
+
+void CPU::push16NoWrap(uint16_t value)
+{
+    push8NoWrap(static_cast<uint8_t>(value >> 8));
+    push8NoWrap(static_cast<uint8_t>(value));
+}
+
+uint8_t CPU::pull8NoWrap()
+{
+    r.s = static_cast<uint16_t>(r.s + 1);
+    return read8(banked(0, r.s));
+}
+
+uint16_t CPU::pull16NoWrap()
+{
+    const uint16_t lo = pull8NoWrap();
+    const uint16_t hi = pull8NoWrap();
+    return static_cast<uint16_t>(lo | (hi << 8));
+}
+
 bool CPU::flag(StatusFlag flag) const
 {
     return (r.p & flag) != 0;

@@ -75,21 +75,26 @@ uint16_t binaryAdc(CPU& cpu, uint16_t lhs, uint16_t rhs, uint8_t width)
 
 uint16_t decimalAdc(CPU& cpu, uint16_t lhs, uint16_t rhs, uint8_t width)
 {
+    const int nibbles = width == 1 ? 2 : 4;
     uint32_t carry = cpu.flag(Carry) ? 1 : 0;
     uint32_t result = 0;
-    uint32_t carryOut = 0;
-    const int nibbles = width == 1 ? 2 : 4;
+    bool overflow = false;
     for (int i = 0; i < nibbles; ++i) {
         uint32_t digit = ((lhs >> (i * 4)) & 0x0f) + ((rhs >> (i * 4)) & 0x0f) + carry;
+        if (i == nibbles - 1) {
+            // V is evaluated from the top nibble's sum before the final
+            // decimal adjustment, matching hardware.
+            const uint32_t partial = (digit << (i * 4)) | result;
+            overflow = (~(lhs ^ rhs) & (lhs ^ partial) & signFor(width)) != 0;
+        }
         if (digit > 9) {
             digit += 6;
         }
         carry = digit > 0x0f ? 1 : 0;
         result |= (digit & 0x0f) << (i * 4);
-        carryOut = carry;
     }
-    cpu.setFlag(Carry, carryOut != 0);
-    cpu.setFlag(Overflow, (~(lhs ^ rhs) & (lhs ^ result) & signFor(width)) != 0);
+    cpu.setFlag(Carry, carry != 0);
+    cpu.setFlag(Overflow, overflow);
     cpu.setZN(result, width);
     return static_cast<uint16_t>(result & maskFor(width));
 }
@@ -106,24 +111,32 @@ uint16_t binarySbc(CPU& cpu, uint16_t lhs, uint16_t rhs, uint8_t width)
     return static_cast<uint16_t>(result & mask);
 }
 
-uint16_t decimalSbc(CPU& cpu, uint16_t lhs, uint16_t rhs, uint8_t width)
+uint16_t decimalSbc(CPU& cpu, uint16_t lhs, uint16_t rhsIn, uint8_t width)
 {
-    int borrow = cpu.flag(Carry) ? 0 : 1;
-    const uint32_t binaryResult = (lhs & maskFor(width)) - (rhs & maskFor(width)) - static_cast<uint32_t>(borrow);
-    uint32_t result = 0;
+    // Hardware performs decimal subtraction as addition of the complement,
+    // adjusting nibbles that produce no carry; V comes from the top
+    // nibble's sum before the final adjustment.
     const int nibbles = width == 1 ? 2 : 4;
+    const uint16_t rhs = static_cast<uint16_t>(~rhsIn) & static_cast<uint16_t>(maskFor(width));
+    uint32_t carry = cpu.flag(Carry) ? 1 : 0;
+    uint32_t result = 0;
+    bool overflow = false;
     for (int i = 0; i < nibbles; ++i) {
-        int digit = static_cast<int>((lhs >> (i * 4)) & 0x0f) - static_cast<int>((rhs >> (i * 4)) & 0x0f) - borrow;
-        if (digit < 0) {
-            digit -= 6;
-            borrow = 1;
-        } else {
-            borrow = 0;
+        int digit = static_cast<int>((lhs >> (i * 4)) & 0x0f)
+                  + static_cast<int>((rhs >> (i * 4)) & 0x0f)
+                  + static_cast<int>(carry);
+        if (i == nibbles - 1) {
+            const uint32_t partial = (static_cast<uint32_t>(digit) << (i * 4)) | result;
+            overflow = (~(lhs ^ rhs) & (lhs ^ partial) & signFor(width)) != 0;
         }
+        if (digit <= 0x0f) {
+            digit -= 6;
+        }
+        carry = digit > 0x0f ? 1 : 0;
         result |= static_cast<uint32_t>(digit & 0x0f) << (i * 4);
     }
-    cpu.setFlag(Carry, borrow == 0);
-    cpu.setFlag(Overflow, ((lhs ^ rhs) & (lhs ^ binaryResult) & signFor(width)) != 0);
+    cpu.setFlag(Carry, carry != 0);
+    cpu.setFlag(Overflow, overflow);
     cpu.setZN(result, width);
     return static_cast<uint16_t>(result & maskFor(width));
 }
@@ -309,14 +322,19 @@ void jml(CPU& cpu, const Operand& operand)
 
 void jsr(CPU& cpu, const Operand& operand)
 {
-    cpu.push16(static_cast<uint16_t>(cpu.registers().pc - 1));
+    // JSR (a,x) is a "new" instruction: no stack page wrap in emulation.
+    if (cpu.currentInstruction().addressingId == AddressingMode::absoluteIndirectX) {
+        cpu.push16NoWrap(static_cast<uint16_t>(cpu.registers().pc - 1));
+    } else {
+        cpu.push16(static_cast<uint16_t>(cpu.registers().pc - 1));
+    }
     cpu.mutableRegisters().pc = static_cast<uint16_t>(operand.address);
 }
 
 void jsl(CPU& cpu, const Operand& operand)
 {
-    cpu.push8(cpu.registers().pb);
-    cpu.push16(static_cast<uint16_t>(cpu.registers().pc - 1));
+    cpu.push8NoWrap(cpu.registers().pb);
+    cpu.push16NoWrap(static_cast<uint16_t>(cpu.registers().pc - 1));
     cpu.mutableRegisters().pc = static_cast<uint16_t>(operand.address);
     cpu.mutableRegisters().pb = static_cast<uint8_t>(operand.address >> 16);
 }
@@ -361,9 +379,9 @@ void ora(CPU& cpu, const Operand& operand)
     logicResult(cpu, static_cast<uint16_t>(cpu.regA() | cpu.loadOperand(operand, width)), width);
 }
 
-void pea(CPU& cpu, const Operand& operand) { cpu.push16(static_cast<uint16_t>(operand.address)); }
-void pei(CPU& cpu, const Operand& operand) { cpu.push16(cpu.read16(operand.address)); }
-void per(CPU& cpu, const Operand& operand) { cpu.push16(static_cast<uint16_t>(cpu.registers().pc + static_cast<int16_t>(operand.value))); }
+void pea(CPU& cpu, const Operand& operand) { cpu.push16NoWrap(static_cast<uint16_t>(operand.address)); }
+void pei(CPU& cpu, const Operand& operand) { cpu.push16NoWrap(cpu.read16(operand.address)); }
+void per(CPU& cpu, const Operand& operand) { cpu.push16NoWrap(static_cast<uint16_t>(cpu.registers().pc + static_cast<int16_t>(operand.value))); }
 
 void pha(CPU& cpu, const Operand&)
 {
@@ -375,8 +393,8 @@ void pha(CPU& cpu, const Operand&)
     }
 }
 
-void phb(CPU& cpu, const Operand&) { cpu.push8(cpu.registers().db); }
-void phd(CPU& cpu, const Operand&) { cpu.push16(cpu.registers().d); }
+void phb(CPU& cpu, const Operand&) { cpu.push8NoWrap(cpu.registers().db); }
+void phd(CPU& cpu, const Operand&) { cpu.push16NoWrap(cpu.registers().d); }
 void phk(CPU& cpu, const Operand&) { cpu.push8(cpu.registers().pb); }
 
 void php(CPU& cpu, const Operand&)
@@ -419,13 +437,13 @@ void pla(CPU& cpu, const Operand&)
 
 void plb(CPU& cpu, const Operand&)
 {
-    cpu.mutableRegisters().db = cpu.pull8();
+    cpu.mutableRegisters().db = cpu.pull8NoWrap();
     cpu.setZN(cpu.registers().db, 1);
 }
 
 void pld(CPU& cpu, const Operand&)
 {
-    cpu.mutableRegisters().d = cpu.pull16();
+    cpu.mutableRegisters().d = cpu.pull16NoWrap();
     cpu.setZN(cpu.registers().d, 2);
 }
 
@@ -498,8 +516,8 @@ void rti(CPU& cpu, const Operand&)
 
 void rtl(CPU& cpu, const Operand&)
 {
-    cpu.mutableRegisters().pc = static_cast<uint16_t>(cpu.pull16() + 1);
-    cpu.mutableRegisters().pb = cpu.pull8();
+    cpu.mutableRegisters().pc = static_cast<uint16_t>(cpu.pull16NoWrap() + 1);
+    cpu.mutableRegisters().pb = cpu.pull8NoWrap();
 }
 
 void rts(CPU& cpu, const Operand&)

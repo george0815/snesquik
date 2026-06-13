@@ -2,6 +2,9 @@
 
 #include "APU/apu.h"
 #include "CPU_R5A22/core.h"
+#include "DSP/necdsp.h"
+#include "GSU/gsu.h"
+#include "SA1/sa1.h"
 #include "S-PPU/ppu.h"
 
 #include <array>
@@ -107,6 +110,23 @@ public:
     void endApuFrame();
     apu::Apu& getApu() { return apuCore; }
 
+    void attachGsu(size_t ramSize);
+    bool hasGsu() const { return gsuPresent; }
+    void stepGsu(uint32_t masterClocks);
+    bool gsuIrqPending() const { return gsuPresent && gsuCore.irqPending(); }
+    gsu::Gsu& getGsu() { return gsuCore; }
+
+    void attachSa1(size_t bwRamSize);
+    bool hasSa1() const { return sa1Present; }
+    void stepSa1(uint32_t masterClocks);
+    bool sa1IrqPending() const { return sa1Present && sa1Core.irqToScpuPending(); }
+    sa1::Sa1& getSa1() { return sa1Core; }
+
+    void attachDsp(const std::string& romPath, CartridgeMap map);
+    bool hasDsp() const { return dspPresent; }
+    void stepDsp(uint32_t cycles);
+    dsp::NecDsp& getDsp() { return dspCore; }
+
     void saveState(std::vector<uint8_t>& out);
     bool loadState(const uint8_t* data, size_t size);
 
@@ -164,6 +184,15 @@ public:
 private:
     std::optional<size_t> mapWram(uint32_t address) const;
     std::optional<size_t> mapMmio(uint32_t address) const;
+    // SA-1 address decode shared by read8/write8/readRaw/writeRaw. Returns
+    // true (and sets `value` on read) when the SA-1 owns the address; false
+    // means the access falls through to the normal S-CPU map (WRAM / PPU /
+    // CPU MMIO).
+    bool sa1MapRead(uint32_t address, uint8_t& value);
+    bool sa1MapWrite(uint32_t address, uint8_t value);
+    // DSP-1 register decode (DR/SR) shared by all four access paths.
+    bool dspMapRead(uint32_t address, uint8_t& value);
+    bool dspMapWrite(uint32_t address, uint8_t value);
     uint8_t readRaw(uint32_t address);
     void writeRaw(uint32_t address, uint8_t value);
     void transferDmaByte(uint8_t channel, uint16_t index);
@@ -188,6 +217,13 @@ private:
     std::array<uint8_t, 128 * 1024> wram{};
     std::array<uint8_t, 0x4000> mmio{};
     apu::Apu apuCore;
+    gsu::Gsu gsuCore;
+    bool gsuPresent = false;
+    sa1::Sa1 sa1Core;
+    bool sa1Present = false;
+    dsp::NecDsp dspCore;
+    bool dspPresent = false;
+    bool dspHiRomMap = false; // register window: HiROM $6000-$7FFF vs LoROM $8000-$FFFF
     CartridgeRom cart;
     ppu::Ppu* ppuCore = nullptr;
     TraceListener* traceListener = nullptr;

@@ -156,6 +156,13 @@ public:
     void push16(uint16_t value);
     uint8_t pull8();
     uint16_t pull16();
+    // "New" 65816 instructions (JSL/RTL/PEA/PEI/PER/PHB/PHD/PLB/PLD and
+    // JSR (a,x)) access the stack without page-1 wrapping even in emulation
+    // mode; S is renormalized to page 1 after the instruction.
+    void push8NoWrap(uint8_t value);
+    void push16NoWrap(uint16_t value);
+    uint8_t pull8NoWrap();
+    uint16_t pull16NoWrap();
 
     bool flag(StatusFlag flag) const;
     void setFlag(StatusFlag flag, bool value);

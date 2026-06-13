@@ -34,12 +34,30 @@ add_library(snesquik_apu
 target_include_directories(snesquik_apu PUBLIC src src/APU_SPC700/snes_spc)
 target_compile_definitions(snesquik_apu PRIVATE HAVE_STDINT_H)
 
+add_library(snesquik_gsu
+    src/GSU/gsu.cpp
+    src/GSU/gsu_operations.cpp
+    src/GSU/gsu_table.cpp
+)
+target_include_directories(snesquik_gsu PUBLIC src)
+
+add_library(snesquik_sa1
+    src/SA1/sa1.cpp
+)
+target_include_directories(snesquik_sa1 PUBLIC src)
+target_link_libraries(snesquik_sa1 PUBLIC snesquik_cpu)
+
+add_library(snesquik_dsp
+    src/DSP/necdsp.cpp
+)
+target_include_directories(snesquik_dsp PUBLIC src)
+
 add_library(snesquik_bus
     src/BUS/bus.cpp
     src/STATE/savestate.cpp
 )
 target_include_directories(snesquik_bus PUBLIC src)
-target_link_libraries(snesquik_bus PUBLIC snesquik_cpu snesquik_ppu snesquik_apu)
+target_link_libraries(snesquik_bus PUBLIC snesquik_cpu snesquik_ppu snesquik_apu snesquik_gsu snesquik_sa1 snesquik_dsp)
 
 add_library(snesquik_cartridge
     src/CART/rom_parser.cpp
@@ -87,6 +105,21 @@ if (SNESQUIK_BUILD_TESTS)
     target_link_libraries(rom_parser_tests PRIVATE snesquik_cartridge snesquik_cpu)
     add_test(NAME rom_parser_tests COMMAND rom_parser_tests)
     set_tests_properties(rom_parser_tests PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+    add_executable(gsu_tests tests/gsu_tests.cpp)
+    target_link_libraries(gsu_tests PRIVATE snesquik_gsu)
+    add_test(NAME gsu_tests COMMAND gsu_tests)
+    set_tests_properties(gsu_tests PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+    add_executable(sa1_tests tests/sa1_tests.cpp)
+    target_link_libraries(sa1_tests PRIVATE snesquik_sa1)
+    add_test(NAME sa1_tests COMMAND sa1_tests)
+    set_tests_properties(sa1_tests PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+    add_executable(dsp_tests tests/dsp_tests.cpp)
+    target_link_libraries(dsp_tests PRIVATE snesquik_dsp)
+    add_test(NAME dsp_tests COMMAND dsp_tests)
+    set_tests_properties(dsp_tests PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
     add_executable(ppu_tests tests/ppu_tests.cpp)
     target_link_libraries(ppu_tests PRIVATE snesquik_bus snesquik_ppu)

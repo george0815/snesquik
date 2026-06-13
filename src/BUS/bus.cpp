@@ -194,6 +194,55 @@ uint8_t SnesBus::read8(uint32_t address)
         return openBusValue;
     }
 
+    if (gsuPresent) {
+        const uint8_t lowBank = bank & 0x7f;
+        if (lowBank <= 0x3f) {
+            if (offset >= 0x3000 && offset <= 0x34ff) {
+                openBusValue = gsuCore.readIo(offset);
+                return openBusValue;
+            }
+            if (offset >= 0x6000 && offset <= 0x7fff) {
+                if (gsuCore.cpuCanSeeRam()) {
+                    openBusValue = gsuCore.readRam(offset & 0x1fff);
+                }
+                return openBusValue;
+            }
+            if (offset >= 0x8000 && !gsuCore.cpuCanSeeRom()) {
+                openBusValue = gsuCore.cpuRomConflictValue(address);
+                return openBusValue;
+            }
+        } else if (lowBank <= 0x5f) {
+            // Linear (HiROM-style) view of the game pack ROM.
+            if (!gsuCore.cpuCanSeeRom()) {
+                openBusValue = gsuCore.cpuRomConflictValue(address);
+            } else {
+                openBusValue = cart.read(address & 0x1fffff);
+            }
+            return openBusValue;
+        } else if (lowBank >= 0x70 && lowBank <= 0x71) {
+            if (gsuCore.cpuCanSeeRam()) {
+                openBusValue = gsuCore.readRam(((lowBank & 1) << 16) | offset);
+            }
+            return openBusValue;
+        }
+    }
+
+    if (sa1Present) {
+        uint8_t value = 0xff;
+        if (sa1MapRead(address, value)) {
+            openBusValue = value;
+            return openBusValue;
+        }
+    }
+
+    if (dspPresent) {
+        uint8_t value = 0xff;
+        if (dspMapRead(address, value)) {
+            openBusValue = value;
+            return openBusValue;
+        }
+    }
+
     if (bank <= 0x3f || (bank >= 0x80 && bank <= 0xbf)) {
         if (offset <= 0x1fff) {
             openBusValue = wram[offset];
@@ -272,6 +321,39 @@ void SnesBus::write8(uint32_t address, uint8_t value)
 {
     address = mask24(address);
     openBusValue = value;
+
+    if (gsuPresent) {
+        const uint8_t bank = static_cast<uint8_t>(address >> 16);
+        const uint16_t offset = static_cast<uint16_t>(address);
+        const uint8_t lowBank = bank & 0x7f;
+        if (bank != 0x7e && bank != 0x7f) {
+            if (lowBank <= 0x3f) {
+                if (offset >= 0x3000 && offset <= 0x34ff) {
+                    gsuCore.writeIo(offset, value);
+                    return;
+                }
+                if (offset >= 0x6000 && offset <= 0x7fff) {
+                    if (gsuCore.cpuCanSeeRam()) {
+                        gsuCore.writeRam(offset & 0x1fff, value);
+                    }
+                    return;
+                }
+            } else if (lowBank >= 0x70 && lowBank <= 0x71) {
+                if (gsuCore.cpuCanSeeRam()) {
+                    gsuCore.writeRam(((lowBank & 1) << 16) | offset, value);
+                }
+                return;
+            }
+        }
+    }
+
+    if (sa1Present && sa1MapWrite(address, value)) {
+        return;
+    }
+
+    if (dspPresent && dspMapWrite(address, value)) {
+        return;
+    }
 
     if (auto mapped = mapWram(address)) {
         wram[*mapped] = value;
@@ -672,6 +754,44 @@ std::optional<size_t> SnesBus::mapMmio(uint32_t address) const
 uint8_t SnesBus::readRaw(uint32_t address)
 {
     address = mask24(address);
+    if (gsuPresent) {
+        const uint8_t bank = static_cast<uint8_t>(address >> 16);
+        const uint16_t offset = static_cast<uint16_t>(address);
+        const uint8_t lowBank = bank & 0x7f;
+        if (bank != 0x7e && bank != 0x7f) {
+            if (lowBank <= 0x3f) {
+                if (offset >= 0x3000 && offset <= 0x34ff) {
+                    return gsuCore.readIo(offset);
+                }
+                if (offset >= 0x6000 && offset <= 0x7fff) {
+                    return gsuCore.cpuCanSeeRam() ? gsuCore.readRam(offset & 0x1fff) : openBusValue;
+                }
+                if (offset >= 0x8000 && !gsuCore.cpuCanSeeRom()) {
+                    return gsuCore.cpuRomConflictValue(address);
+                }
+            } else if (lowBank <= 0x5f) {
+                if (!gsuCore.cpuCanSeeRom()) {
+                    return gsuCore.cpuRomConflictValue(address);
+                }
+                return cart.read(address & 0x1fffff);
+            } else if (lowBank >= 0x70 && lowBank <= 0x71) {
+                return gsuCore.cpuCanSeeRam() ? gsuCore.readRam(((lowBank & 1) << 16) | offset)
+                                              : openBusValue;
+            }
+        }
+    }
+    if (sa1Present) {
+        uint8_t value = 0xff;
+        if (sa1MapRead(address, value)) {
+            return value;
+        }
+    }
+    if (dspPresent) {
+        uint8_t value = 0xff;
+        if (dspMapRead(address, value)) {
+            return value;
+        }
+    }
     if (auto mapped = mapWram(address)) {
         return wram[*mapped];
     }
@@ -720,6 +840,36 @@ uint8_t SnesBus::readRaw(uint32_t address)
 void SnesBus::writeRaw(uint32_t address, uint8_t value)
 {
     address = mask24(address);
+    if (gsuPresent) {
+        const uint8_t bank = static_cast<uint8_t>(address >> 16);
+        const uint16_t offset = static_cast<uint16_t>(address);
+        const uint8_t lowBank = bank & 0x7f;
+        if (bank != 0x7e && bank != 0x7f) {
+            if (lowBank <= 0x3f) {
+                if (offset >= 0x3000 && offset <= 0x34ff) {
+                    gsuCore.writeIo(offset, value);
+                    return;
+                }
+                if (offset >= 0x6000 && offset <= 0x7fff) {
+                    if (gsuCore.cpuCanSeeRam()) {
+                        gsuCore.writeRam(offset & 0x1fff, value);
+                    }
+                    return;
+                }
+            } else if (lowBank >= 0x70 && lowBank <= 0x71) {
+                if (gsuCore.cpuCanSeeRam()) {
+                    gsuCore.writeRam(((lowBank & 1) << 16) | offset, value);
+                }
+                return;
+            }
+        }
+    }
+    if (sa1Present && sa1MapWrite(address, value)) {
+        return;
+    }
+    if (dspPresent && dspMapWrite(address, value)) {
+        return;
+    }
     if (auto mapped = mapWram(address)) {
         wram[*mapped] = value;
         return;
@@ -1055,6 +1205,27 @@ void SnesBus::saveState(std::vector<uint8_t>& out)
     apuCore.saveState(apuBlob);
     appendPod(out, static_cast<uint32_t>(apuBlob.size()));
     out.insert(out.end(), apuBlob.begin(), apuBlob.end());
+
+    std::vector<uint8_t> gsuBlob;
+    if (gsuPresent) {
+        gsuCore.saveState(gsuBlob);
+    }
+    appendPod(out, static_cast<uint32_t>(gsuBlob.size()));
+    out.insert(out.end(), gsuBlob.begin(), gsuBlob.end());
+
+    std::vector<uint8_t> sa1Blob;
+    if (sa1Present) {
+        sa1Core.saveState(sa1Blob);
+    }
+    appendPod(out, static_cast<uint32_t>(sa1Blob.size()));
+    out.insert(out.end(), sa1Blob.begin(), sa1Blob.end());
+
+    std::vector<uint8_t> dspBlob;
+    if (dspPresent) {
+        dspCore.saveState(dspBlob);
+    }
+    appendPod(out, static_cast<uint32_t>(dspBlob.size()));
+    out.insert(out.end(), dspBlob.begin(), dspBlob.end());
 }
 
 bool SnesBus::loadState(const uint8_t* data, size_t size)
@@ -1096,7 +1267,215 @@ bool SnesBus::loadState(const uint8_t* data, size_t size)
     }
     pos += apuSize;
 
+    if (pos == end) {
+        // Older state without a GSU section.
+        return true;
+    }
+    uint32_t gsuSize = 0;
+    if (!readPod(pos, end, gsuSize) || static_cast<size_t>(end - pos) < gsuSize) {
+        return false;
+    }
+    if (gsuSize > 0) {
+        if (!gsuPresent || !gsuCore.loadState(pos, gsuSize)) {
+            return false;
+        }
+    }
+    pos += gsuSize;
+
+    if (pos == end) {
+        // Older state without an SA-1 section.
+        return true;
+    }
+    uint32_t sa1Size = 0;
+    if (!readPod(pos, end, sa1Size) || static_cast<size_t>(end - pos) < sa1Size) {
+        return false;
+    }
+    if (sa1Size > 0) {
+        if (!sa1Present || !sa1Core.loadState(pos, sa1Size)) {
+            return false;
+        }
+    }
+    pos += sa1Size;
+
+    if (pos == end) {
+        // Older state without a DSP section.
+        return true;
+    }
+    uint32_t dspSize = 0;
+    if (!readPod(pos, end, dspSize) || static_cast<size_t>(end - pos) < dspSize) {
+        return false;
+    }
+    if (dspSize > 0) {
+        if (!dspPresent || !dspCore.loadState(pos, dspSize)) {
+            return false;
+        }
+    }
+    pos += dspSize;
+
     return pos == end;
+}
+
+void SnesBus::attachGsu(size_t ramSize)
+{
+    gsuPresent = true;
+    gsuCore.power();
+    gsuCore.attachRom(cart.bytes());
+    gsuCore.setRamSize(ramSize);
+}
+
+void SnesBus::stepGsu(uint32_t masterClocks)
+{
+    if (gsuPresent) {
+        gsuCore.run(masterClocks);
+    }
+}
+
+void SnesBus::attachSa1(size_t bwRamSize)
+{
+    sa1Present = true;
+    sa1Core.power();
+    sa1Core.attachRom(cart.bytes());
+    sa1Core.setBwRamSize(bwRamSize);
+}
+
+void SnesBus::stepSa1(uint32_t masterClocks)
+{
+    if (sa1Present) {
+        sa1Core.stepSa1(masterClocks);
+    }
+}
+
+void SnesBus::attachDsp(const std::string& romPath, CartridgeMap map)
+{
+    dspPresent = true;
+    dspHiRomMap = (map == CartridgeMap::HiROM || map == CartridgeMap::ExHiROM);
+    dspCore.power();
+    if (!romPath.empty()) {
+        dspCore.loadRom(romPath); // inert if the dump is missing/wrong size
+    }
+}
+
+void SnesBus::stepDsp(uint32_t cycles)
+{
+    if (dspPresent) {
+        dspCore.step(cycles);
+    }
+}
+
+bool SnesBus::dspMapRead(uint32_t address, uint8_t& value)
+{
+    const uint8_t bank = static_cast<uint8_t>(address >> 16);
+    const uint16_t offset = static_cast<uint16_t>(address);
+    const uint8_t lowBank = bank & 0x7f; // $00-$3F mirrors $80-$BF
+    if (dspHiRomMap) {
+        // HiROM DSP-1: banks $00-$1F & $80-$9F, $6000-$7FFF; $1000 selects SR.
+        if (lowBank <= 0x1f && offset >= 0x6000 && offset <= 0x7fff) {
+            value = (offset & 0x1000) ? dspCore.readSR() : dspCore.readDR();
+            return true;
+        }
+    } else {
+        // LoROM DSP-1: banks $30-$3F & $B0-$BF, $8000-$FFFF; $4000 selects SR.
+        if (lowBank >= 0x30 && lowBank <= 0x3f && offset >= 0x8000) {
+            value = (offset & 0x4000) ? dspCore.readSR() : dspCore.readDR();
+            return true;
+        }
+    }
+    return false;
+}
+
+bool SnesBus::dspMapWrite(uint32_t address, uint8_t value)
+{
+    const uint8_t bank = static_cast<uint8_t>(address >> 16);
+    const uint16_t offset = static_cast<uint16_t>(address);
+    const uint8_t lowBank = bank & 0x7f;
+    if (dspHiRomMap) {
+        if (lowBank <= 0x1f && offset >= 0x6000 && offset <= 0x7fff) {
+            if (!(offset & 0x1000)) {
+                dspCore.writeDR(value); // SR is read-only to the S-CPU
+            }
+            return true;
+        }
+    } else {
+        if (lowBank >= 0x30 && lowBank <= 0x3f && offset >= 0x8000) {
+            if (!(offset & 0x4000)) {
+                dspCore.writeDR(value);
+            }
+            return true;
+        }
+    }
+    return false;
+}
+
+bool SnesBus::sa1MapRead(uint32_t address, uint8_t& value)
+{
+    const uint8_t bank = static_cast<uint8_t>(address >> 16);
+    const uint16_t offset = static_cast<uint16_t>(address);
+    if (bank == 0x7e || bank == 0x7f) {
+        return false; // system WRAM
+    }
+    if (bank >= 0x40 && bank <= 0x4f) {
+        value = sa1Core.cpuReadBwLinear((static_cast<uint32_t>(bank - 0x40) << 16) | offset);
+        return true;
+    }
+    if (bank >= 0xc0) {
+        value = sa1Core.cpuReadRom(address);
+        return true;
+    }
+    const uint8_t lowBank = bank & 0x7f; // $00-$3F == $80-$BF
+    if (lowBank <= 0x3f) {
+        if (offset >= 0x2200 && offset <= 0x23ff) {
+            value = sa1Core.cpuReadIo(offset);
+            return true;
+        }
+        if (offset >= 0x3000 && offset <= 0x37ff) {
+            value = sa1Core.cpuReadIram(offset);
+            return true;
+        }
+        if (offset >= 0x6000 && offset <= 0x7fff) {
+            value = sa1Core.cpuReadBwWindow(offset);
+            return true;
+        }
+        if (offset >= 0x8000) {
+            value = sa1Core.cpuReadRom(address);
+            return true;
+        }
+    }
+    return false; // WRAM mirror / PPU / CPU MMIO handled by the normal map
+}
+
+bool SnesBus::sa1MapWrite(uint32_t address, uint8_t value)
+{
+    const uint8_t bank = static_cast<uint8_t>(address >> 16);
+    const uint16_t offset = static_cast<uint16_t>(address);
+    if (bank == 0x7e || bank == 0x7f) {
+        return false;
+    }
+    if (bank >= 0x40 && bank <= 0x4f) {
+        sa1Core.cpuWriteBwLinear((static_cast<uint32_t>(bank - 0x40) << 16) | offset, value);
+        return true;
+    }
+    if (bank >= 0xc0) {
+        return true; // ROM region: writes ignored
+    }
+    const uint8_t lowBank = bank & 0x7f;
+    if (lowBank <= 0x3f) {
+        if (offset >= 0x2200 && offset <= 0x23ff) {
+            sa1Core.cpuWriteIo(offset, value);
+            return true;
+        }
+        if (offset >= 0x3000 && offset <= 0x37ff) {
+            sa1Core.cpuWriteIram(offset, value);
+            return true;
+        }
+        if (offset >= 0x6000 && offset <= 0x7fff) {
+            sa1Core.cpuWriteBwWindow(offset, value);
+            return true;
+        }
+        if (offset >= 0x8000) {
+            return true; // ROM region: writes ignored
+        }
+    }
+    return false;
 }
 
 void SnesBus::initApu()
