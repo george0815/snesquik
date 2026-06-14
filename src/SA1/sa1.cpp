@@ -73,6 +73,14 @@ void Sa1::power()
     mathA = mathB = 0;
     mathResult = 0;
     mathOverflow = false;
+    dmaEnable = dmaPriority = ccEnable = ccType1 = false;
+    dmaDest = dmaSource = ccColorBits = ccSize = 0;
+    dmaSourceAddr = dmaDestAddr = 0;
+    dmaCount = 0;
+    bitmapFormat = false;
+    ccBrf.fill(0);
+    ccLine = 0;
+    ccActive = false;
 
     // The SA-1 boots held in reset; the S-CPU releases it via $2200.
     sa1Cpu.reset();
@@ -393,6 +401,59 @@ void Sa1::regWrite(uint16_t offset, uint8_t value, bool /*fromSa1*/)
             mathOverflow = false;
         }
         break;
+    case 0x2230: // DCNT - DMA control
+        dmaSource = value & 0x03;
+        dmaDest = (value >> 2) & 0x01;
+        ccType1 = (value >> 4) & 0x01;
+        ccEnable = (value >> 5) & 0x01;
+        dmaPriority = (value >> 6) & 0x01;
+        dmaEnable = (value >> 7) & 0x01;
+        if (!ccEnable) {
+            ccActive = false;
+        }
+        break;
+    case 0x2231: // CDMA - character-conversion parameters
+        ccColorBits = value & 0x03;
+        ccSize = (value >> 2) & 0x07;
+        if (value & 0x80) { // CHDEND: terminate type-1 conversion
+            ccActive = false;
+            ccLine = 0;
+        }
+        break;
+    case 0x2232: dmaSourceAddr = (dmaSourceAddr & 0xffff00) | value; break;       // DSA low
+    case 0x2233: dmaSourceAddr = (dmaSourceAddr & 0xff00ff) | (value << 8); break; // DSA mid
+    case 0x2234: dmaSourceAddr = (dmaSourceAddr & 0x00ffff) | (value << 16); break; // DSA high
+    case 0x2235: dmaDestAddr = (dmaDestAddr & 0xffff00) | value; break;           // DDA low
+    case 0x2236: // DDA mid - triggers normal DMA (dest I-RAM) or type-1 CC DMA
+        dmaDestAddr = (dmaDestAddr & 0xff00ff) | (value << 8);
+        if (dmaEnable && !ccEnable && dmaDest == 0) {
+            dmaNormal();
+        } else if (dmaEnable && ccEnable && ccType1) {
+            ccActive = true; // type-1: subsequent I-RAM reads convert on the fly
+            ccLine = 0;
+            chdmaIrqFlag = true;
+        }
+        break;
+    case 0x2237: // DDA high - triggers normal DMA (dest BW-RAM)
+        dmaDestAddr = (dmaDestAddr & 0x00ffff) | (value << 16);
+        if (dmaEnable && !ccEnable && dmaDest == 1) {
+            dmaNormal();
+        }
+        break;
+    case 0x2238: dmaCount = (dmaCount & 0xff00) | value; break;        // DTC low
+    case 0x2239: dmaCount = (dmaCount & 0x00ff) | (value << 8); break; // DTC high
+    case 0x223f: bitmapFormat = (value & 0x80) != 0; break;           // BBF
+    case 0x2240: case 0x2241: case 0x2242: case 0x2243:
+    case 0x2244: case 0x2245: case 0x2246: case 0x2247:
+    case 0x2248: case 0x2249: case 0x224a: case 0x224b:
+    case 0x224c: case 0x224d: case 0x224e: case 0x224f: // BRF
+        ccBrf[offset & 0x0f] = value;
+        // Filling a half of the register file (8 bytes) triggers a type-2
+        // character conversion of that line.
+        if (dmaEnable && ccEnable && !ccType1 && (offset == 0x2247 || offset == 0x224f)) {
+            dmaCharConv2();
+        }
+        break;
     case 0x2251: mathA = (mathA & 0xff00) | value; break;        // MA low
     case 0x2252: mathA = (mathA & 0x00ff) | (value << 8); break; // MA high
     case 0x2253: mathB = (mathB & 0xff00) | value; break;        // MB low
@@ -442,6 +503,91 @@ void Sa1::runArithmetic()
                    | static_cast<uint16_t>(quotient);
     }
     mathB = 0;
+}
+
+// ---------------------------------------------------------------------------
+// DMA and character-conversion DMA
+// ---------------------------------------------------------------------------
+uint8_t Sa1::dmaSourceByte(uint32_t address) const
+{
+    switch (dmaSource) {
+    case 0: return readRom(mmcRom(address));                        // ROM
+    case 1: return bwram.empty() ? 0 : bwram[address & bwramMask];  // BW-RAM
+    case 2: return iram[address & 0x7ff];                           // I-RAM
+    default: return 0;
+    }
+}
+
+void Sa1::dmaDestByte(uint32_t address, uint8_t value)
+{
+    if (dmaDest == 0) {
+        iram[address & 0x7ff] = value; // I-RAM
+    } else if (!bwram.empty()) {
+        bwram[address & bwramMask] = value; // BW-RAM
+    }
+}
+
+void Sa1::dmaNormal()
+{
+    // Copy DTC bytes from the source device to the destination device.
+    for (uint32_t i = 0; i < dmaCount; ++i) {
+        dmaDestByte(dmaDestAddr, dmaSourceByte(dmaSourceAddr));
+        dmaSourceAddr = (dmaSourceAddr + 1) & 0xffffff;
+        dmaDestAddr = (dmaDestAddr + 1) & 0xffffff;
+    }
+    dmaIrqFlag = true;
+    updateSa1IrqLine();
+}
+
+// Character-conversion type 2: the SA-1 CPU fills an 8-pixel "line" of the BRF
+// register file; this converts it to an SNES planar bitplane row in I-RAM.
+void Sa1::dmaCharConv2()
+{
+    const uint32_t bpp = 2u << (2 - ccColorBits); // 8, 4 or 2 bits per pixel
+    const uint8_t* brf = &ccBrf[(ccLine & 1) << 3];
+    uint32_t address = dmaDestAddr & 0x7ff;
+    address &= ~((1u << (7 - ccColorBits)) - 1);
+    address += (ccLine & 8) * bpp;
+    address += (ccLine & 7) * 2;
+    for (uint32_t p = 0; p < bpp; ++p) {
+        uint8_t output = 0;
+        for (uint32_t x = 0; x < 8; ++x) {
+            output |= static_cast<uint8_t>(((brf[x] >> p) & 1) << (7 - x));
+        }
+        const uint32_t planeAddr = (address + ((p & 6) << 3) + (p & 1)) & 0x7ff;
+        iram[planeAddr] = output;
+    }
+    ccLine = (ccLine + 1) & 15;
+}
+
+// Character-conversion type 1: while active, S-CPU I-RAM reads return tile data
+// built on the fly from the linear BW-RAM bitmap at the DMA source address.
+uint8_t Sa1::ccDmaRead(uint16_t iramOffset)
+{
+    const uint32_t bpp = 2u << (2 - ccColorBits);
+    const uint32_t tileSize = 8u * bpp; // planar bytes per 8x8 tile
+    const uint32_t rel = (iramOffset - (dmaDestAddr & 0x7ff)) & 0x7ff;
+    const uint32_t tile = rel / tileSize;
+    const uint32_t byteInTile = rel % tileSize;
+    const uint32_t row = (byteInTile & 0x0f) >> 1;
+    const uint32_t plane = ((byteInTile >> 4) << 1) | (byteInTile & 1);
+    const uint32_t vramWidth = 1u << ccSize;      // tiles across
+    const uint32_t tileX = tile % vramWidth;
+    const uint32_t tileY = tile / vramWidth;
+    const uint32_t bitmapWidth = vramWidth * 8;   // pixels across
+    const uint32_t pixelMask = (1u << bpp) - 1;
+    uint8_t output = 0;
+    for (uint32_t x = 0; x < 8; ++x) {
+        uint8_t pixel = 0;
+        if (!bwram.empty()) {
+            const uint32_t pixelIndex = (tileY * 8 + row) * bitmapWidth + (tileX * 8 + x);
+            const uint32_t bitPos = pixelIndex * bpp;
+            const uint32_t byteAddr = (dmaSourceAddr + (bitPos >> 3)) & bwramMask;
+            pixel = static_cast<uint8_t>((bwram[byteAddr] >> (bitPos & 7)) & pixelMask);
+        }
+        output |= static_cast<uint8_t>(((pixel >> plane) & 1) << (7 - x));
+    }
+    return output;
 }
 
 // ---------------------------------------------------------------------------
@@ -543,6 +689,21 @@ void Sa1::saveState(std::vector<uint8_t>& out) const
     appendPod(out, mathB);
     appendPod(out, mathResult);
     appendPod(out, mathOverflow);
+    appendPod(out, dmaEnable);
+    appendPod(out, dmaPriority);
+    appendPod(out, ccEnable);
+    appendPod(out, ccType1);
+    appendPod(out, dmaDest);
+    appendPod(out, dmaSource);
+    appendPod(out, ccColorBits);
+    appendPod(out, ccSize);
+    appendPod(out, dmaSourceAddr);
+    appendPod(out, dmaDestAddr);
+    appendPod(out, dmaCount);
+    appendPod(out, bitmapFormat);
+    appendPod(out, ccBrf);
+    appendPod(out, ccLine);
+    appendPod(out, ccActive);
     appendPod(out, static_cast<uint32_t>(bwram.size()));
     out.insert(out.end(), bwram.begin(), bwram.end());
 }
@@ -571,7 +732,15 @@ bool Sa1::loadState(const uint8_t* data, size_t size)
         || !readPod(pos, end, sa1NmiFlag) || !readPod(pos, end, sa1NmiLine)
         || !readPod(pos, end, arithSum) || !readPod(pos, end, arithDivide)
         || !readPod(pos, end, mathA) || !readPod(pos, end, mathB)
-        || !readPod(pos, end, mathResult) || !readPod(pos, end, mathOverflow)) {
+        || !readPod(pos, end, mathResult) || !readPod(pos, end, mathOverflow)
+        || !readPod(pos, end, dmaEnable) || !readPod(pos, end, dmaPriority)
+        || !readPod(pos, end, ccEnable) || !readPod(pos, end, ccType1)
+        || !readPod(pos, end, dmaDest) || !readPod(pos, end, dmaSource)
+        || !readPod(pos, end, ccColorBits) || !readPod(pos, end, ccSize)
+        || !readPod(pos, end, dmaSourceAddr) || !readPod(pos, end, dmaDestAddr)
+        || !readPod(pos, end, dmaCount) || !readPod(pos, end, bitmapFormat)
+        || !readPod(pos, end, ccBrf) || !readPod(pos, end, ccLine)
+        || !readPod(pos, end, ccActive)) {
         return false;
     }
     sa1Cpu.loadState(cpuState);

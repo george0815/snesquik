@@ -50,6 +50,9 @@ struct RomHeader {
     // coprocessor present (low nibble >= 3). Covers DSP-1/1A/1B (SMK $05,
     // Suzuka 8 Hours $03); DSP-2/3/4 share the encoding but need their dumps.
     bool hasDsp() const { return (chipset & 0xf0) == 0x00 && (chipset & 0x0f) >= 0x03; }
+    // S-DD1 (graphics decompressor): coprocessor type $4x with a coprocessor
+    // present (low nibble >= 3). Street Fighter Alpha 2 ($43), Star Ocean ($45).
+    bool hasSdd1() const { return (chipset & 0xf0) == 0x40 && (chipset & 0x0f) >= 0x03; }
     size_t sa1BwRamSizeBytes() const
     {
         // The SA-1 addresses up to 256 KB of BW-RAM through its linear and

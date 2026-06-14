@@ -563,13 +563,17 @@ bus.setTraceListener(&trace);
                          "the DSP is inert and the game will not run correctly\n";
         }
     }
+    if (parsed->header.hasSdd1()) {
+        bus.attachSdd1();
+        std::cout << "S-DD1 coprocessor attached\n";
+    }
 
     snesquik::cpu_r5a22::CPU cpu(bus);
     cpu.reset();
 
     std::cout << parsed->header.title << " (" << snesquik::cartridge::cartridgeMapName(parsed->header.map) << ")\n";
     if (parsed->header.chipset >= 0x03 && !parsed->header.hasSuperFx()
-        && !parsed->header.hasSa1() && !parsed->header.hasDsp()) {
+        && !parsed->header.hasSa1() && !parsed->header.hasDsp() && !parsed->header.hasSdd1()) {
         std::cerr << "warning: cartridge requires an enhancement coprocessor (chipset $"
                   << std::hex << static_cast<int>(parsed->header.chipset) << std::dec
                   << ") which is not emulated; the game will not run correctly\n";
@@ -652,6 +656,7 @@ bus.setTraceListener(&trace);
     while (running) {
         uint32_t dotsThisFrame = 0;
         bool nmiRequested = false;
+        int nmiArmCountdown = -1; // delay NMI service so $4210 polls can latch
         dotsSincePoll = 0;
         bus.clearNmiEdge();
         bus.resetApuPortLog();
@@ -716,10 +721,17 @@ bus.setTraceListener(&trace);
             if (!nmiRequested && ppu.verticalCounter() >= static_cast<uint16_t>(ppu.visibleHeight())) {
                 bus.setVblank(true);
                 bus.beginJoypadAutoRead();
+                // Recognise the NMI a few instructions after raising the vblank
+                // flag, so a main-loop `LDA $4210` poll can latch bit 7 before
+                // the NMI handler acks it (e.g. Street Fighter Alpha 2).
+                nmiArmCountdown = bus.nmiEnabled() ? 4 : -1;
+                nmiRequested = true;
+            }
+            if (nmiArmCountdown > 0 && --nmiArmCountdown == 0) {
                 if (bus.nmiEnabled()) {
                     cpu.requestNMI();
                 }
-                nmiRequested = true;
+                nmiArmCountdown = -1;
             }
 
             bus.tickJoypadAutoRead(cpuCycles);

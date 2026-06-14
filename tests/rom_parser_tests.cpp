@@ -144,6 +144,23 @@ void testRejectsMissingHeader()
     require(!cartridge::parseRomImage(rom), "empty ROM without printable header is rejected");
 }
 
+void testCoprocessorDetection()
+{
+    cartridge::RomHeader header;
+    // S-DD1 is coprocessor type $4x with a coprocessor present (low nibble >=3).
+    header.chipset = 0x43; // Street Fighter Alpha 2
+    require(header.hasSdd1(), "chipset $43 detected as S-DD1");
+    header.chipset = 0x45; // Star Ocean
+    require(header.hasSdd1(), "chipset $45 detected as S-DD1");
+    // Other coprocessor families must not be mistaken for S-DD1.
+    header.chipset = 0x35; // SA-1
+    require(!header.hasSdd1() && header.hasSa1(), "SA-1 is not S-DD1");
+    header.chipset = 0x03; // DSP
+    require(!header.hasSdd1() && header.hasDsp(), "DSP is not S-DD1");
+    header.chipset = 0x40; // type 4 but no coprocessor present (low nibble 0)
+    require(!header.hasSdd1(), "chipset $40 without coprocessor is not S-DD1");
+}
+
 } // namespace
 
 int main()
@@ -154,6 +171,7 @@ int main()
         run("real CPU basic test ROM", testRealCpuBasicRom);
         run("real CPU full test ROM", testRealCpuFullRom);
         run("missing header rejection", testRejectsMissingHeader);
+        run("coprocessor detection", testCoprocessorDetection);
     } catch (const std::exception& error) {
         std::cerr << "[fail] " << error.what() << '\n';
         return 1;

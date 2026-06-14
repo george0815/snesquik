@@ -52,12 +52,17 @@ add_library(snesquik_dsp
 )
 target_include_directories(snesquik_dsp PUBLIC src)
 
+add_library(snesquik_sdd1
+    src/SDD1/sdd1.cpp
+)
+target_include_directories(snesquik_sdd1 PUBLIC src)
+
 add_library(snesquik_bus
     src/BUS/bus.cpp
     src/STATE/savestate.cpp
 )
 target_include_directories(snesquik_bus PUBLIC src)
-target_link_libraries(snesquik_bus PUBLIC snesquik_cpu snesquik_ppu snesquik_apu snesquik_gsu snesquik_sa1 snesquik_dsp)
+target_link_libraries(snesquik_bus PUBLIC snesquik_cpu snesquik_ppu snesquik_apu snesquik_gsu snesquik_sa1 snesquik_dsp snesquik_sdd1)
 
 add_library(snesquik_cartridge
     src/CART/rom_parser.cpp
@@ -125,4 +130,9 @@ if (SNESQUIK_BUILD_TESTS)
     target_link_libraries(ppu_tests PRIVATE snesquik_bus snesquik_ppu)
     add_test(NAME ppu_tests COMMAND ppu_tests)
     set_tests_properties(ppu_tests PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+    add_executable(sdd1_tests tests/sdd1_tests.cpp)
+    target_link_libraries(sdd1_tests PRIVATE snesquik_sdd1)
+    add_test(NAME sdd1_tests COMMAND sdd1_tests)
+    set_tests_properties(sdd1_tests PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 endif()

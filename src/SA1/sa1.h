@@ -42,7 +42,16 @@ public:
     bool ioAddress(uint16_t offset) const { return offset >= 0x2200 && offset <= 0x23ff; }
     uint8_t cpuReadIo(uint16_t offset);
     void cpuWriteIo(uint16_t offset, uint8_t value);
-    uint8_t cpuReadIram(uint16_t offset) const { return iram[offset & 0x7ff]; }
+    uint8_t cpuReadIram(uint16_t offset)
+    {
+        // While a type-1 character-conversion DMA is active, the S-CPU reads
+        // the converted tile data through I-RAM (built on the fly from the
+        // BW-RAM bitmap).
+        if (ccActive) {
+            return ccDmaRead(offset & 0x7ff);
+        }
+        return iram[offset & 0x7ff];
+    }
     void cpuWriteIram(uint16_t offset, uint8_t value) { iram[offset & 0x7ff] = value; }
     uint8_t cpuReadBwWindow(uint16_t offset) const;
     void cpuWriteBwWindow(uint16_t offset, uint8_t value);
@@ -78,6 +87,12 @@ private:
     void runArithmetic();
     void updateSa1IrqLine();
     void deliverSa1Reset();
+    // DMA / character-conversion DMA.
+    void dmaNormal();
+    void dmaCharConv2();        // type-2: convert a BRF line into I-RAM
+    uint8_t ccDmaRead(uint16_t iramOffset); // type-1: on-read conversion
+    uint8_t dmaSourceByte(uint32_t address) const;
+    void dmaDestByte(uint32_t address, uint8_t value);
 
     cpu_r5a22::CPU sa1Cpu;
 
@@ -134,6 +149,22 @@ private:
     uint16_t mathA = 0, mathB = 0;
     uint64_t mathResult = 0;   // 40-bit
     bool mathOverflow = false;
+    // $2230-$224F DMA / character-conversion DMA
+    bool dmaEnable = false;    // DCNT bit7 (DMAEN)
+    bool dmaPriority = false;  // DCNT bit6 (DPRIO)
+    bool ccEnable = false;     // DCNT bit5 (CDEN)
+    bool ccType1 = false;      // DCNT bit4 (CDSEL: 1=type1, 0=type2)
+    uint8_t dmaDest = 0;       // DCNT bit2 (DD: 0=I-RAM, 1=BW-RAM)
+    uint8_t dmaSource = 0;     // DCNT bits1-0 (SD: 0=ROM, 1=BW-RAM, 2=I-RAM)
+    uint8_t ccColorBits = 0;   // CDMA bits1-0 (bpp = 2 << (2 - ccColorBits))
+    uint8_t ccSize = 0;        // CDMA bits4-2 (virtual VRAM width)
+    uint32_t dmaSourceAddr = 0; // $2232-34 (DSA)
+    uint32_t dmaDestAddr = 0;   // $2235-37 (DDA)
+    uint16_t dmaCount = 0;      // $2238-39 (DTC)
+    bool bitmapFormat = false;  // $223F bit7 (BBF)
+    std::array<uint8_t, 16> ccBrf{}; // $2240-$224F bitmap register file
+    uint8_t ccLine = 0;         // type-2 line counter (0-15)
+    bool ccActive = false;      // type-1 conversion intercepts I-RAM reads
 };
 
 } // namespace snesquik::sa1

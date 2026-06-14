@@ -5,6 +5,7 @@
 #include "DSP/necdsp.h"
 #include "GSU/gsu.h"
 #include "SA1/sa1.h"
+#include "SDD1/sdd1.h"
 #include "S-PPU/ppu.h"
 
 #include <array>
@@ -127,6 +128,10 @@ public:
     void stepDsp(uint32_t cycles);
     dsp::NecDsp& getDsp() { return dspCore; }
 
+    void attachSdd1();
+    bool hasSdd1() const { return sdd1Present; }
+    sdd1::Sdd1& getSdd1() { return sdd1Core; }
+
     void saveState(std::vector<uint8_t>& out);
     bool loadState(const uint8_t* data, size_t size);
 
@@ -193,6 +198,9 @@ private:
     // DSP-1 register decode (DR/SR) shared by all four access paths.
     bool dspMapRead(uint32_t address, uint8_t& value);
     bool dspMapWrite(uint32_t address, uint8_t value);
+    // S-DD1 decode: $4800-$4807 registers and the $C0-$FF MMC ROM window.
+    bool sdd1MapRead(uint32_t address, uint8_t& value);
+    bool sdd1MapWrite(uint32_t address, uint8_t value);
     uint8_t readRaw(uint32_t address);
     void writeRaw(uint32_t address, uint8_t value);
     void transferDmaByte(uint8_t channel, uint16_t index);
@@ -224,6 +232,9 @@ private:
     dsp::NecDsp dspCore;
     bool dspPresent = false;
     bool dspHiRomMap = false; // register window: HiROM $6000-$7FFF vs LoROM $8000-$FFFF
+    sdd1::Sdd1 sdd1Core;
+    bool sdd1Present = false;
+    bool sdd1DmaActive = false; // current DMA channel reads from the decompressor
     CartridgeRom cart;
     ppu::Ppu* ppuCore = nullptr;
     TraceListener* traceListener = nullptr;

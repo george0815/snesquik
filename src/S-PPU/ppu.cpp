@@ -1,8 +1,8 @@
 #include "S-PPU/ppu.h"
 
 #include <algorithm>
-#include <cstdlib>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <type_traits>
 
@@ -116,11 +116,11 @@ uint8_t Ppu::readRegister(uint16_t address)
     case 0x2136:
         return static_cast<uint8_t>(mode7Multiply >> 16);
     case 0x2137:
-        if (!counterLatch) {
-            latchedHCounter = hCounter;
-            latchedVCounter = vCounter;
-            counterLatch = true;
-        }
+        // Reading SLHV latches the current H/V counters on every access (the
+        // bit-6 latch flag in $213F merely records that a latch occurred).
+        latchedHCounter = hCounter;
+        latchedVCounter = vCounter;
+        counterLatch = true;
         return registers[address - 0x2100];
     case 0x2138:
         return oam[internalOamAddress++ % oam.size()];
@@ -385,10 +385,6 @@ void Ppu::renderScanline(uint16_t y)
         return;
     }
 
-    if (std::getenv("SNESQUIK_TMLOG") && (y % 28) == 0) {
-        std::fprintf(stderr, "[tm] y=%u bgmode=%02x main=%02x sub=%02x m7sel=%02x\n",
-                     y, bgmode, mainScreen, subScreen, m7sel);
-    }
     const uint8_t eitherScreen = static_cast<uint8_t>(mainScreen | subScreen);
     for (size_t bg = 0; bg < 4; ++bg) {
         if (eitherScreen & (1u << bg)) {
@@ -1034,15 +1030,6 @@ Ppu::Pixel Ppu::sampleMode7(size_t bg, int x, int y, bool subScreenPixel) const
         return {};
     }
 
-    if (std::getenv("SNESQUIK_M7FILL")) {
-        Pixel marker;
-        marker.color = (m7sel & 0x01) != 0 ? 0x7c1f : 0x03e0; // rear=magenta, fwd=green
-        marker.priority = bgPriorityValue(bg, false);
-        marker.layer = static_cast<uint8_t>(bg);
-        marker.opaque = true;
-        return marker;
-    }
-
     int screenX = (m7sel & 0x01) != 0 ? screenWidth - 1 - x : x;
     const int renderY = y - 1;
     int screenY = (m7sel & 0x02) != 0 ? visibleHeight() - 1 - renderY : renderY;
@@ -1514,11 +1501,23 @@ uint16_t Ppu::applyColorMath(const Pixel& main, const Pixel& sub, int x) const
         return main.color;
     }
 
-    if ((cgwsel & 0x02) != 0 && colorWindowRegionActive((cgwsel >> 4) & 0x03, x)) {
+    // Color math is gated by the math-enable region (CGWSEL bits 5-4),
+    // independent of the sub-screen-source bit.
+    if (colorWindowRegionActive((cgwsel >> 4) & 0x03, x)) {
         return main.color;
     }
 
-    const uint16_t addend = (cgwsel & 0x01) ? sub.color : fixedColor();
+    // CGWSEL bit1 selects the sub screen as the second math operand; otherwise
+    // the fixed colour (COLDATA) is used. When the sub screen is selected but
+    // its pixel is transparent (no BG/OBJ — layer 5 backdrop), the sub screen's
+    // backdrop is the fixed colour, not CGRAM 0. SMW's title sky is exactly
+    // this: backdrop + COLDATA gradient delivered through the sub-screen path.
+    uint16_t addend;
+    if ((cgwsel & 0x02) != 0) {
+        addend = (sub.layer == 5) ? fixedColor() : sub.color;
+    } else {
+        addend = fixedColor();
+    }
     return blendColors(main.color, addend);
 }
 

@@ -211,6 +211,73 @@ void testSaveStateRoundTrip()
     requireEq(restored.cpuReadBwLinear(0x20), 0x88, "save state preserves BW-RAM");
 }
 
+void testNormalDma()
+{
+    Sa1 sa1;
+    sa1.power();
+    sa1.setBwRamSize(256 * 1024);
+
+    // I-RAM -> BW-RAM: copy 8 bytes from I-RAM $100 to BW-RAM $200.
+    for (int i = 0; i < 8; ++i) {
+        sa1.cpuWriteIram(0x100 + i, static_cast<uint8_t>(0x11 * (i + 1)));
+    }
+    sa1.cpuWriteIo(0x2230, 0x86); // DMAEN, SD=I-RAM(2), DD=BW-RAM(1), CDEN=0
+    sa1.cpuWriteIo(0x2232, 0x00); // DSA = $000100
+    sa1.cpuWriteIo(0x2233, 0x01);
+    sa1.cpuWriteIo(0x2234, 0x00);
+    sa1.cpuWriteIo(0x2238, 0x08); // DTC = 8
+    sa1.cpuWriteIo(0x2239, 0x00);
+    sa1.cpuWriteIo(0x2235, 0x00); // DDA = $000200
+    sa1.cpuWriteIo(0x2236, 0x02);
+    sa1.cpuWriteIo(0x2237, 0x00); // high-byte write triggers (dest BW-RAM)
+    bool ok = true;
+    for (int i = 0; i < 8; ++i) {
+        ok = ok && sa1.cpuReadBwLinear(0x200 + i) == static_cast<uint8_t>(0x11 * (i + 1));
+    }
+    require(ok, "normal DMA I-RAM -> BW-RAM copies bytes");
+
+    // BW-RAM -> I-RAM: copy 4 bytes from BW-RAM $300 to I-RAM $10.
+    for (int i = 0; i < 4; ++i) {
+        sa1.cpuWriteBwLinear(0x300 + i, static_cast<uint8_t>(0xA0 + i));
+    }
+    sa1.cpuWriteIo(0x2230, 0x81); // DMAEN, SD=BW-RAM(1), DD=I-RAM(0)
+    sa1.cpuWriteIo(0x2232, 0x00); // DSA = $000300
+    sa1.cpuWriteIo(0x2233, 0x03);
+    sa1.cpuWriteIo(0x2234, 0x00);
+    sa1.cpuWriteIo(0x2238, 0x04); // DTC = 4
+    sa1.cpuWriteIo(0x2239, 0x00);
+    sa1.cpuWriteIo(0x2235, 0x10); // DDA = $000010
+    sa1.cpuWriteIo(0x2236, 0x00); // mid-byte write triggers (dest I-RAM)
+    bool ok2 = true;
+    for (int i = 0; i < 4; ++i) {
+        ok2 = ok2 && sa1.cpuReadIram(0x10 + i) == static_cast<uint8_t>(0xA0 + i);
+    }
+    require(ok2, "normal DMA BW-RAM -> I-RAM copies bytes");
+}
+
+void testCharConvType2()
+{
+    Sa1 sa1;
+    sa1.power();
+    sa1.setBwRamSize(256 * 1024);
+
+    // 2bpp character-conversion type 2: feed one pixel row [0,1,2,3,0,1,2,3]
+    // through the BRF and check the planar bitplane bytes in I-RAM.
+    sa1.cpuWriteIo(0x2230, 0xa0); // DMAEN, CDEN, CDSEL=0 (type 2)
+    sa1.cpuWriteIo(0x2231, 0x02); // DMACB=2 -> 2bpp, DMASIZE=0
+    sa1.cpuWriteIo(0x2235, 0x00); // DDA = 0 (I-RAM tile base)
+    sa1.cpuWriteIo(0x2236, 0x00);
+    sa1.cpuWriteIo(0x2237, 0x00);
+    const uint8_t row[8] = {0, 1, 2, 3, 0, 1, 2, 3};
+    for (int i = 0; i < 8; ++i) {
+        sa1.cpuWriteIo(0x2240 + i, row[i]); // writing $2247 triggers conversion
+    }
+    // plane0 = bit0 of each pixel, MSB-first: 0 1 0 1 0 1 0 1 = 0x55
+    // plane1 = bit1 of each pixel, MSB-first: 0 0 1 1 0 0 1 1 = 0x33
+    requireEq(sa1.cpuReadIram(0x0000), 0x55, "CC type2 2bpp plane0");
+    requireEq(sa1.cpuReadIram(0x0001), 0x33, "CC type2 2bpp plane1");
+}
+
 } // namespace
 
 int main()
@@ -221,6 +288,8 @@ int main()
     testIrqMessaging();
     testSa1Execution();
     testSaveStateRoundTrip();
+    testNormalDma();
+    testCharConvType2();
 
     if (failures == 0) {
         std::printf("\nAll SA-1 tests passed.\n");

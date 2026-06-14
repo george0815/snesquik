@@ -1,6 +1,7 @@
 #include "GSU/gsu.h"
 
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 
 namespace snesquik::gsu {

@@ -1,3 +1,5 @@
+#include <cstdio>
+#include <cstdlib>
 #include "BUS/bus.h"
 
 #include <cstring>
@@ -243,6 +245,14 @@ uint8_t SnesBus::read8(uint32_t address)
         }
     }
 
+    if (sdd1Present) {
+        uint8_t value = 0xff;
+        if (sdd1MapRead(address, value)) {
+            openBusValue = value;
+            return openBusValue;
+        }
+    }
+
     if (bank <= 0x3f || (bank >= 0x80 && bank <= 0xbf)) {
         if (offset <= 0x1fff) {
             openBusValue = wram[offset];
@@ -352,6 +362,10 @@ void SnesBus::write8(uint32_t address, uint8_t value)
     }
 
     if (dspPresent && dspMapWrite(address, value)) {
+        return;
+    }
+
+    if (sdd1Present && sdd1MapWrite(address, value)) {
         return;
     }
 
@@ -516,6 +530,7 @@ void SnesBus::beginFrame()
         }
 
         state.active = true;
+        state.lineCounter = 0;
         setHdmaTableAddress(channel, static_cast<uint16_t>(mmio[0x4302 + channel * 0x10 - 0x2000]
             | (mmio[0x4303 + channel * 0x10 - 0x2000] << 8)));
         reloadHdma(channel);
@@ -536,9 +551,22 @@ void SnesBus::runDma(uint8_t channelMask)
         if (traceListener) {
             traceListener->dmaStart(channel, static_cast<uint16_t>(size));
         }
+
+        // S-DD1: a DMA channel armed via $4800 reads its (A-bus) source through
+        // the decompressor. Only applies to A->B reads (CPU->PPU direction).
+        const uint8_t dmap = mmio[0x4300 + channel * 0x10 - 0x2000];
+        sdd1DmaActive = sdd1Present && sdd1Core.channelArmed(channel) && (dmap & 0x80) == 0;
+        if (sdd1DmaActive) {
+            sdd1Core.decompressBegin(dmaAAddress(channel));
+        }
+
         for (uint32_t index = 0; index < size; ++index) {
             transferDmaByte(channel, static_cast<uint16_t>(index));
         }
+        if (sdd1DmaActive) {
+            sdd1Core.clearChannelArm(channel); // $4801 arms a single transfer
+        }
+        sdd1DmaActive = false;
         setDmaSize(channel, 0);
 
         pendingDmaDots += size * 2;
@@ -565,13 +593,12 @@ void SnesBus::runHdmaScanline()
             transferHdma(channel);
         }
 
+        // The full count byte (repeat bit included) is kept in lineCounter.
+        // After decrementing, bit7 decides whether the next line transfers,
+        // and a new entry is loaded when the low 7 bits reach zero.
         --state.lineCounter;
-        // With repeat set the unit is transferred every line; with it clear
-        // only on the first line of the entry.
-        state.doTransfer = state.repeat;
-        if (state.lineCounter == 0) {
-            reloadHdma(channel);
-        }
+        state.doTransfer = (state.lineCounter & 0x80) != 0;
+        reloadHdma(channel);
     }
 
     pendingDmaDots += 16;
@@ -792,6 +819,12 @@ uint8_t SnesBus::readRaw(uint32_t address)
             return value;
         }
     }
+    if (sdd1Present) {
+        uint8_t value = 0xff;
+        if (sdd1MapRead(address, value)) {
+            return value;
+        }
+    }
     if (auto mapped = mapWram(address)) {
         return wram[*mapped];
     }
@@ -868,6 +901,9 @@ void SnesBus::writeRaw(uint32_t address, uint8_t value)
         return;
     }
     if (dspPresent && dspMapWrite(address, value)) {
+        return;
+    }
+    if (sdd1Present && sdd1MapWrite(address, value)) {
         return;
     }
     if (auto mapped = mapWram(address)) {
@@ -955,7 +991,7 @@ void SnesBus::transferDmaByte(uint8_t channel, uint16_t index)
         const uint8_t value = readRaw(0x002100 + baddr);
         writeRaw(aaddr, value);
     } else {
-        const uint8_t value = readRaw(aaddr);
+        const uint8_t value = sdd1DmaActive ? sdd1Core.decompressReadByte() : readRaw(aaddr);
 
         if (traceListener && ppuCore &&
             (bbad == 0x18 || bbad == 0x19 || bbad == 0x04 || bbad == 0x22)) {
@@ -984,23 +1020,22 @@ void SnesBus::transferDmaByte(uint8_t channel, uint16_t index)
 void SnesBus::reloadHdma(uint8_t channel)
 {
     HdmaChannel& state = hdma[channel];
+    // A new table entry is only loaded once the current one is exhausted, i.e.
+    // the low 7 bits of the line counter have reached zero.
+    if ((state.lineCounter & 0x7f) != 0) {
+        return;
+    }
     const uint16_t base = static_cast<uint16_t>(0x4300 + channel * 0x10);
     uint16_t table = hdmaTableAddress(channel);
     const uint8_t bank = mmio[base + 4 - 0x2000];
     const uint8_t line = readRaw((static_cast<uint32_t>(bank) << 16) | table);
     setHdmaTableAddress(channel, static_cast<uint16_t>(table + 1));
 
+    state.lineCounter = line; // keep the full byte (repeat bit in bit 7)
     if (line == 0) {
         state.active = false;
-        state.lineCounter = 0;
         state.doTransfer = false;
         return;
-    }
-
-    state.repeat = (line & 0x80) != 0;
-    state.lineCounter = line & 0x7f;
-    if (state.lineCounter == 0) {
-        state.lineCounter = 128;
     }
     state.doTransfer = true;
 
@@ -1132,7 +1167,10 @@ void SnesBus::latchJoypad()
 
 uint8_t SnesBus::readJoypadSerial()
 {
-    uint8_t bit = 0;
+    // A connected standard controller returns its 16 button/ID bits, then the
+    // data line idles high (1) on every further clock. Games (e.g. DOOM) read
+    // past bit 16 and rely on the 1 to detect a present controller.
+    uint8_t bit = 1;
     if (joypadReadIndex < 16) {
         bit = static_cast<uint8_t>((joypadLatchedState >> (15 - joypadReadIndex)) & 0x01);
     }
@@ -1226,6 +1264,13 @@ void SnesBus::saveState(std::vector<uint8_t>& out)
     }
     appendPod(out, static_cast<uint32_t>(dspBlob.size()));
     out.insert(out.end(), dspBlob.begin(), dspBlob.end());
+
+    std::vector<uint8_t> sdd1Blob;
+    if (sdd1Present) {
+        sdd1Core.saveState(sdd1Blob);
+    }
+    appendPod(out, static_cast<uint32_t>(sdd1Blob.size()));
+    out.insert(out.end(), sdd1Blob.begin(), sdd1Blob.end());
 }
 
 bool SnesBus::loadState(const uint8_t* data, size_t size)
@@ -1312,6 +1357,21 @@ bool SnesBus::loadState(const uint8_t* data, size_t size)
     }
     pos += dspSize;
 
+    if (pos == end) {
+        // Older state without an S-DD1 section.
+        return true;
+    }
+    uint32_t sdd1Size = 0;
+    if (!readPod(pos, end, sdd1Size) || static_cast<size_t>(end - pos) < sdd1Size) {
+        return false;
+    }
+    if (sdd1Size > 0) {
+        if (!sdd1Present || !sdd1Core.loadState(pos, sdd1Size)) {
+            return false;
+        }
+    }
+    pos += sdd1Size;
+
     return pos == end;
 }
 
@@ -1360,6 +1420,43 @@ void SnesBus::stepDsp(uint32_t cycles)
     if (dspPresent) {
         dspCore.step(cycles);
     }
+}
+
+void SnesBus::attachSdd1()
+{
+    sdd1Present = true;
+    sdd1Core.power();
+    sdd1Core.attachRom(cart.bytes());
+}
+
+bool SnesBus::sdd1MapRead(uint32_t address, uint8_t& value)
+{
+    const uint8_t bank = static_cast<uint8_t>(address >> 16);
+    const uint16_t offset = static_cast<uint16_t>(address);
+    const uint8_t lowBank = bank & 0x7f; // $00-$3F mirrors $80-$BF
+    // Registers $4800-$4807 in banks $00-$3F / $80-$BF.
+    if (lowBank <= 0x3f && offset >= 0x4800 && offset <= 0x4807) {
+        value = sdd1Core.readRegister(offset);
+        return true;
+    }
+    // MMC ROM window $C0-$FF.
+    if (bank >= 0xc0) {
+        value = sdd1Core.readRom(address);
+        return true;
+    }
+    return false;
+}
+
+bool SnesBus::sdd1MapWrite(uint32_t address, uint8_t value)
+{
+    const uint8_t bank = static_cast<uint8_t>(address >> 16);
+    const uint16_t offset = static_cast<uint16_t>(address);
+    const uint8_t lowBank = bank & 0x7f;
+    if (lowBank <= 0x3f && offset >= 0x4800 && offset <= 0x4807) {
+        sdd1Core.writeRegister(offset, value);
+        return true;
+    }
+    return false;
 }
 
 bool SnesBus::dspMapRead(uint32_t address, uint8_t& value)

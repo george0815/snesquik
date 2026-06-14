@@ -324,6 +324,9 @@ ProbeResult runProbe(const ProbeOptions& options)
         }
         bus.attachDsp(dspPath, parsed->header.map);
     }
+    if (parsed->header.hasSdd1()) {
+        bus.attachSdd1();
+    }
     bus.setTraceListener(&trace);
     bus.initApu();
 
@@ -406,6 +409,7 @@ ProbeResult runProbe(const ProbeOptions& options)
 
         uint32_t dotsThisFrame = 0;
         bool nmiRequested = false;
+        int nmiArmCountdown = -1; // delay NMI service so $4210 polls can latch
         uint32_t dotRemainder = 0;
         ppu.beginFrame();
         uint16_t lastLine = ppu.verticalCounter();
@@ -458,10 +462,18 @@ ProbeResult runProbe(const ProbeOptions& options)
             if (!nmiRequested && ppu.verticalCounter() >= static_cast<uint16_t>(ppu.visibleHeight())) {
                 bus.setVblank(true);
                 bus.beginJoypadAutoRead();
+                // The NMI is recognised a few instructions after the vblank
+                // flag is raised. Modelling that latency lets a main-loop
+                // `LDA $4210` poll latch bit 7 before the NMI handler acks it
+                // (e.g. Street Fighter Alpha 2's frame-sync loop).
+                nmiArmCountdown = bus.nmiEnabled() ? 4 : -1;
+                nmiRequested = true;
+            }
+            if (nmiArmCountdown > 0 && --nmiArmCountdown == 0) {
                 if (bus.nmiEnabled()) {
                     cpu.requestNMI();
                 }
-                nmiRequested = true;
+                nmiArmCountdown = -1;
             }
 
             bus.tickJoypadAutoRead(cpuCycles);

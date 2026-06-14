@@ -90,8 +90,17 @@ uint32_t CPU::step()
     }
 
     if (isWaiting) {
-        addCycles(1);
-        return static_cast<uint32_t>(cycles - before);
+        // WAI resumes whenever the IRQ line is asserted (level-sensitive), not
+        // only on a fresh rising edge. The case above (irqLine && !I) already
+        // vectored; reaching here with irqLine high means interrupts are masked
+        // (I set), so WAI resumes and execution continues past it without
+        // vectoring. Otherwise keep waiting.
+        if (irqLine) {
+            isWaiting = false;
+        } else {
+            addCycles(1);
+            return static_cast<uint32_t>(cycles - before);
+        }
     }
 
     opcode = fetch8();
