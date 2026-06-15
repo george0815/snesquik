@@ -512,6 +512,10 @@ ProbeResult runProbe(const ProbeOptions& options)
             for (uint32_t i = 0; i < 128 * 1024; ++i) {
                 wramOut.put(static_cast<char>(bus.readWram(i)));
             }
+            std::ofstream spcOut(std::filesystem::path(options.outputDirectory) / "spcram.bin", std::ios::binary);
+            for (int i = 0; i < 64 * 1024; ++i) {
+                spcOut.put(static_cast<char>(bus.getApu().debugRam(i) & 0xff));
+            }
             if (bus.hasGsu()) {
                 std::ofstream gsuOut(std::filesystem::path(options.outputDirectory) / "gsuram.bin", std::ios::binary);
                 const size_t gn = bus.getGsu().ramSize();

@@ -213,15 +213,18 @@ uint8_t SnesBus::read8(uint32_t address)
                 openBusValue = gsuCore.cpuRomConflictValue(address);
                 return openBusValue;
             }
-        } else if (lowBank <= 0x5f) {
-            // Linear (HiROM-style) view of the game pack ROM.
+        } else if (lowBank <= 0x6f) {
+            // Linear (HiROM-style) view of the game pack ROM. Banks $60-$6F
+            // mirror $40-$5F (the ROM address wraps mod its size) — DOOM
+            // streams weapon-fire sound samples via $60:xxxx pointers that
+            // resolve to ROM. NOT Game Pak RAM (that begins at $70).
             if (!gsuCore.cpuCanSeeRom()) {
                 openBusValue = gsuCore.cpuRomConflictValue(address);
             } else {
                 openBusValue = cart.read(address & 0x1fffff);
             }
             return openBusValue;
-        } else if (lowBank >= 0x70 && lowBank <= 0x71) {
+        } else if (lowBank >= 0x70 && lowBank <= 0x7d) {
             if (gsuCore.cpuCanSeeRam()) {
                 openBusValue = gsuCore.readRam(((lowBank & 1) << 16) | offset);
             }
@@ -348,7 +351,7 @@ void SnesBus::write8(uint32_t address, uint8_t value)
                     }
                     return;
                 }
-            } else if (lowBank >= 0x70 && lowBank <= 0x71) {
+            } else if (lowBank >= 0x70 && lowBank <= 0x7d) {
                 if (gsuCore.cpuCanSeeRam()) {
                     gsuCore.writeRam(((lowBank & 1) << 16) | offset, value);
                 }
@@ -796,12 +799,13 @@ uint8_t SnesBus::readRaw(uint32_t address)
                 if (offset >= 0x8000 && !gsuCore.cpuCanSeeRom()) {
                     return gsuCore.cpuRomConflictValue(address);
                 }
-            } else if (lowBank <= 0x5f) {
+            } else if (lowBank <= 0x6f) {
+                // Linear ROM; $60-$6F mirror $40-$5F (ROM wraps). NOT RAM.
                 if (!gsuCore.cpuCanSeeRom()) {
                     return gsuCore.cpuRomConflictValue(address);
                 }
                 return cart.read(address & 0x1fffff);
-            } else if (lowBank >= 0x70 && lowBank <= 0x71) {
+            } else if (lowBank >= 0x70 && lowBank <= 0x7d) {
                 return gsuCore.cpuCanSeeRam() ? gsuCore.readRam(((lowBank & 1) << 16) | offset)
                                               : openBusValue;
             }
@@ -889,7 +893,7 @@ void SnesBus::writeRaw(uint32_t address, uint8_t value)
                     }
                     return;
                 }
-            } else if (lowBank >= 0x70 && lowBank <= 0x71) {
+            } else if (lowBank >= 0x70 && lowBank <= 0x7d) {
                 if (gsuCore.cpuCanSeeRam()) {
                     gsuCore.writeRam(((lowBank & 1) << 16) | offset, value);
                 }
