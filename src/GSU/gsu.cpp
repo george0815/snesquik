@@ -106,13 +106,16 @@ uint8_t Gsu::readMemory(uint32_t address)
         if (rom.empty()) {
             return 0;
         }
-        return rom[((((address & 0x3f0000) >> 1) | (address & 0x7fff))) & romMask];
+        // Use modulo, not a bitwise mask: ROM sizes are not always a power of
+        // two (e.g. Star Fox 2 = 0xFFEC3 bytes) and `& (size-1)` would corrupt
+        // the offset, fetching garbage as code. (% == & for power-of-two sizes.)
+        return rom[((((address & 0x3f0000) >> 1) | (address & 0x7fff))) % rom.size()];
     }
     if (bank <= 0x5f) {
         if (rom.empty()) {
             return 0;
         }
-        return rom[address & romMask];
+        return rom[address % rom.size()];
     }
     if (bank <= 0x7f) {
         if (ram.empty()) {
