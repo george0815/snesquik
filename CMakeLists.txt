@@ -22,7 +22,7 @@ add_library(snesquik_ppu
 target_include_directories(snesquik_ppu PUBLIC src)
 
 add_library(snesquik_apu
-    src/APU/apu.cpp
+    src/APU_SPC700/apu.cpp
     src/APU_SPC700/snes_spc/snes_spc/SNES_SPC.cpp
     src/APU_SPC700/snes_spc/snes_spc/SNES_SPC_misc.cpp
     src/APU_SPC700/snes_spc/snes_spc/SNES_SPC_state.cpp

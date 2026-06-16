@@ -569,6 +569,7 @@ bus.setTraceListener(&trace);
     }
 
     snesquik::cpu_r5a22::CPU cpu(bus);
+    bus.setCpu(cpu);
     cpu.reset();
 
     std::cout << parsed->header.title << " (" << snesquik::cartridge::cartridgeMapName(parsed->header.map) << ")\n";
@@ -677,8 +678,9 @@ bus.setTraceListener(&trace);
             ppuDots += dmaDots;
             // The SPC keeps running while the CPU is halted for DMA, so
             // advance the APU for that time too (1 dot = 4 master clocks,
-            // 1 cycle ~= 6, hence dots * 2 / 3).
-            bus.stepApu(cpuCycles + dmaDots * 2 / 3);
+            // 1 cycle ~= 6, hence dots * 2 / 3). The CPU's own cycles come
+            // from its counter inside stepApu; only DMA halt time is extra.
+            bus.stepApu(dmaDots * 2 / 3);
             // The GSU runs in parallel as well (units: master clocks).
             bus.stepGsu(cpuCycles * 6 + dmaDots * 4);
             // The SA-1 second 65816 likewise runs in parallel (master clocks).

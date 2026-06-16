@@ -331,6 +331,7 @@ ProbeResult runProbe(const ProbeOptions& options)
     bus.initApu();
 
     cpu_r5a22::CPU cpu(bus);
+    bus.setCpu(cpu);
     cpu.reset();
 
     if (!options.loadStatePath.empty()) {
@@ -430,8 +431,9 @@ ProbeResult runProbe(const ProbeOptions& options)
             const uint32_t dmaDots = bus.consumeDmaDots();
             ppuDots += dmaDots;
             // The SPC keeps running while the CPU is halted for DMA (see
-            // the main loop in snesquik.cpp).
-            bus.stepApu(cpuCycles + dmaDots * 2 / 3);
+            // the main loop in snesquik.cpp). The CPU's own cycles are taken
+            // from its counter inside stepApu; only the DMA halt time is extra.
+            bus.stepApu(dmaDots * 2 / 3);
             bus.stepGsu(cpuCycles * 6 + dmaDots * 4);
             bus.stepSa1(cpuCycles * 6 + dmaDots * 4);
             bus.stepDsp(cpuCycles + dmaDots);

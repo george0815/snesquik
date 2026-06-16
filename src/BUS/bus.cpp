@@ -213,11 +213,17 @@ uint8_t SnesBus::read8(uint32_t address)
                 openBusValue = gsuCore.cpuRomConflictValue(address);
                 return openBusValue;
             }
+        } else if (lowBank <= 0x5f) {
+            // Linear (HiROM-style) view of the game pack ROM.
+            if (!gsuCore.cpuCanSeeRom()) {
+                openBusValue = gsuCore.cpuRomConflictValue(address);
+            } else {
+                openBusValue = cart.read(address & 0x1fffff);
+            }
+            return openBusValue;
         } else if (lowBank <= 0x6f) {
-            // Linear (HiROM-style) view of the game pack ROM. Banks $60-$6F
-            // mirror $40-$5F (the ROM address wraps mod its size) — DOOM
-            // streams weapon-fire sound samples via $60:xxxx pointers that
-            // resolve to ROM. NOT Game Pak RAM (that begins at $70).
+            // $60-$6F: linear ROM continuation (mask to 2MB wraps $60->$00).
+            // DOOM streams the shotgun sound off the top of $40-$5F into $60.
             if (!gsuCore.cpuCanSeeRom()) {
                 openBusValue = gsuCore.cpuRomConflictValue(address);
             } else {
@@ -799,8 +805,14 @@ uint8_t SnesBus::readRaw(uint32_t address)
                 if (offset >= 0x8000 && !gsuCore.cpuCanSeeRom()) {
                     return gsuCore.cpuRomConflictValue(address);
                 }
+            } else if (lowBank <= 0x5f) {
+                // Linear (HiROM-style) ROM view.
+                if (!gsuCore.cpuCanSeeRom()) {
+                    return gsuCore.cpuRomConflictValue(address);
+                }
+                return cart.read(address & 0x1fffff);
             } else if (lowBank <= 0x6f) {
-                // Linear ROM; $60-$6F mirror $40-$5F (ROM wraps). NOT RAM.
+                // $60-$6F: linear ROM continuation (see read8).
                 if (!gsuCore.cpuCanSeeRom()) {
                     return gsuCore.cpuRomConflictValue(address);
                 }
@@ -1193,6 +1205,11 @@ void SnesBus::storeJoypadAutoReadResult()
 uint8_t SnesBus::readApuPort(uint16_t address)
 {
     const uint8_t port = static_cast<uint8_t>((address - 0x2140) & 0x03);
+    // Run the SPC to the exact CPU cycle of this access so the tight port
+    // handshake (e.g. DOOM's sound-upload loop) sees coherent, in-order timing.
+    if (cpuTiming) {
+        apuCore.syncToCpuCycle(cpuTiming->totalCycles());
+    }
     const uint8_t val = apuCore.readPort(port);
     apuPortLog.lastRead[port] = val;
     apuPortLog.readCount[port]++;
@@ -1203,6 +1220,9 @@ uint8_t SnesBus::readApuPort(uint16_t address)
 void SnesBus::writeApuPort(uint16_t address, uint8_t value)
 {
     const uint8_t port = static_cast<uint8_t>((address - 0x2140) & 0x03);
+    if (cpuTiming) {
+        apuCore.syncToCpuCycle(cpuTiming->totalCycles());
+    }
     apuCore.writePort(port, value);
     apuPortLog.lastWrite[port] = value;
     apuPortLog.writeCount[port]++;
@@ -1584,9 +1604,16 @@ void SnesBus::initApu()
     apuCore.init();
 }
 
-void SnesBus::stepApu(uint32_t cpuCycles)
+void SnesBus::stepApu(uint32_t extraCycles)
 {
-    apuCore.step(cpuCycles);
+    if (cpuTiming) {
+        // Catch the SPC up to the CPU's current cycle (any port accesses during
+        // the instruction already advanced it to their exact sub-instruction
+        // moment); extraCycles adds DMA halt time the CPU counter omits.
+        apuCore.syncToCpuCycle(cpuTiming->totalCycles(), extraCycles);
+        return;
+    }
+    apuCore.step(extraCycles);
 }
 
 void SnesBus::endApuFrame()

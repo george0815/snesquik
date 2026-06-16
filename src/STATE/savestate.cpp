@@ -142,6 +142,10 @@ bool load(const std::string& path,
         return false;
     }
     cpu.loadState(cpuState);
+    // The APU's cycle baseline is not part of the serialized state; re-anchor
+    // it to the just-loaded CPU cycle so the next port-access sync computes a
+    // sane delta rather than fast-forwarding from a stale baseline.
+    bus.getApu().resyncCpuBaseline(cpu.totalCycles());
     return true;
 }
 

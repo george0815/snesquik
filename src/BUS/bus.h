@@ -1,6 +1,6 @@
 #pragma once
 
-#include "APU/apu.h"
+#include "APU_SPC700/apu.h"
 #include "CPU_R5A22/core.h"
 #include "DSP/necdsp.h"
 #include "GSU/gsu.h"
@@ -107,7 +107,11 @@ public:
     bool nmiEnabled() const { return nmiEnable; }
 
     void initApu();
-    void stepApu(uint32_t cpuCycles);
+    // Wire in the CPU so APU stepping and port accesses can be aligned to the
+    // exact CPU cycle. When set, stepApu()'s argument is treated as extra
+    // (non-CPU-counter) cycles such as DMA halt time.
+    void setCpu(const cpu_r5a22::CPU& c) { cpuTiming = &c; }
+    void stepApu(uint32_t extraCycles);
     void endApuFrame();
     apu::Apu& getApu() { return apuCore; }
 
@@ -222,6 +226,7 @@ private:
     uint8_t readApuPort(uint16_t address);
     void writeApuPort(uint16_t address, uint8_t value);
 
+    const cpu_r5a22::CPU* cpuTiming = nullptr;
     std::array<uint8_t, 128 * 1024> wram{};
     std::array<uint8_t, 0x4000> mmio{};
     apu::Apu apuCore;
