@@ -7,18 +7,6 @@
 #include <cstdlib>
 #include <cstring>
 
-// TEMP diagnostic: RAM-write watchpoint state defined in SNES_SPC.cpp.
-extern unsigned g_curPc;
-extern int g_wpTarget;
-extern unsigned g_wpPc[64], g_wpVal[64], g_wpIdx;
-extern unsigned g_echoEsa, g_echoEdl, g_echoFlg, g_echoBase, g_echoSeen;
-extern unsigned g_x0A0A[64], g_idx0A0A;
-extern int g_stackHit; extern unsigned g_stackHitX, g_stackHitTgt;
-extern unsigned g_stkPc[64], g_stkVal[64], g_stkIdx;
-extern int g_retSeen; extern unsigned g_retSp, g_retLo, g_retHi;
-extern int g_feSeen; extern unsigned g_feWriterPc, g_fePrev;
-extern unsigned g_dspRegPc[128], g_dspRegAddr[128], g_dspRegVal[128], g_dspRegIdx;
-
 namespace snesquik::apu {
 
 namespace {
@@ -115,86 +103,12 @@ void Apu::writePort(int port, uint8_t data)
     spc->write_port(spcTime, port, data);
 }
 
-namespace {
-void initWatchpoint()
-{
-    static bool done = false;
-    if (done) return;
-    done = true;
-    if (const char* s = std::getenv("SPCWP")) {
-        g_wpTarget = static_cast<int>(std::strtol(s, nullptr, 16));
-    }
-}
-void maybeDumpSpcTrace(SNES_SPC* spc)
-{
-    static const bool on = std::getenv("SPCTRACE") != nullptr;
-    static bool dumped = false;
-    if (!on || dumped || !spc || !spc->debug_error()) {
-        return;
-    }
-    dumped = true;
-    std::fprintf(stderr, "=== RET@$0B5F: seen=%d SP=$%02X pops return=$%02X%02X ===\n",
-                 g_retSeen, g_retSp & 0xff, g_retHi & 0xff, g_retLo & 0xff);
-    std::fprintf(stderr, "=== slot $01FE/$01FF -> $FFC0: seen=%d writerPC=$%04X (prev slot $%04X) ===\n",
-                 g_feSeen, g_feWriterPc & 0xffff, g_fePrev & 0xffff);
-    std::fprintf(stderr, "=== PUSH16 writes to $01FE (PC=>value), last %u ===\n",
-                 g_stkIdx < 64 ? g_stkIdx : 64);
-    {
-        const unsigned n = g_stkIdx < 64 ? g_stkIdx : 64;
-        const unsigned start = g_stkIdx < 64 ? 0 : (g_stkIdx & 63);
-        for (unsigned i = 0; i < n; ++i) {
-            const unsigned k = (start + i) & 63;
-            if (g_stkPc[k] & 0x80000000u)
-                std::fprintf(stderr, "  [PUSH8] PC=%04X addr=$%02X val=$%02X\n",
-                             g_stkPc[k] & 0xffff, (g_stkVal[k] >> 8) & 0xff, g_stkVal[k] & 0xff);
-            else
-                std::fprintf(stderr, "  [PUSH16] PC=%04X -> $%04X\n", g_stkPc[k] & 0xffff, g_stkVal[k] & 0xffff);
-        }
-    }
-    std::fprintf(stderr, "=== $0A0A store: stackHit=%d X=%02X tgt=$%04X; recent X at $0A0A: ===\n",
-                 g_stackHit, g_stackHitX & 0xff, g_stackHitTgt & 0xffff);
-    {
-        const unsigned n = g_idx0A0A < 64 ? g_idx0A0A : 64;
-        const unsigned start = g_idx0A0A < 64 ? 0 : (g_idx0A0A & 63);
-        for (unsigned i = 0; i < n; ++i) std::fprintf(stderr, "%02X ", g_x0A0A[(start + i) & 63] & 0xff);
-        std::fprintf(stderr, "\n");
-    }
-    std::fprintf(stderr, "=== ECHO low-RAM events=%u: ESA=%02X (base $%04X) EDL=%X FLG=%02X ===\n",
-                 g_echoSeen, g_echoEsa & 0xff, g_echoBase & 0xffff, g_echoEdl & 0xf, g_echoFlg & 0xff);
-    {
-        std::fprintf(stderr, "=== echo-reg writes (SPC PC: reg=val), %u total ===\n", g_dspRegIdx);
-        const unsigned n = g_dspRegIdx < 128 ? g_dspRegIdx : 128;
-        const unsigned start = g_dspRegIdx < 128 ? 0 : (g_dspRegIdx & 127);
-        for (unsigned i = 0; i < n; ++i) {
-            const unsigned k = (start + i) & 127;
-            const unsigned a = g_dspRegAddr[k];
-            const char* nm = a == 0x6C ? "FLG" : a == 0x6D ? "ESA" : a == 0x7D ? "EDL"
-                           : a == 0x0D ? "EFB" : a == 0x4D ? "EON" : "?";
-            std::fprintf(stderr, "  PC=%04X %s($%02X)=%02X\n",
-                         g_dspRegPc[k] & 0xffff, nm, a, g_dspRegVal[k] & 0xff);
-        }
-    }
-    std::fprintf(stderr, "=== SPC crash pc=%04X; last writes to $%04X (PC=value), %u total ===\n",
-                 spc->debug_pc() & 0xffff, g_wpTarget & 0xffff, g_wpIdx);
-    const unsigned n = g_wpIdx < 64 ? g_wpIdx : 64;
-    const unsigned start = g_wpIdx < 64 ? 0 : (g_wpIdx & 63);
-    for (unsigned i = 0; i < n; ++i) {
-        const unsigned k = (start + i) & 63;
-        std::fprintf(stderr, "  PC=%04X val=%02X\n", g_wpPc[k] & 0xffff, g_wpVal[k] & 0xff);
-    }
-}
-} // namespace
 
 void Apu::advance(uint32_t cpuCycles)
 {
-    initWatchpoint();
-    // Convert CPU master clocks to SPC clocks.
-    // cpuCycles is in units where 1 cycle ≈ 6 master clocks (the average for
-    // the 65816's mixed fast/slow memory accesses).
-    // Master clock = cpuCycles * 6 (approximately).
-    // SPC clock rate / master clock rate = 1024000 / 21477272.
-    // So SPC clocks = cpuCycles * 6 * 1024000 / 21477272.
-    //               = cpuCycles * 6144000 / 21477272.
+    // Convert CPU cycles to SPC clocks. cpuCycles is in units where 1 cycle ~= 6
+    // master clocks (the average for the 65816's mixed fast/slow accesses).
+    // SPC clocks = cpuCycles * 6 * 1024000 / 21477272 = cpuCycles * 6144000 / rate.
     spcTimeAccum += static_cast<uint64_t>(cpuCycles) * 6144000ULL;
     const uint32_t newSpcCycles = static_cast<uint32_t>(spcTimeAccum / kMasterClockRate);
     spcTimeAccum %= kMasterClockRate;
@@ -202,11 +116,8 @@ void Apu::advance(uint32_t cpuCycles)
 
     // Run SPC700 forward to current time. read_port() internally calls
     // run_until_() which executes the SPC700 up to the given time.
-    // Without this, the SPC700 would only run during port accesses,
-    // leaving it frozen between them.
     if (spc && newSpcCycles > 0) {
         spc->read_port(spcTime, 0);
-        maybeDumpSpcTrace(spc);
     }
 }
 
@@ -220,11 +131,11 @@ void Apu::syncToCpuCycle(uint64_t cpuCycle, uint32_t extraCycles)
     uint32_t delta = 0;
     if (cpuCycle > lastCpuCycle) {
         const uint64_t d = cpuCycle - lastCpuCycle;
-        // A single instruction never spans more than a few dozen CPU cycles,
-        // so a huge delta means the baseline is stale (e.g. right after a
-        // state load before resyncCpuBaseline ran). Drop it rather than
-        // fast-forwarding the SPC by a bogus amount. DMA halt time arrives via
-        // extraCycles and is intentionally not clamped.
+        // cpuCycle is now an accurate MASTER-CLOCK count. Normal deltas between
+        // APU accesses are at most a few thousand master clocks; a huge delta
+        // means the baseline is stale (e.g. right after a state load before
+        // resyncCpuBaseline ran) — drop it rather than fast-forwarding the SPC
+        // by a bogus amount. DMA halt time arrives via extraCycles, unclamped.
         delta = d > 0xffffu ? 0 : static_cast<uint32_t>(d);
     }
     lastCpuCycle = cpuCycle;

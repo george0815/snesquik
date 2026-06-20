@@ -73,6 +73,9 @@ private:
     SPC_Filter* filter = nullptr;
     uint64_t spcTimeAccum = 0;
     uint32_t spcTime = 0;
+    // SPC cycles the SPC has been run AHEAD of the CPU-implied time by the
+    // port-handshake consumption gate (run-ahead credit). Future advance()
+    // calls consume this before running the SPC, so it never double-advances.
     // Absolute CPU cycle count at the last sync; deltas from this drive the SPC.
     uint64_t lastCpuCycle = 0;
     int16_t sampleBuffer[sampleBufferSize] = {};

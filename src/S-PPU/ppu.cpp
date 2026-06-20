@@ -496,7 +496,14 @@ void Ppu::renderBgLine(size_t bg, int y)
     std::array<int16_t, 33> tileVScroll{};
 
     if (isOptMode) {
-        const int bg3FineY = bg3.vscroll & 0x07;
+        // The offset words come from BG3's tilemap at the tile ROW selected by
+        // BG3's vertical scroll: the H-offset entry at row (BG3VOFS>>3) and the
+        // V-offset entry at row ((BG3VOFS+8)>>3) — i.e. the next tile down. (The
+        // earlier code used the fine-scroll bits as the row and +8 tile rows for
+        // V, reading garbage that spuriously set the apply-bit and warped the
+        // leftmost columns — Star Fox / Star Fox 2 in-game.)
+        const int bg3RowH = (bg3.vscroll >> 3) & 0x1f;
+        const int bg3RowV = ((bg3.vscroll + 8) >> 3) & 0x1f;
         for (int t = 0; t <= 32; ++t) {
             if (t == 0) {
                 tileHScroll[0] = static_cast<int16_t>(state.hscroll);
@@ -504,8 +511,8 @@ void Ppu::renderBgLine(size_t bg, int y)
                 continue;
             }
             const int offsetCol = ((t - 1) + (bg3.hscroll >> 3)) & 0x1f;
-            const uint16_t hEntry = offsetMapEntry(offsetCol, bg3FineY);
-            const uint16_t vEntry = offsetMapEntry(offsetCol, (bg3FineY + 8) & 0x1f);
+            const uint16_t hEntry = offsetMapEntry(offsetCol, bg3RowH);
+            const uint16_t vEntry = offsetMapEntry(offsetCol, bg3RowV);
             const bool hApplies = (bg == 0) ? ((hEntry & 0x2000) != 0) : ((hEntry & 0x4000) != 0);
             const bool vApplies = (bg == 0) ? ((vEntry & 0x2000) != 0) : ((vEntry & 0x4000) != 0);
             if (!hApplies && !vApplies) {
@@ -1494,17 +1501,25 @@ bool Ppu::singleWindowOutput(bool enable, bool invert, uint8_t left, uint8_t rig
 
 uint16_t Ppu::applyColorMath(const Pixel& main, const Pixel& sub, int x) const
 {
+    // CGWSEL bits 7-6: force the MAIN screen to black in the selected color-window
+    // region (0=never, 1=outside, 2=inside, 3=always). Applies before color math
+    // and regardless of whether math is enabled for this layer. DOOM uses this to
+    // black out the windowed-off sides of its 3D viewport (otherwise the backdrop
+    // colour bled through as a salmon border).
+    const uint16_t mainColor =
+        colorWindowRegionActive((cgwsel >> 6) & 0x03, x) ? 0 : main.color;
+
     if ((debugFlags & DebugNoColorMath) != 0) {
-        return main.color;
+        return mainColor;
     }
     if (!colorMathEnabledForLayer(main)) {
-        return main.color;
+        return mainColor;
     }
 
     // Color math is gated by the math-enable region (CGWSEL bits 5-4),
     // independent of the sub-screen-source bit.
     if (colorWindowRegionActive((cgwsel >> 4) & 0x03, x)) {
-        return main.color;
+        return mainColor;
     }
 
     // CGWSEL bit1 selects the sub screen as the second math operand; otherwise
@@ -1518,7 +1533,7 @@ uint16_t Ppu::applyColorMath(const Pixel& main, const Pixel& sub, int x) const
     } else {
         addend = fixedColor();
     }
-    return blendColors(main.color, addend);
+    return blendColors(mainColor, addend);
 }
 
 bool Ppu::colorMathEnabledForLayer(const Pixel& pixel) const

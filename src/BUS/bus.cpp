@@ -1024,11 +1024,21 @@ void SnesBus::transferDmaByte(uint8_t channel, uint16_t index)
     }
 
     if ((dmap & 0x08) == 0) {
+        // The DMA A-bus address increments/decrements only its 16-bit offset and
+        // wraps WITHIN the fixed bank ($xx:FFFF -> $xx:0000); the bank byte
+        // ($43x4) is never modified by a transfer. DOOM's sound-table loader
+        // relies on this: it sets the source bank once and only the offset per
+        // DMA, so carrying into the bank would make a following DMA read the
+        // wrong bank (the shotgun-fire crash: the $5686 table loaded from the
+        // wrong bank after the prior DMA ended on a bank boundary).
+        const uint32_t bank = aaddr & 0xff0000;
+        uint16_t offset = static_cast<uint16_t>(aaddr);
         if ((dmap & 0x10) != 0) {
-            --aaddr;
+            --offset;
         } else {
-            ++aaddr;
+            ++offset;
         }
+        aaddr = bank | offset;
         setDmaAAddress(channel, aaddr);
     }
 }
