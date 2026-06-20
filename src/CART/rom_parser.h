@@ -53,6 +53,19 @@ struct RomHeader {
     // S-DD1 (graphics decompressor): coprocessor type $4x with a coprocessor
     // present (low nibble >= 3). Street Fighter Alpha 2 ($43), Star Ocean ($45).
     bool hasSdd1() const { return (chipset & 0xf0) == 0x40 && (chipset & 0x0f) >= 0x03; }
+    // Battery-backed save RAM present. The ROM-type (chipset) low nibble encodes
+    // it: 2 = ROM+RAM+Battery, 5 = ROM+Coprocessor+RAM+Battery, 6 = ROM+Co+Battery
+    // (covers standard, DSP, S-DD1 and SA-1 battery carts). Super FX uses a
+    // separate $13-$1A chipset encoding where the low nibble is not a +Battery
+    // flag, so it's excluded here (its save RAM, if any, is GSU expansion RAM).
+    bool hasBattery() const
+    {
+        if (hasSuperFx()) {
+            return false;
+        }
+        const uint8_t kind = chipset & 0x0f;
+        return kind == 0x02 || kind == 0x05 || kind == 0x06;
+    }
     size_t sa1BwRamSizeBytes() const
     {
         // The SA-1 addresses up to 256 KB of BW-RAM through its linear and

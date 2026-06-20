@@ -97,6 +97,7 @@ public:
     void attachPpu(ppu::Ppu* ppuCore);
     void setTraceListener(TraceListener* listener);
     const CartridgeRom& cartridge() const { return cart; }
+    CartridgeRom& cartridge() { return cart; }
 
 
 

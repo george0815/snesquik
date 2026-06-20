@@ -130,6 +130,48 @@ bool isOption(const char* text, const char* option)
     return std::string(text) == option;
 }
 
+// Battery-backed SRAM persistence. The save file (<rom>.srm) mirrors the
+// cartridge SRAM so progress survives across runs.
+void loadSramFile(const std::string& path, std::vector<uint8_t>& sram)
+{
+    std::ifstream file(path, std::ios::binary);
+    if (!file) {
+        return; // no save yet — leave SRAM at its power-on fill
+    }
+    const std::vector<uint8_t> data{std::istreambuf_iterator<char>(file),
+                                    std::istreambuf_iterator<char>()};
+    const size_t n = std::min(data.size(), sram.size());
+    std::copy_n(data.begin(), n, sram.begin());
+    std::cout << "battery SRAM loaded: " << path << " (" << n << " bytes)\n";
+    if (data.size() != sram.size()) {
+        std::cerr << "warning: SRAM file is " << data.size() << " bytes but cartridge SRAM is "
+                  << sram.size() << " bytes\n";
+    }
+}
+
+bool saveSramFile(const std::string& path, const std::vector<uint8_t>& sram)
+{
+    std::ofstream file(path, std::ios::binary | std::ios::trunc);
+    if (!file) {
+        return false;
+    }
+    file.write(reinterpret_cast<const char*>(sram.data()),
+               static_cast<std::streamsize>(sram.size()));
+    return static_cast<bool>(file);
+}
+
+// FNV-1a over the save RAM. Used to detect changes without instrumenting every
+// write path (SA-1 BW-RAM in particular is touched by CPU, DMA and char-conv);
+// a content hash catches them all. Cheap even at 256 KB (a few hundred KB/s).
+uint64_t sramChecksum(const std::vector<uint8_t>& sram)
+{
+    uint64_t h = 1469598103934665603ull;
+    for (uint8_t b : sram) {
+        h = (h ^ b) * 1099511628211ull;
+    }
+    return h;
+}
+
 // Locate the DSP-1 program+data ROM dump. Honors $SNESQUIK_DSP1_ROM, then
 // falls back to the common dump filenames under tests/roms/. Returns the
 // first path that exists, or "" if none do.
@@ -541,6 +583,7 @@ int main(int argc, char** argv)
 bus.setTraceListener(&trace);
     bus.attachPpu(&ppu);
     bus.attachCartridge(parsed->rom, parsed->header.map, parsed->header.declaredRamSizeBytes());
+
     bus.initApu();
     if (parsed->header.hasSuperFx()) {
         bus.attachGsu(parsed->header.superFxRamSizeBytes());
@@ -567,6 +610,25 @@ bus.setTraceListener(&trace);
         bus.attachSdd1();
         std::cout << "S-DD1 coprocessor attached\n";
     }
+
+    // Battery-backed save RAM persistence (<rom>.srm). SA-1 carts keep their
+    // save in BW-RAM; everyone else (standard / DSP / S-DD1) in the cartridge
+    // SRAM. Restore it now; debounced write-back happens in the frame loop.
+    const std::string sramPath = std::string(argv[1]) + ".srm";
+    std::vector<uint8_t>* saveRam = nullptr;
+    if (parsed->header.hasBattery()) {
+        if (bus.hasSa1() && bus.getSa1().bwRamSize() > 0) {
+            saveRam = &bus.getSa1().bwRam();
+        } else if (!bus.cartridge().sramData().empty()) {
+            saveRam = &bus.cartridge().sramData();
+        }
+    }
+    if (saveRam != nullptr) {
+        loadSramFile(sramPath, *saveRam);
+    }
+    uint64_t lastSramChecksum = saveRam ? sramChecksum(*saveRam) : 0;
+    int sramIdleFrames = 0;
+    bool sramDirty = false;
 
     snesquik::cpu_r5a22::CPU cpu(bus);
     bus.setCpu(cpu);
@@ -836,6 +898,21 @@ bus.setTraceListener(&trace);
             }
         }
 
+        // Battery save write-back, debounced: re-hash the save RAM each frame
+        // and flush ~2 s after it last changed, so games that touch it often
+        // don't thrash the disk while a flush still lands before a normal quit.
+        if (saveRam != nullptr) {
+            const uint64_t cs = sramChecksum(*saveRam);
+            if (cs != lastSramChecksum) {
+                lastSramChecksum = cs;
+                sramIdleFrames = 0;
+                sramDirty = true;
+            } else if (sramDirty && ++sramIdleFrames >= 120) {
+                saveSramFile(sramPath, *saveRam);
+                sramDirty = false;
+            }
+        }
+
         const bool shouldLog = input.logActive || frameNumber >= logFromFrame;
         if (shouldLog) {
             logFrameState(ppu, bus, cpu, frameNumber);
@@ -898,6 +975,16 @@ bus.setTraceListener(&trace);
             }
             audioProducedLastSecond = 0;
             renderer.setWindowTitle(title);
+        }
+    }
+
+    // Flush any unsaved battery save before exiting (the debounce above may not
+    // have fired yet if the player quit right after saving).
+    if (saveRam != nullptr && sramDirty) {
+        if (saveSramFile(sramPath, *saveRam)) {
+            std::cout << "battery SRAM saved: " << sramPath << '\n';
+        } else {
+            std::cerr << "battery SRAM save failed: " << sramPath << '\n';
         }
     }
 
