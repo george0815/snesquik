@@ -42,6 +42,24 @@ enum JoypadButton : uint16_t {
     JoypadR = 0x0010,
 };
 
+// Logical SNES controller buttons, independent of any input source (keyboard,
+// gamepad, scripted input). Frontends translate their raw events into these
+// and feed them to SnesBus::setButton; the bus owns the joypad bit state.
+enum class ControllerButton : uint8_t {
+    B,
+    Y,
+    Select,
+    Start,
+    Up,
+    Down,
+    Left,
+    Right,
+    A,
+    X,
+    L,
+    R,
+};
+
 class CartridgeRom {
 public:
     CartridgeRom() = default;
@@ -153,6 +171,7 @@ public:
     uint32_t consumeDmaDots();
 
     void setJoypadState(uint16_t state);
+    void setButton(ControllerButton button, bool pressed);
     uint16_t joypadState() const { return joypadCurrentState; }
     void beginJoypadAutoRead();
     void finishJoypadAutoRead();

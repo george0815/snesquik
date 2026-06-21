@@ -703,6 +703,42 @@ void SnesBus::setJoypadState(uint16_t state)
     }
 }
 
+namespace {
+
+uint16_t maskForButton(ControllerButton button)
+{
+    switch (button) {
+    case ControllerButton::B:      return JoypadB;
+    case ControllerButton::Y:      return JoypadY;
+    case ControllerButton::Select: return JoypadSelect;
+    case ControllerButton::Start:  return JoypadStart;
+    case ControllerButton::Up:     return JoypadUp;
+    case ControllerButton::Down:   return JoypadDown;
+    case ControllerButton::Left:   return JoypadLeft;
+    case ControllerButton::Right:  return JoypadRight;
+    case ControllerButton::A:      return JoypadA;
+    case ControllerButton::X:      return JoypadX;
+    case ControllerButton::L:      return JoypadL;
+    case ControllerButton::R:      return JoypadR;
+    }
+    return 0;
+}
+
+} // namespace
+
+void SnesBus::setButton(ControllerButton button, bool pressed)
+{
+    const uint16_t mask = maskForButton(button);
+    if (pressed) {
+        joypadCurrentState |= mask;
+    } else {
+        joypadCurrentState &= static_cast<uint16_t>(~mask);
+    }
+    if (joypadStrobe) {
+        latchJoypad();
+    }
+}
+
 void SnesBus::beginJoypadAutoRead()
 {
     if (joypadAutoReadEnable) {
