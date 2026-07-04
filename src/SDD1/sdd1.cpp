@@ -1,3 +1,11 @@
+// S-DD1: the cartridge decompression chip in Street Fighter Alpha 2 / Star
+// Ocean. It does two jobs: (1) an MMC that banks four 1 MiB ROM blocks into
+// the $C0-$FF window, and (2) an entropy decoder that sits between ROM and
+// the DMA unit — the game "arms" a DMA channel via $4801, and when that
+// channel runs, its A-bus reads are answered by the decompressor instead of
+// raw ROM, so compressed tiles stream straight into VRAM. The decoder below
+// is the chip's actual algorithm: adaptive binary arithmetic-style coding
+// built from Golomb run lengths with per-context probability evolution.
 #include "SDD1/sdd1.h"
 
 #include <cstring>

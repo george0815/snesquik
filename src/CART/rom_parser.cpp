@@ -1,3 +1,11 @@
+// ROM image parsing. SNES cartridges carry a 32-byte internal header at a
+// mapping-dependent location ($7FC0 LoROM, $FFC0 HiROM, $40FFC0 ExHiROM),
+// but nothing in the file SAYS which mapping applies — the console just maps
+// the chip and the header lands where it lands. Detection therefore builds a
+// candidate header for each mapping and scores plausibility (printable
+// title, checksum pair, map-mode byte agreement, sane size codes, usable
+// interrupt vectors); the best score wins. A 512-byte copier header, if the
+// file size betrays one, is stripped first.
 #include "CART/rom_parser.h"
 
 #include <algorithm>

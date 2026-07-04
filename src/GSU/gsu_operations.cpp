@@ -1,3 +1,10 @@
+// GSU instruction implementations. The encoding is prefix-based rather than
+// wide: ALT1/ALT2 select up to four meanings per opcode ($3D-$3F set them),
+// WITH/FROM/TO redirect the implicit source/destination registers for the
+// NEXT instruction, and regReset() clears all prefixes afterwards — the same
+// one-instruction prefix lifetime the hardware has. Immediate operands come
+// from pipe(), i.e. from the prefetch pipeline, which is what gives branches
+// their delay slot.
 #include "GSU/gsu.h"
 
 namespace snesquik::gsu::operations {

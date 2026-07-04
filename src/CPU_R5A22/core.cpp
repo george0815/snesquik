@@ -1,3 +1,10 @@
+// 65816 core (the CPU inside the Ricoh 5A22). This file owns the register
+// file, memory/stack access helpers, interrupt entry, and the fetch/decode/
+// execute step; instruction semantics live in operations.cpp and the
+// addressing-mode resolvers in addressing_modes.cpp. The 5A22's system glue
+// (DMA, H/V timers, mul/div, joypad auto-read) is NOT here — it lives in
+// SnesBus, matching the physical split between the 65816 core and the rest
+// of the 5A22 package.
 #include "core.h"
 
 #include <cassert>
@@ -16,6 +23,11 @@ constexpr uint32_t banked(uint8_t bank, uint16_t address)
     return (static_cast<uint32_t>(bank) << 16) | address;
 }
 
+// The 65816 has two interrupt vector sets in bank 0: native-mode vectors at
+// $FFE4-$FFEE and emulation-mode (6502-style) vectors at $FFF4-$FFFE. Which
+// set is used depends on the E flag at the moment the interrupt is taken —
+// this is why games must switch to native mode before enabling NMIs if their
+// handlers assume native-mode stack frames.
 constexpr uint16_t nativeVector(Interrupt type)
 {
     switch (type) {
@@ -50,6 +62,9 @@ CPU::CPU(Bus& bus)
 
 void CPU::reset()
 {
+    // Hardware reset state: the CPU comes up in emulation mode with 8-bit
+    // A/X/Y, interrupts masked, stack in page 1, D/DB/PB zeroed, and fetches
+    // the program counter from the emulation-mode reset vector at $00:FFFC.
     r = {};
     r.s = 0x01ff;
     r.p = Memory8 | Index8 | InterruptDisable;
@@ -64,10 +79,18 @@ void CPU::reset()
     isWaiting = false;
 }
 
+// Execute one instruction (or take one interrupt) and return the cycles it
+// consumed. Interrupts are checked BETWEEN instructions only — this core is
+// instruction-granular, so an interrupt asserted mid-instruction is taken
+// after the current instruction retires, which matches how the real CPU
+// samples its interrupt lines at instruction boundaries.
 uint32_t CPU::step()
 {
     const uint64_t before = cycles;
 
+    // NMI is edge-triggered and unmaskable: it wins over IRQ, wakes both WAI
+    // and STP (on hardware only a reset truly leaves STP, but NMI-wakes are
+    // harmless and keep a stuck machine debuggable).
     if (nmiPending) {
         nmiPending = false;
         isWaiting = false;
@@ -77,11 +100,17 @@ uint32_t CPU::step()
         return static_cast<uint32_t>(cycles - before);
     }
 
+    // STP halts the processor until reset; burn time so the frame loop's
+    // dot accounting keeps advancing and the PPU still produces frames.
     if (isStopped) {
         addCycles(1);
         return static_cast<uint32_t>(cycles - before);
     }
 
+    // IRQ is level-sensitive and maskable by the I flag. The bus re-asserts
+    // the line every step (H/V timer, GSU, SA-1), so a still-pending source
+    // re-enters the handler as soon as the game clears I — exactly the
+    // hardware behavior games rely on for chained raster IRQs.
     if (irqLine && !flag(InterruptDisable)) {
         isWaiting = false;
         interrupt(Interrupt::IRQ);
@@ -183,6 +212,10 @@ uint16_t CPU::read16(uint32_t address)
     return static_cast<uint16_t>(lo | (hi << 8));
 }
 
+// 16-bit read whose high byte wraps within the given bank ($xx:FFFF ->
+// $xx:0000) instead of spilling into the next bank. The 65816 uses this for
+// pointer fetches that are architecturally bank-0-bound: direct-page
+// indirection, absolute-indirect jumps, stack-relative pointers, PEI.
 uint16_t CPU::read16BankWrap(uint8_t bank, uint16_t address)
 {
     const uint16_t lo = read8(banked(bank, address));
@@ -231,6 +264,10 @@ uint32_t CPU::fetch24()
     return lo | (hi << 8) | (bank << 16);
 }
 
+// The stack always lives in bank 0. In emulation mode it is additionally
+// pinned to page 1 ($0100-$01FF) and the pointer's low byte wraps within
+// that page, exactly like a 6502 — old instructions honor this; the "new"
+// 65816 instructions use the NoWrap variants below instead.
 void CPU::push8(uint8_t value)
 {
     write8(r.emulation ? banked(0, static_cast<uint16_t>(0x0100 | (r.s & 0x00ff))) : r.s, value);
@@ -314,6 +351,9 @@ void CPU::branch(bool condition, int16_t offset, bool longBranch)
         return;
     }
 
+    // A taken branch costs one extra cycle; short branches in emulation mode
+    // cost one more when the destination crosses a page boundary (a 6502
+    // artifact the 65816 preserves only with E set). BRL never pays it.
     const uint16_t oldPc = r.pc;
     r.pc = static_cast<uint16_t>(r.pc + offset);
     addCycles(1);
@@ -322,6 +362,9 @@ void CPU::branch(bool condition, int16_t offset, bool longBranch)
     }
 }
 
+// Common interrupt/BRK/COP entry sequence. Native mode pushes PB:PC:P (4
+// bytes); emulation mode pushes only PC:P (3 bytes, 6502-style) and the
+// handler is entered with PB forced to 0 in both modes.
 void CPU::interrupt(Interrupt type)
 {
     const bool native = !r.emulation;
@@ -358,6 +401,12 @@ void CPU::setNativeMode(bool nativeMode)
     normalizeEmulationRegisters();
 }
 
+// Re-establish the architectural invariants after every instruction (and
+// after P-modifying ops): emulation mode hard-wires M and X set and keeps S
+// in page 1; whenever X is set the index-register high bytes read as zero.
+// Centralizing this here means individual operations never have to reason
+// about mode transitions — REP/SEP/PLP/XCE/TCS just mutate state and let
+// this fix it up, the same way the silicon gates those bits.
 void CPU::normalizeEmulationRegisters()
 {
     if (r.emulation) {
@@ -395,6 +444,9 @@ uint16_t CPU::regA() const
     return flag(Memory8) ? static_cast<uint8_t>(r.a) : r.a;
 }
 
+// With M set, only the low byte of the accumulator participates; the high
+// byte (the "hidden" B accumulator) is preserved across 8-bit operations so
+// XBA and a later REP #$20 can recover it — a trick games use constantly.
 void CPU::setRegA(uint16_t value)
 {
     r.a = flag(Memory8) ? static_cast<uint16_t>((r.a & 0xff00) | (value & 0x00ff)) : value;

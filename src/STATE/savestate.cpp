@@ -1,3 +1,10 @@
+// Whole-machine save states. File layout: "SQST" magic, format version, then
+// three length-prefixed sections — CPU (raw SaveState struct), PPU (raw
+// object image; the Ppu is statically asserted trivially copyable), and the
+// bus section (WRAM/MMIO/chip state, which itself nests SRAM/APU/GSU/SA-1/
+// DSP/S-DD1 blobs). The raw-dump approach makes states fast and complete but
+// BUILD-TIED: any layout change invalidates old files, and loaders reject
+// size mismatches rather than misread them.
 #include "STATE/savestate.h"
 
 #include "BUS/bus.h"

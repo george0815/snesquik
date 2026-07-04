@@ -1,3 +1,11 @@
+// SA-1: a second 65816 in the cartridge, clocked at 10.74 MHz (twice the
+// S-CPU's effective rate) with its own memory map — 2 KiB I-RAM, up to
+// 256 KiB battery BW-RAM, an MMC that banks the ROM for both CPUs, an
+// arithmetic unit, DMA/character-conversion engines, and bidirectional
+// IRQ/NMI messaging. The class reuses cpu_r5a22::CPU for the processor and
+// itself implements that core's Bus interface, so `Sa1` IS the SA-1 CPU's
+// view of memory; the S-CPU reaches in through the cpu* accessors called
+// from SnesBus.
 #include "SA1/sa1.h"
 
 #include <algorithm>
@@ -211,7 +219,10 @@ uint8_t Sa1::read8(uint32_t address)
         }
         if (offset >= 0x8000) {
             // Vector redirection: the SA-1 CPU's reset/NMI/IRQ vectors come
-            // from CRV/CNV/CIV rather than the cartridge $FFxx vectors.
+            // from the CRV/CNV/CIV registers the S-CPU programmed, not from
+            // the cartridge $FFxx vectors — intercepting the vector-table
+            // reads here means the stock 65816 core needs no special SA-1
+            // reset logic; its normal vector fetch just sees these values.
             if (bank == 0) {
                 switch (offset) {
                 case 0xfffc: return static_cast<uint8_t>(crv);
@@ -309,6 +320,10 @@ void Sa1::regWrite(uint16_t offset, uint8_t value, bool /*fromSa1*/)
 {
     switch (offset) {
     case 0x2200: { // CCNT - SA-1 CPU control
+        // The S-CPU owns the SA-1's reset/wait lines and can message it with
+        // a 4-bit value plus IRQ/NMI strobes. The SA-1 boots held in reset;
+        // clearing bit 5 releases it and it starts at the CRV vector — the
+        // standard boot sequence every SA-1 game performs.
         const bool prevReset = sa1Reset;
         sa1IrqReq = (value & 0x80) != 0;
         sa1Wait = (value & 0x40) != 0;
@@ -465,6 +480,9 @@ void Sa1::regWrite(uint16_t offset, uint8_t value, bool /*fromSa1*/)
     }
 }
 
+// Arithmetic unit ($2250-$2254). Hardware completes a multiply in 5 SA-1
+// cycles and a divide in 25; results are available immediately here (games
+// insert the documented wait anyway). Triggered by the MB-high write.
 void Sa1::runArithmetic()
 {
     if (arithSum) {

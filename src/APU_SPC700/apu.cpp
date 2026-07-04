@@ -1,3 +1,11 @@
+// APU wrapper around blargg's snes_spc (SPC700 CPU + S-DSP + 64 KiB APU
+// RAM). The SNES audio subsystem is an independent computer: the S-CPU can
+// only exchange bytes through four ports ($2140-$2143), so everything here
+// is about keeping the SPC's clock aligned with the CPU's — snes_spc runs
+// lazily ("run until time T"), and we advance T to the exact CPU cycle of
+// every port access so tight upload handshakes see coherent ordering. Sample
+// output is collected per video frame and passed through SPC_Filter, which
+// models the SNES DAC's high-pass/gain (without it, voice key-ons pop).
 #include "APU_SPC700/apu.h"
 #include "APU_SPC700/snes_spc/snes_spc/SNES_SPC.h"
 #include "APU_SPC700/snes_spc/snes_spc/SPC_Filter.h"

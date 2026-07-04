@@ -1,3 +1,8 @@
+// 65816 instruction semantics plus the 256-entry opcode table. Each function
+// receives the CPU and a pre-resolved Operand (address/immediate/accumulator)
+// from addressing_modes.cpp; base cycle/byte counts come from the table and
+// the width-dependent penalties are added here, mirroring how the real CPU's
+// cycle count varies with the M/X flags.
 #include "core.h"
 
 #include <cstdint>
@@ -33,6 +38,9 @@ uint8_t indexWidth(CPU& cpu)
     return cpu.indexWidth();
 }
 
+// 16-bit operands cost one extra bus cycle to fetch/store (two extra for
+// read-modify-write, which both reads and writes the second byte). The
+// opcode table stores the 8-bit base cost; these add the M/X-dependent part.
 void addWidthCycle(CPU& cpu, uint8_t width)
 {
     if (width == 2) {
@@ -47,6 +55,8 @@ void addMemoryRmwWidthCycles(CPU& cpu, uint8_t width)
     }
 }
 
+// CMP/CPX/CPY: a subtraction that only sets flags. Carry is SET when no
+// borrow occurred (lhs >= rhs) — 65xx convention, inverse of many other ISAs.
 void compare(CPU& cpu, uint16_t lhs, uint16_t rhs, uint8_t width)
 {
     const uint32_t mask = maskFor(width);
@@ -68,6 +78,8 @@ uint16_t binaryAdc(CPU& cpu, uint16_t lhs, uint16_t rhs, uint8_t width)
     const uint32_t carry = cpu.flag(Carry) ? 1 : 0;
     const uint32_t result = (lhs & mask) + (rhs & mask) + carry;
     cpu.setFlag(Carry, result > mask);
+    // Signed overflow: the operands agreed in sign but the result differs —
+    // the standard two's-complement V derivation the ALU implements.
     cpu.setFlag(Overflow, (~(lhs ^ rhs) & (lhs ^ result) & sign) != 0);
     cpu.setZN(result, width);
     return static_cast<uint16_t>(result & mask);
@@ -344,6 +356,14 @@ void ldx(CPU& cpu, const Operand& operand) { loadRegister(cpu, operand, indexWid
 void ldy(CPU& cpu, const Operand& operand) { loadRegister(cpu, operand, indexWidth(cpu), &CPU::setRegY); }
 void lsr(CPU& cpu, const Operand& operand) { shiftRight(cpu, operand); }
 
+// Block moves copy one byte per "execution" and, unless A has underflowed to
+// $FFFF (meaning the count is exhausted), rewind PC so the same 3-byte
+// instruction re-executes. This is exactly the hardware mechanism, and it is
+// what makes long moves interruptible: an IRQ/NMI taken between iterations
+// resumes mid-move because the instruction re-fetches itself. MVN copies
+// ascending; the destination bank byte is also latched into DB, as on
+// silicon. Index masking to 8 bits (when X is set) happens in the caller's
+// post-step normalize.
 void mvn(CPU& cpu, const Operand& operand)
 {
     auto& r = cpu.mutableRegisters();
@@ -399,6 +419,8 @@ void phk(CPU& cpu, const Operand&) { cpu.push8(cpu.registers().pb); }
 
 void php(CPU& cpu, const Operand&)
 {
+    // In emulation mode bits 5 and 4 of a software-pushed P always read 1
+    // (bit 4 is the B flag position and PHP is not an interrupt, so B=1).
     uint8_t p = cpu.registers().p;
     if (cpu.registers().emulation) {
         p |= 0x30;
@@ -505,6 +527,10 @@ void ror(CPU& cpu, const Operand& operand)
 
 void rti(CPU& cpu, const Operand&)
 {
+    // RTI mirrors the interrupt push: emulation mode pops P:PC (3 bytes),
+    // native mode also pops PB (4 bytes, one cycle longer). Note the mode
+    // that matters is the CURRENT one — a handler that switched modes will
+    // unbalance the stack, exactly as on hardware.
     cpu.mutableRegisters().p = cpu.pull8();
     cpu.mutableRegisters().pc = cpu.pull16();
     if (!cpu.registers().emulation) {
@@ -652,6 +678,9 @@ void wdm(CPU&, const Operand&) {}
 
 void xba(CPU& cpu, const Operand&)
 {
+    // Swap the accumulator halves. Works on the full 16 bits regardless of
+    // M — this is how 8-bit code reaches the hidden high byte. Flags are set
+    // from the NEW low byte, always 8-bit-wide (hardware quirk).
     auto& r = cpu.mutableRegisters();
     r.a = static_cast<uint16_t>((r.a << 8) | (r.a >> 8));
     cpu.setZN(static_cast<uint8_t>(r.a), 1);
@@ -659,6 +688,9 @@ void xba(CPU& cpu, const Operand&)
 
 void xce(CPU& cpu, const Operand&)
 {
+    // Exchange carry with the emulation bit — the only way in or out of
+    // emulation mode. The canonical boot sequence is CLC; XCE (enter
+    // native); carry receives the old mode so SEC; XCE restores it.
     const bool oldCarry = cpu.flag(Carry);
     const bool oldEmulation = cpu.registers().emulation;
     cpu.setFlag(Carry, oldEmulation);

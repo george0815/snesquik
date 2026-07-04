@@ -1,3 +1,10 @@
+// SnesBus: the S-CPU's view of the machine, plus the 5A22 system glue that
+// physically sits in the CPU package on real hardware — the DMA/HDMA
+// engines, multiply/divide unit, NMI/IRQ timers, and joypad auto-read.
+// Because coprocessor cartridges (GSU/SA-1/DSP/S-DD1) overlap and remap the
+// normal memory map, addresses are resolved by PRIORITY ORDER (WRAM banks,
+// then each attached chip's decode helper, then WRAM mirror / MMIO / SRAM /
+// ROM) rather than a non-overlapping device table.
 #include "BUS/bus.h"
 
 #include <cstring>
@@ -33,6 +40,9 @@ constexpr uint32_t mask24(uint32_t address)
     return address & 0x00ffffff;
 }
 
+// LoROM banks where the ROM also appears in the LOWER half of the bank
+// ($0000-$7FFF): outside the system banks there is no WRAM/MMIO to shadow
+// it, so the 32 KiB page simply mirrors.
 bool hasLowerHalfCartridgeMirror(uint8_t bank)
 {
     return (bank >= 0x40 && bank <= 0x7d) || bank >= 0xc0;
@@ -260,12 +270,17 @@ bool SnesBus::gsuMapWrite(uint32_t address, uint8_t value)
     return false;
 }
 
+// CPU-visible read. Every successful read refreshes openBusValue — the last
+// byte driven onto the data bus — and unmapped regions return it, modeling
+// the SNES's open-bus behavior (games really do read unmapped addresses and
+// depend on seeing stale bus data rather than 0).
 uint8_t SnesBus::read8(uint32_t address)
 {
     address = mask24(address);
     const uint8_t bank = static_cast<uint8_t>(address >> 16);
     const uint16_t offset = static_cast<uint16_t>(address);
 
+    // Banks $7E/$7F are always linear WRAM; nothing can shadow them.
     if (bank == 0x7e || bank == 0x7f) {
         openBusValue = wram[((bank - 0x7e) << 16) + offset];
         return openBusValue;
@@ -409,6 +424,9 @@ void SnesBus::write8(uint32_t address, uint8_t value)
             traceListener->mmioWrite(mmioAddress, value);
         }
         if (mmioAddress == 0x4016) {
+            // Joypad strobe: while the latch line is high the shift register
+            // continuously reloads from the live buttons; dropping it freezes
+            // the snapshot so $4016 reads can clock the bits out serially.
             const bool newStrobe = (value & 0x01) != 0;
             if (newStrobe || joypadStrobe != newStrobe) {
                 latchJoypad();
@@ -418,6 +436,11 @@ void SnesBus::write8(uint32_t address, uint8_t value)
             return;
         }
         if (mmioAddress == 0x4200) {
+            // NMITIMEN: bit 7 = NMI enable, bits 5-4 = H/V IRQ mode,
+            // bit 0 = joypad auto-read. Enabling NMI while the vblank flag
+            // is already set fires an immediate NMI on hardware (a game
+            // enabling NMIs mid-vblank must not miss that frame) — modeled
+            // via the nmiEdge latch the frame loop services.
             const bool wasNmiEnabled = nmiEnable;
             mmio[*mapped] = value;
             nmiEnable = (value & 0x80) != 0;
@@ -458,6 +481,8 @@ void SnesBus::write8(uint32_t address, uint8_t value)
             return;
         }
         if (mmioAddress == 0x420c) {
+            // HDMAEN just latches; channels are (re)initialized from it at
+            // the top of each frame and sampled per scanline.
             mmio[*mapped] = value;
             return;
         }
@@ -467,6 +492,9 @@ void SnesBus::write8(uint32_t address, uint8_t value)
             return;
         }
         if (mmioAddress == 0x4203) {
+            // Writing WRMPYB starts the 8x8 multiply. Hardware takes 8 CPU
+            // cycles to produce RDMPY; the result is available immediately
+            // here — well-behaved code waits out the delay anyway.
             mmio[*mapped] = value;
             wrmpyb = value;
             rdmpy = static_cast<uint16_t>(wrmpya * wrmpyb);
@@ -483,6 +511,9 @@ void SnesBus::write8(uint32_t address, uint8_t value)
             return;
         }
         if (mmioAddress == 0x4206) {
+            // Writing WRDIVB starts the 16/8 divide (hardware: 16 cycles;
+            // instant here). Divide-by-zero yields quotient $FFFF and the
+            // dividend as remainder — the documented hardware result.
             mmio[*mapped] = value;
             wrdivb = value;
             if (wrdivb == 0) {
@@ -543,6 +574,11 @@ void SnesBus::setTraceListener(TraceListener* listener)
     traceListener = listener;
 }
 
+// HDMA initialization, performed by hardware at the start of every frame
+// (V=0): each enabled channel reloads its table pointer from the A-address
+// registers ($43x2/3 double as the HDMA table base) and fetches its first
+// table entry. Games rewrite $43x2/3 during vblank to restart their effect
+// tables, so this must re-read them every frame.
 void SnesBus::beginFrame()
 {
     const uint8_t channelMask = mmio[0x420c - 0x2000];
@@ -561,6 +597,12 @@ void SnesBus::beginFrame()
     }
 }
 
+// General DMA ($420B): each enabled channel runs to completion immediately,
+// in channel order, while the CPU is halted — hardware behaves the same way
+// (the CPU is off the bus for the whole transfer). The elapsed time is
+// accumulated in pendingDmaDots (8 master clocks per byte) and charged to
+// the CPU/PPU/APU/coprocessors by the frame loop, so the halt is visible to
+// every other clock domain even though the copy itself is instantaneous.
 void SnesBus::runDma(uint8_t channelMask)
 {
     for (uint8_t channel = 0; channel < 8; ++channel) {
@@ -568,6 +610,7 @@ void SnesBus::runDma(uint8_t channelMask)
             continue;
         }
 
+        // A byte count of 0 means a full 64 KiB transfer on hardware.
         uint32_t size = dmaSize(channel);
         if (size == 0) {
             size = 0x10000;
@@ -695,6 +738,9 @@ void SnesBus::checkIrqCrossing(uint16_t prevH, uint16_t prevV, uint16_t currH, u
     }
 }
 
+// Vblank edge from the frame loop. The RDNMI flag ($4210 bit 7) sets on the
+// rising edge and — independent of whether anyone read it — clears again at
+// the end of vblank, which is why games must poll it inside vblank.
 void SnesBus::setVblank(bool active)
 {
     if (active && !vblankActive) {
@@ -826,6 +872,11 @@ std::optional<size_t> SnesBus::mapWram(uint32_t address) const
     return std::nullopt;
 }
 
+// The $2000-$5FFF window of every system bank ($00-$3F and the $80-$BF
+// mirrors) is the hardware register area. Registers with side effects are
+// intercepted by read8/write8; everything else (notably the $43xx DMA
+// channel registers) lives directly in the backing array, which doubles as
+// their architectural storage.
 std::optional<size_t> SnesBus::mapMmio(uint32_t address) const
 {
     const uint8_t bank = static_cast<uint8_t>(address >> 16);
@@ -838,6 +889,11 @@ std::optional<size_t> SnesBus::mapMmio(uint32_t address) const
     return std::nullopt;
 }
 
+// DMA/HDMA-side access: identical address decode to read8/write8 but WITHOUT
+// the interrupt-acknowledge side effects ($4210/$4211) and without trace
+// callbacks — a DMA sweeping memory must not consume the NMI/IRQ flags.
+// Stateful data ports that hardware DMA legitimately exercises ($2180 WRAM,
+// VRAM/CGRAM/OAM, APU ports) keep their side effects here.
 uint8_t SnesBus::readRaw(uint32_t address)
 {
     address = mask24(address);
@@ -1078,6 +1134,11 @@ void SnesBus::reloadHdma(uint8_t channel)
     }
 }
 
+// One scanline's worth of HDMA data for one channel: 1/2/4 bytes (per the
+// transfer mode) written to the $21xx target. Direct mode streams straight
+// from the table; indirect mode (DMAP bit 6) streams from a 16-bit pointer
+// the table supplied, letting one small table drive large per-line data
+// blocks (the classic use is per-line color/scroll gradients).
 void SnesBus::transferHdma(uint8_t channel)
 {
     const uint16_t base = static_cast<uint16_t>(0x4300 + channel * 0x10);
@@ -1110,6 +1171,11 @@ void SnesBus::transferHdma(uint8_t channel)
     }
 }
 
+// B-bus address pattern per DMA transfer mode (DMAP bits 0-2). The B side of
+// a transfer is always a $21xx register; the mode selects how the low byte
+// steps as bytes go by: mode 0 writes one register, mode 1 alternates two
+// (the VRAM $2118/$2119 pair), mode 4 sweeps four, etc. The pattern repeats
+// every 1/2/4 bytes — hence indexing with (index & 3).
 uint8_t SnesBus::dmaBAddress(uint8_t mode, uint8_t bbad, uint16_t index) const
 {
     static constexpr uint8_t sequence[8][4] = {
@@ -1242,6 +1308,10 @@ void SnesBus::writeApuPort(uint16_t address, uint8_t value)
     apuPortLog.totalWrites++;
 }
 
+// Bus save state: raw little-endian field dumps in a fixed order, followed
+// by length-prefixed blobs for SRAM and each chip (zero-length when the chip
+// is absent). Loaders treat early end-of-stream as "older state", so new
+// sections must only ever be APPENDED to stay backward compatible.
 void SnesBus::saveState(std::vector<uint8_t>& out)
 {
     appendPod(out, wram);

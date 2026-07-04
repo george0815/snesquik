@@ -1,3 +1,16 @@
+// S-PPU software renderer. The real PPU renders pixel-by-pixel as the beam
+// sweeps; this implementation renders one whole SCANLINE at a time, at the
+// moment the frame loop sees the line complete, using the register state in
+// effect at that instant. Per-line effects driven by HDMA therefore work
+// (HDMA runs between lines), while true mid-scanline register changes are
+// approximated as whole-line changes — the documented accuracy tradeoff.
+//
+// Per line the pipeline is: build the visible-sprite list (hardware OAM
+// evaluation limits included), render each enabled BG and the OBJ layer into
+// unmasked line buffers, then compose per pixel: pick the highest-priority
+// opaque pixel per screen (main and sub), apply window masking per screen,
+// and run color math — the same layering the PPU's priority/math circuits
+// implement.
 #include "S-PPU/ppu.h"
 
 #include <algorithm>
@@ -415,6 +428,12 @@ void Ppu::renderScanline(uint16_t y)
     }
 }
 
+// OAM evaluation for one scanline, with the hardware's two limits: at most
+// 32 sprites can be selected per line (further ones set the range-over flag
+// and drop) and at most 34 8-pixel tile slivers can be fetched (overflow
+// sets time-over and drops the sprite). Games rely on these limits both ways
+// — flicker engines count on the drop order, and status-bar tricks read the
+// $213E flags.
 void Ppu::buildVisibleSpriteList(int y)
 {
     visibleSpriteCount = 0;
@@ -633,6 +652,11 @@ void Ppu::renderObjLine(int y)
     }
 }
 
+// Pick the winning pixel at x for one screen (main or sub). This models the
+// PPU's priority circuit: start from the backdrop (CGRAM 0), then let every
+// enabled, window-unmasked, opaque layer pixel compete by priority rank.
+// Window masking happens HERE, per screen, because TMW and TSW can mask the
+// same layer differently on main vs sub — the line buffers are unmasked.
 Ppu::Pixel Ppu::composeFromBuffers(int x, bool sub) const
 {
     const uint8_t screenMask = sub ? subScreen : mainScreen;
@@ -714,6 +738,11 @@ void Ppu::beginFrame()
     }
 }
 
+// OAM data port ($2104). The 512-byte low table is written in latched PAIRS:
+// the first byte is buffered and both bytes commit on the second write —
+// hardware does this because OAM is physically 16 bits wide. The 32-byte
+// high table (X msb + size bits, 2 bits per sprite) commits every byte
+// immediately.
 void Ppu::writeOamData(uint8_t value)
 {
     const size_t address = internalOamAddress % oam.size();
@@ -734,6 +763,10 @@ void Ppu::writeOamData(uint8_t value)
 
 namespace {
 
+// VMAIN bits 2-3 select an address-bit rotation applied to VRAM accesses.
+// Hardware provides it so a linear DMA of row-major bitmap data lands in the
+// PPU's planar tile layout without CPU-side interleaving: the rotation swaps
+// the low column bits with tile-row bits (2bpp/4bpp/8bpp variants).
 uint16_t remapVramAddress(uint16_t address, uint8_t vmain)
 {
     const uint8_t mapping = (vmain >> 2) & 0x03;
@@ -815,6 +848,10 @@ uint8_t Ppu::readCgramData()
     return static_cast<uint8_t>((color >> 8) & 0x7f);
 }
 
+// VRAM address auto-increment. VMAIN bit 7 chooses WHICH byte access ($2118
+// low or $2119 high) advances the address — games writing whole words set
+// increment-on-high so the pair lands before the step; step sizes 1/32/128
+// exist so a column of a tilemap (32 words/row) can be written linearly.
 void Ppu::incrementVramAddress(bool highAccess)
 {
     const bool incrementOnHigh = (vmain & 0x80) != 0;
@@ -931,6 +968,11 @@ uint8_t Ppu::objPriorityValue(uint8_t objPri) const
     }
 }
 
+// BG scroll registers are 10-bit values written as two 8-bit writes to the
+// same port. Hardware keeps a per-register prev-byte latch: the new value is
+// assembled from the fresh write (high bits) and the PREVIOUS write (low
+// bits). Games that write only once per frame still work because the latch
+// holds the old low byte.
 void Ppu::writeBgScroll(size_t bg, bool vertical, uint8_t value)
 {
     BgState& state = bgState[bg & 3];
@@ -945,6 +987,10 @@ void Ppu::writeBgScroll(size_t bg, bool vertical, uint8_t value)
     bgofsLatches[latchIdx] = value;
 }
 
+// Mode 7 registers share ONE write-twice latch across all of $211B-$2120:
+// each write supplies the high byte and the previous write (whichever
+// register it went to) supplies the low byte. Same mechanism as BG scroll
+// but with a single shared latch, per hardware.
 void Ppu::writeMode7Pair(uint16_t& target, uint8_t value)
 {
     target = static_cast<uint16_t>((value << 8) | mode7Latch);
@@ -1165,6 +1211,14 @@ uint16_t Ppu::tilemapEntry(size_t bg, int tileX, int tileY) const
     return vram[address & 0x7fff];
 }
 
+// Decode one pixel of a planar SNES tile. VRAM tiles store bitPLANES, not
+// pixels: each 8-pixel row is spread across bpp bit-planes packed in pairs
+// (plane 0/1 in the first 8 words, 2/3 in the next 8, ...), and a pixel's
+// color index is rebuilt by gathering its bit from every plane. Because that
+// gather is 8-32 VRAM reads' worth of shifting per row, decoded rows go
+// through a small direct-mapped cache keyed on (chr base, tile, bpp, row);
+// flips are applied to the lookup coordinates so a cached row serves all
+// four flip variants.
 uint8_t Ppu::decodeTilePixel(uint16_t tileIndex, uint8_t bpp, int pixelX, int pixelY, bool hflip, bool vflip, uint16_t base) const
 {
     if (hflip) {
@@ -1214,6 +1268,11 @@ uint8_t Ppu::decodeTilePixel(uint16_t tileIndex, uint8_t bpp, int pixelX, int pi
     return row[pixelX];
 }
 
+// Map a tile pixel + palette to a CGRAM index. 8bpp tiles address all 256
+// colors directly; 4bpp uses 16-color palettes, 2bpp 4-color palettes. Mode
+// 0 is special: each of its four BGs gets a private block of 8 palettes
+// (BG n starts at CGRAM n*32), so four layers can use distinct colors
+// despite all being 2bpp.
 uint8_t Ppu::cgramIndexForPixel(size_t bg, uint8_t bpp, uint8_t palette, uint8_t pixel) const
 {
     if (bpp == 8) {
@@ -1227,6 +1286,11 @@ uint8_t Ppu::cgramIndexForPixel(size_t bg, uint8_t bpp, uint8_t palette, uint8_t
     return static_cast<uint8_t>(base + pixel);
 }
 
+// Direct-color mode (CGWSEL bit 0, 8bpp layers only): the 8-bit pixel value
+// IS the color — BBGGGRRR expanded to 5-bit channels — with the tilemap
+// palette bits supplying one extra low bit per channel. Trades palette
+// indirection for a wider effective gamut.
+
 uint16_t Ppu::directColor(uint8_t palette, uint8_t pixel) const
 {
     const uint16_t r = static_cast<uint16_t>(((pixel & 0x07) << 2) | ((palette & 0x01) << 1));
@@ -1235,6 +1299,10 @@ uint16_t Ppu::directColor(uint8_t palette, uint8_t pixel) const
     return static_cast<uint16_t>(r | (g << 5) | (b << 10));
 }
 
+// Sprite tiles come from one of two 256-tile pages: OBJSEL bits 0-2 place
+// the first page in VRAM, and bits 3-4 place the second page at a
+// configurable gap after it. The tile attribute's high bit picks the page —
+// this is why sprite tile numbers are effectively 9 bits.
 uint16_t Ppu::objChrBase(uint8_t tileHighBit) const
 {
     const uint16_t base = static_cast<uint16_t>((objsel & 0x07) << 13);
@@ -1245,6 +1313,9 @@ uint16_t Ppu::objChrBase(uint8_t tileHighBit) const
     return static_cast<uint16_t>(base + nameSelect);
 }
 
+// The 8 hardware size pairs selectable via OBJSEL bits 5-7. Every sprite is
+// either "small" or "large" (its per-sprite size bit in the OAM high table);
+// the pair defines what those two sizes mean for the whole frame.
 void Ppu::objSize(uint8_t sizeSelect, bool large, int& width, int& height) const
 {
     static constexpr int sizes[8][4] = {
@@ -1324,6 +1395,11 @@ bool Ppu::colorWindowRegionActive(uint8_t region, int x) const
     return false;
 }
 
+// Combine the two hardware windows for one layer. Each layer's 4-bit
+// selector holds enable+invert bits for window 1 and window 2; when both
+// are enabled the layer's 2-bit logic field picks OR/AND/XOR/XNOR. With one
+// window enabled the logic is ignored; with none the window has no effect.
+// This is a direct transcription of the window combination circuit.
 bool Ppu::windowOutput(uint8_t selector, uint8_t logic, int x) const
 {
     const bool w1Enabled = (selector & 0x02) != 0;
@@ -1411,6 +1487,9 @@ bool Ppu::colorMathEnabledForLayer(const Pixel& pixel) const
     return (cgadsub & 0x20) != 0;
 }
 
+// Color math ALU: per-channel add or subtract (CGADSUB bit 7) with optional
+// halving (bit 6, the 50% blend used for transparency effects), saturating
+// at the 5-bit channel limits like the hardware adder.
 uint16_t Ppu::blendColors(uint16_t main, uint16_t addend) const
 {
     const bool subtract = (cgadsub & 0x80) != 0;
@@ -1446,6 +1525,10 @@ uint16_t Ppu::sign13(uint16_t value) const
     return value;
 }
 
+// Convert 15-bit BGR555 to the 32-bit framebuffer format, applying INIDISP
+// master brightness (0-15) the way the DAC does — a linear scale on the
+// analog output, not a palette change. expand5 replicates the top bits into
+// the low bits so 5-bit white maps to full 8-bit white.
 uint32_t Ppu::rgbaFromSnesColor(uint16_t color) const
 {
     uint8_t r = expand5(static_cast<uint8_t>(color & 0x001f));

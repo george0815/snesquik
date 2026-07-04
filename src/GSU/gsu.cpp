@@ -1,3 +1,12 @@
+// Super FX (GSU) core. The GSU is a custom RISC CPU inside the cartridge
+// that shares the game-pack ROM and RAM with the S-CPU: games start it via
+// its MMIO registers ($3000-$34FF), it renders sprites/polygons into a
+// framebuffer in the shared RAM via its PLOT pixel port, raises an IRQ on
+// STOP, and the S-CPU DMAs the result to VRAM. Modeled here: the 16-register
+// file with SREG/DREG prefixes, the one-byte instruction pipeline (which
+// gives branches their delay slot), the 512-byte instruction cache, the
+// latency-modeled ROM/RAM buffers, the pixel-cache PLOT pipeline, and the
+// RON/RAN bus arbitration the S-CPU sees.
 #include "GSU/gsu.h"
 
 #include <cstdio>
@@ -61,6 +70,10 @@ void Gsu::setReg(int n, uint16_t value)
 {
     n &= 15;
     r[n] = value;
+    // R14 is hardwired to the ROM buffer: writing it starts an asynchronous
+    // ROM prefetch (the R flag covers the latency). R15 is the PC; flagging
+    // the write tells executeOne this instruction jumped, so it must not
+    // apply the default increment.
     if (n == 14) {
         updateRomBuffer();
     }
@@ -74,6 +87,11 @@ void Gsu::setDest(uint16_t value)
     setReg(dreg, value);
 }
 
+// Charge time and complete any in-flight buffered memory operations. The
+// ROM/RAM buffers model real hardware latency: a fetch or store is REQUESTED
+// (romcl/ramcl countdown starts) and only completes once enough cycles have
+// elapsed; code that touches the buffer earlier stalls via the sync helpers.
+// This is what makes GETB-after-ROMB sequences take realistic time.
 void Gsu::step(uint32_t cycles)
 {
     if (romcl) {
@@ -184,6 +202,12 @@ void Gsu::writeRamBuffer(uint16_t address, uint8_t value)
     ramdr = value;
 }
 
+// Instruction fetch. Addresses within 512 bytes of the cache base (CBR) go
+// through the instruction cache: a hit costs one GSU cycle; a miss loads the
+// whole 16-byte line at memory speed and validates it. Code outside the
+// cache window executes directly from ROM/RAM at memory speed — the "run
+// from cache" vs "run from ROM" performance split every Super FX game is
+// tuned around (hot loops are CACHE'd; ROM-resident code crawls).
 uint8_t Gsu::readOpcode(uint16_t address)
 {
     const uint16_t offset = static_cast<uint16_t>(address - cbr);
@@ -211,6 +235,11 @@ uint8_t Gsu::readOpcode(uint16_t address)
     return readMemory((static_cast<uint32_t>(pbr) << 16) | address);
 }
 
+// Consume the prefetched pipeline byte and refill it. Operations call this
+// for immediate operands; because the pipeline already holds the byte AFTER
+// the current instruction, a branch that consumes its displacement via
+// pipe() naturally executes the following byte first — the GSU's branch
+// delay slot falls out of this model for free.
 uint8_t Gsu::pipe()
 {
     const uint8_t result = pipeline;
@@ -255,6 +284,11 @@ uint8_t Gsu::applyColorSource(uint8_t source) const
     return source;
 }
 
+// Compute the game-pack RAM address of the tile containing pixel (x,y).
+// The framebuffer is stored as SNES-format planar TILES (so the finished
+// image can be DMA'd straight to VRAM); SCMR's height mode selects how tile
+// numbers advance down the screen (128/160/192 rows, or the OBJ layout when
+// POR bit 4 forces sprite-style 128x128 addressing).
 uint32_t Gsu::screenPixelAddress(uint8_t x, uint8_t y, uint32_t& bpp) const
 {
     uint32_t cn = 0;
@@ -276,8 +310,17 @@ uint32_t Gsu::screenPixelAddress(uint8_t x, uint8_t y, uint32_t& bpp) const
     return 0x700000 + (cn * (bpp << 3)) + (static_cast<uint32_t>(scbr) << 10) + ((y & 0x07) * 2);
 }
 
+// PLOT pixel port. Writing single pixels into planar tiles would need a
+// read-modify-write of every bitplane byte per pixel, so the hardware
+// batches: an 8-pixel row accumulates in a pixel cache slot (bitpend tracks
+// which pixels are valid) and flushes to RAM when full, when the write
+// moves to a different tile row, or when RPIX forces a sync. A full slot
+// flushes write-only; a partial one must merge with memory. Two slots exist
+// so a flush can overlap the next row's accumulation, as on hardware.
 void Gsu::plot(uint8_t x, uint8_t y)
 {
+    // Transparency: unless POR bit 0 forces opaque plotting, color 0 (or a
+    // 0 low nibble in the freeze-high 4bpp modes) is skipped entirely.
     if (!porTransparent()) {
         if (scmrMd == 3) {
             if (porFreezeHigh()) {
@@ -415,6 +458,10 @@ void Gsu::run(uint32_t masterClocks)
     }
 }
 
+// S-CPU side MMIO. $3000-$301F exposes the 16 registers little-endian (two
+// bytes each); $3100-$32FF is a window into the instruction cache (how the
+// S-CPU seeds small GSU routines directly); the rest are the control/status
+// registers. Reading SFR's high byte ($3031) acknowledges the STOP IRQ.
 uint8_t Gsu::readIo(uint16_t address)
 {
     address = static_cast<uint16_t>(0x3000 | (address & 0x3ff));
@@ -470,6 +517,8 @@ void Gsu::writeIo(uint16_t address, uint8_t value)
         if (n == 14) {
             updateRomBuffer();
         }
+        // Writing R15's high byte ($301F) is the hardware "GO" trigger: the
+        // S-CPU points R15 at the routine and the write starts execution.
         if (address == 0x301f) {
             setFlag(flagG, true);
         }
@@ -478,6 +527,8 @@ void Gsu::writeIo(uint16_t address, uint8_t value)
 
     switch (address) {
     case 0x3030: {
+        // SFR low byte: the S-CPU can clear GO to stop the chip; hardware
+        // resets the cache base and invalidates the cache when that happens.
         const bool wasRunning = goFlag();
         sfr = static_cast<uint16_t>((sfr & 0xff00) | value);
         if (wasRunning && !goFlag()) {

@@ -1,3 +1,11 @@
+// DSP-1: a NEC uPD7725 fixed-point DSP used for the matrix/trig math in
+// Super Mario Kart, Pilotwings, etc. This is a LOW-LEVEL emulation — it
+// interprets the chip's actual 2048-word program ROM and 1024-word data ROM
+// (the dsp1b.rom dump), so the math is bit-exact by construction. The
+// uPD7725 is a Harvard-architecture DSP: every 24-bit instruction word can
+// simultaneously run an ALU op, move a value across the internal data bus,
+// and post-adjust the RAM/ROM pointers. The S-CPU talks to it only through
+// the DR (data) and SR (status) registers with the RQM handshake.
 #include "DSP/necdsp.h"
 
 #include <cstring>
@@ -120,6 +128,12 @@ void NecDsp::writeDst(uint8_t dst, uint16_t idb)
     }
 }
 
+// OP/RT instruction: one 24-bit word encodes, in parallel, an ALU operation
+// (with its P-operand select), a source->destination move on the internal
+// data bus, a data-pointer (DP) post-adjust, and a ROM-pointer (RP)
+// decrement. All fields execute "simultaneously" against the pre-instruction
+// state, which is why IDB is read before the ALU runs and the pointer
+// updates are skipped when the move itself wrote the pointer.
 void NecDsp::execOp(uint32_t opcode)
 {
     const uint8_t pselect = (opcode >> 20) & 0x03;
@@ -133,7 +147,10 @@ void NecDsp::execOp(uint32_t opcode)
 
     const uint16_t idb = readSrc(src);
 
-    // The multiplier output is recomputed every operation from K and L.
+    // The K*L multiplier runs combinationally every cycle: M/N always hold
+    // the current signed 16x16 product (M = high 16 of the <<1'd result,
+    // N = low). Programs load K and L, then read M/N on the next op — no
+    // explicit "multiply" instruction exists on this chip.
     const int32_t mul = static_cast<int32_t>(static_cast<int16_t>(regs.k))
                       * static_cast<int16_t>(regs.l);
     regs.m = static_cast<uint16_t>(mul >> 15);
@@ -346,6 +363,11 @@ void NecDsp::step(uint32_t cycles)
 // ---------------------------------------------------------------------------
 // S-CPU interface (DR/SR with the RQM / 16-bit two-step handshake)
 // ---------------------------------------------------------------------------
+// The RQM handshake: the DSP raises RQM (SR bit 15) when it wants a word
+// moved through DR, then blocks at a JRQM wait; the S-CPU's read/write of DR
+// completes the transfer, clears RQM, and lets the program run on to its
+// next wait. SR bit DRC selects 8- vs 16-bit transfers; 16-bit ones move
+// low byte then high byte with DRS tracking the half-step.
 uint8_t NecDsp::readDR()
 {
     uint8_t value;

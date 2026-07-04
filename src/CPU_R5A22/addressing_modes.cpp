@@ -1,3 +1,8 @@
+// 65816 addressing-mode resolvers. Each consumes the instruction's operand
+// bytes via fetch8/fetch16/fetch24, applies the mode's index/indirection
+// rules (including the emulation-mode wrapping quirks), charges any
+// mode-dependent penalty cycles, and returns a resolved Operand for the
+// operation to load/store through.
 #include "core.h"
 
 namespace snesquik::cpu_r5a22::addressing {
@@ -14,6 +19,9 @@ uint32_t bankedIndexed(uint8_t bank, uint16_t address, uint16_t index)
     return (banked(bank, address) + index) & 0x00ffffff;
 }
 
+// Direct-page addresses are D + offset in bank 0. Hardware charges one extra
+// cycle whenever D's low byte is non-zero (the address adder can't shortcut),
+// which is why games keep D page-aligned in hot code.
 uint16_t directAddress(CPU& cpu, uint8_t offset)
 {
     auto& r = cpu.mutableRegisters();
@@ -30,6 +38,9 @@ uint16_t directIndexed(CPU& cpu, uint8_t offset, uint16_t index)
     if ((r.d & 0x00ff) != 0) {
         cpu.addCycles(1);
     }
+    // 6502 compatibility: in emulation mode with a page-aligned D, dp,X/dp,Y
+    // wrap within the direct page (zp,X behavior). With DL != 0 the 65816
+    // drops the wrap and indexes linearly.
     if (r.emulation && (r.d & 0x00ff) == 0) {
         return static_cast<uint16_t>((r.d & 0xff00) | static_cast<uint8_t>(offset + index));
     }
@@ -205,6 +216,10 @@ Operand absolute(CPU& cpu)
     return operand;
 }
 
+// Indexed absolute modes pay one extra cycle when the index is 16-bit or the
+// add crosses a page boundary — the CPU needs the extra bus cycle to fix up
+// the high address byte. Indexing may carry past the bank into DB+1
+// (bankedIndexed masks to 24 bits), unlike the bank-wrapped pointer fetches.
 Operand absoluteX(CPU& cpu)
 {
     auto& r = cpu.mutableRegisters();
@@ -257,6 +272,9 @@ Operand absoluteIndirectLong(CPU& cpu)
 
 Operand absoluteIndirectX(CPU& cpu)
 {
+    // JMP/JSR (a,x): unlike plain (a), the pointer table is read from the
+    // PROGRAM bank, not bank 0 — this mode exists for jump tables embedded
+    // next to the code that uses them.
     auto& r = cpu.mutableRegisters();
     const uint16_t pointer = static_cast<uint16_t>(cpu.fetch16() + r.x);
     Operand operand;
@@ -300,6 +318,8 @@ Operand relative16(CPU& cpu)
 
 Operand stackRelative(CPU& cpu)
 {
+    // sr,S addresses S + offset in bank 0 — how code reaches arguments and
+    // locals pushed on the stack without a frame pointer.
     auto& r = cpu.mutableRegisters();
     Operand operand;
     operand.hasAddress = true;

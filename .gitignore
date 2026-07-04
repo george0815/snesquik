@@ -1,7 +1,14 @@
 build*/
 build/
 release/
-docs/
+# Third-party reference documentation (saved wiki pages, dev manuals);
+# project-authored docs (snesquik-architecture.md) stay tracked.
+docs/audio/
+docs/cpu/
+docs/input/
+docs/ppu/
+docs/superfx/
+docs/system/
 tests/roms/
 tests/snes-tests/
 CMakeFiles/
@@ -16,7 +23,6 @@ compile_commands.json
 *.dll
 *.exe
 .DS_Store
-tmp.txt
 disasm_loop.py
 snesquik_log.txt
 doom_shotgun_glitch.md
