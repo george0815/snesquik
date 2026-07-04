@@ -177,14 +177,11 @@ std::optional<snesquik::bus::ControllerButton> keyToButton(int key) {
   case SDLK_z:
     return ControllerButton::B;
   case SDLK_x:
-    std::cout << "A PRESSED!" << std::endl;
     return ControllerButton::A;
   case SDLK_a:
     return ControllerButton::Y;
   case SDLK_s:
-    std::cout << "X PRESSED!" << std::endl;
     return ControllerButton::X;
-
   case SDLK_q:
     return ControllerButton::L;
   case SDLK_w:
@@ -334,25 +331,14 @@ void logFrameState(snesquik::ppu::Ppu &ppu, snesquik::bus::SnesBus &bus,
   logFile << "  OBJSEL=$" << std::hex
           << static_cast<int>(ppu.readRegister(0x2101)) << std::dec << '\n';
 
-  // Mode 7 registers
-  logFile << "  M7A=$" << std::hex
-          << static_cast<int>(ppu.readRegister(0x211b) |
-                              (ppu.readRegister(0x211c) << 8))
-          << " M7B=$"
-          << static_cast<int>(ppu.readRegister(0x211d) |
-                              (ppu.readRegister(0x211e) << 8))
-          << " M7C=$"
-          << static_cast<int>(ppu.readRegister(0x211f) |
-                              (ppu.readRegister(0x2120) << 8))
-          << " M7D=$"
-          << static_cast<int>(ppu.readRegister(0x211b) |
-                              (ppu.readRegister(0x211c) << 8))
-          << " M7X=$"
-          << static_cast<int>(ppu.readRegister(0x211a) |
-                              (ppu.readRegister(0x211b) << 8))
-          << " M7Y=$"
-          << static_cast<int>(ppu.readRegister(0x211c) |
-                              (ppu.readRegister(0x211d) << 8))
+  // Mode 7 registers ($211B-$2120 are write-twice pairs; the readback here is
+  // the last byte written to each, logged for coarse diagnostics only).
+  logFile << "  M7A=$" << std::hex << static_cast<int>(ppu.readRegister(0x211b))
+          << " M7B=$" << static_cast<int>(ppu.readRegister(0x211c))
+          << " M7C=$" << static_cast<int>(ppu.readRegister(0x211d))
+          << " M7D=$" << static_cast<int>(ppu.readRegister(0x211e))
+          << " M7X=$" << static_cast<int>(ppu.readRegister(0x211f))
+          << " M7Y=$" << static_cast<int>(ppu.readRegister(0x2120))
           << " M7SEL=$" << static_cast<int>(ppu.readRegister(0x211a))
           << std::dec << '\n';
 
@@ -392,19 +378,6 @@ void logFrameState(snesquik::ppu::Ppu &ppu, snesquik::bus::SnesBus &bus,
           << apl.writeCount[3] << "]"
           << " totalR=" << apl.totalReads << " totalW=" << apl.totalWrites
           << '\n';
-
-  // Key WRAM locations
-  logFile << "  WRAM[05B4]=$" << std::hex
-          << static_cast<int>(bus.read8(0x0005b4)) << " WRAM[05B5]=$"
-          << static_cast<int>(bus.read8(0x0005b5)) << " WRAM[05B6]=$"
-          << static_cast<int>(bus.read8(0x0005b6)) << " WRAM[05BA]=$"
-          << static_cast<int>(bus.read8(0x0005ba)) << std::dec << '\n';
-
-  // Game flag ($05B4) write tracking
-  const auto &gfl = bus.getGameFlagLog();
-  logFile << "  05B4_WRITES=" << std::dec << gfl.writeCount
-          << " LAST_05B4_WRITTEN=$" << std::hex
-          << static_cast<int>(gfl.lastValueWritten) << std::dec << '\n';
 
   logFile.flush();
 }
@@ -481,8 +454,6 @@ bool handleSystemKey(InputContext &input, int key, bool pressed) {
 // Translates a keyboard event into a logical controller button and forwards it
 // to the bus. Gamepad input can reach the bus the same way via setButton.
 void handleControllerInput(InputContext &input, int key, bool pressed) {
-  std::cout << "PRESSED: " << pressed << std::endl;
-
   const auto button = keyToButton(key);
   if (!button || !input.bus) {
     return;
@@ -822,9 +793,17 @@ int main(int argc, char **argv) {
       cpu.setIrqLine(bus.irqFlag() || bus.gsuIrqPending() ||
                      bus.sa1IrqPending());
 
-      if (ppu.verticalCounter() != lastLine) {
+      // A single step can cross several scanlines at once (a large general
+      // DMA halts the CPU for thousands of dots). Process every crossed line:
+      // on hardware HDMA pre-empts DMA each scanline, so skipping lines here
+      // made per-line HDMA tables (e.g. Star Fox's INIDISP letterbox) fall
+      // behind by however many lines the DMA spanned, jittering frame to
+      // frame.
+      const uint16_t currentLine = ppu.verticalCounter();
+      while (lastLine != currentLine) {
         const uint16_t completedLine = lastLine;
-        lastLine = ppu.verticalCounter();
+        lastLine = static_cast<uint16_t>(
+            (lastLine + 1) % snesquik::ppu::Ppu::ntscScanlines);
         const uint16_t vh = static_cast<uint16_t>(ppu.visibleHeight());
         if (completedLine < vh) {
           ppu.renderScanline(completedLine);

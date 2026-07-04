@@ -131,11 +131,12 @@ void Apu::syncToCpuCycle(uint64_t cpuCycle, uint32_t extraCycles)
     uint32_t delta = 0;
     if (cpuCycle > lastCpuCycle) {
         const uint64_t d = cpuCycle - lastCpuCycle;
-        // cpuCycle is now an accurate MASTER-CLOCK count. Normal deltas between
-        // APU accesses are at most a few thousand master clocks; a huge delta
-        // means the baseline is stale (e.g. right after a state load before
-        // resyncCpuBaseline ran) — drop it rather than fast-forwarding the SPC
-        // by a bogus amount. DMA halt time arrives via extraCycles, unclamped.
+        // cpuCycle counts CPU cycles (~6 master clocks each; advance() does
+        // the conversion). Normal deltas between APU syncs are small; a huge
+        // delta means the baseline is stale (e.g. right after a state load
+        // before resyncCpuBaseline ran) — drop it rather than fast-forwarding
+        // the SPC by a bogus amount. DMA halt time arrives via extraCycles,
+        // unclamped.
         delta = d > 0xffffu ? 0 : static_cast<uint32_t>(d);
     }
     lastCpuCycle = cpuCycle;

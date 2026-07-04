@@ -1,22 +1,16 @@
 #include "MAIN/sdl_gl_renderer.h"
 
 #include <SDL.h>
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_events.h>
-#include <SDL2/SDL_gamecontroller.h>
-#include <SDL2/SDL_joystick.h>
-#include <SDL2/SDL_keycode.h>
-#include <SDL3/SDL_keycode.h>
 #include <SDL_opengl.h>
-#include <iostream>
 
 #include <array>
 #include <cstring>
+#include <string>
+
 namespace snesquik::platform {
 
 namespace {
 
-using namespace std;
 using GlCreateShader = GLuint (*)(GLenum);
 using GlShaderSource = void (*)(GLuint, GLsizei, const GLchar *const *,
                                 const GLint *);
@@ -78,15 +72,9 @@ template <typename T> bool load(T &fn, const char *name) {
   return fn != nullptr;
 }
 
-SDL_GameController *findController() {
-  for (int i = 0; i < SDL_NumJoysticks(); i++) {
-    if (SDL_IsGameController(i)) {
-      return SDL_GameControllerOpen(i);
-    }
-  }
-}
-
-SDL_GameController *controller = SDL_GameControllerOpen(0);
+// Opened lazily from SDL_CONTROLLERDEVICEADDED events (SDL fires one per
+// already-connected controller when the subsystem initializes).
+SDL_GameController *controller = nullptr;
 
 bool loadGl() {
   return load(gl.createShader, "glCreateShader") &&
@@ -219,11 +207,15 @@ bool SdlGlRenderer::pollEvents() {
     }
 
     if (event.type == SDL_CONTROLLERDEVICEADDED) {
-      cout << "ADDED" << endl;
       if (!controller) {
         controller = SDL_GameControllerOpen(event.cdevice.which);
-        cout << "NOT INIT" << endl;
       }
+    }
+    if (event.type == SDL_CONTROLLERDEVICEREMOVED && controller &&
+        event.cdevice.which == SDL_JoystickInstanceID(
+                                   SDL_GameControllerGetJoystick(controller))) {
+      SDL_GameControllerClose(controller);
+      controller = nullptr;
     }
     if ((event.type == SDL_CONTROLLERBUTTONDOWN ||
          event.type == SDL_CONTROLLERBUTTONUP) &&
@@ -318,7 +310,11 @@ void SdlGlRenderer::shutdown() {
     SDL_DestroyWindow(window);
     window = nullptr;
   }
-  SDL_QuitSubSystem(SDL_INIT_VIDEO);
+  if (controller) {
+    SDL_GameControllerClose(controller);
+    controller = nullptr;
+  }
+  SDL_QuitSubSystem(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER);
 }
 
 void SdlGlRenderer::setKeyCallback(KeyCallback callback, void *userData) {

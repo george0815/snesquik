@@ -1,8 +1,6 @@
 #include "S-PPU/ppu.h"
 
 #include <algorithm>
-#include <cstdio>
-#include <cstdlib>
 #include <cstring>
 #include <type_traits>
 
@@ -361,7 +359,7 @@ void Ppu::renderScanline(uint16_t y)
         return;
     }
 
-    if (forceBlank() || y > static_cast<uint16_t>(visibleHeight())) {
+    if (forceBlank() || y >= static_cast<uint16_t>(visibleHeight())) {
         const size_t base = static_cast<size_t>(y * screenWidth);
         std::fill_n(&frame[base], screenWidth, 0xff000000);
         std::fill_n(&priorityFrame[base], screenWidth, 0);
@@ -395,6 +393,9 @@ void Ppu::renderScanline(uint16_t y)
         renderObjLine(y);
     }
 
+    // The sub screen only feeds color math when CGWSEL bit 1 selects it;
+    // otherwise the addend is the fixed colour and composing it is wasted work.
+    const bool needSubScreen = (cgwsel & 0x02) != 0;
     for (int x = 0; x < screenWidth; ++x) {
         Pixel main = composeFromBuffers(x, false);
 
@@ -402,7 +403,10 @@ void Ppu::renderScanline(uint16_t y)
         if ((debugFlags & DebugNoColorMath) != 0) {
             color = main.color;
         } else {
-            Pixel sub = composeFromBuffers(x, true);
+            Pixel sub;
+            if (needSubScreen) {
+                sub = composeFromBuffers(x, true);
+            }
             color = applyColorMath(main, sub, x);
         }
         const size_t offset = static_cast<size_t>(y * screenWidth + x);
@@ -468,7 +472,7 @@ void Ppu::renderBgLine(size_t bg, int y)
 
     if ((bgmode & 0x07) == 7) {
         for (int x = 0; x < screenWidth; ++x) {
-            Pixel p = sampleMode7(bg, x, y, false);
+            Pixel p = sampleMode7(bg, x, y);
             if (p.opaque) {
                 colorBuf[x] = p.color;
                 priBuf[x] = p.priority;
@@ -536,6 +540,12 @@ void Ppu::renderBgLine(size_t bg, int y)
         }
     }
 
+    // Consecutive pixels usually fall in the same tile; avoid re-reading the
+    // tilemap entry for each of the 8 (or 16) pixels it covers.
+    int cachedTileX = -1;
+    int cachedTileY = -1;
+    uint16_t cachedEntry = 0;
+
     for (int x = 0; x < screenWidth; ++x) {
         int sampleX = x;
         int sampleY = y;
@@ -560,7 +570,12 @@ void Ppu::renderBgLine(size_t bg, int y)
         const int worldY = (sampleY + vscroll) & 0x03ff;
         const int tileX = worldX / tileSize;
         const int tileY = worldY / tileSize;
-        const uint16_t entry = tilemapEntry(bg, tileX, tileY);
+        if (tileX != cachedTileX || tileY != cachedTileY) {
+            cachedTileX = tileX;
+            cachedTileY = tileY;
+            cachedEntry = tilemapEntry(bg, tileX, tileY);
+        }
+        const uint16_t entry = cachedEntry;
         const uint16_t baseTile = entry & 0x03ff;
         const uint8_t palette = static_cast<uint8_t>((entry >> 10) & 0x07);
         const bool priorityBit = (entry & 0x2000) != 0;
@@ -936,104 +951,11 @@ void Ppu::writeMode7Pair(uint16_t& target, uint8_t value)
     mode7Latch = value;
 }
 
-Ppu::Pixel Ppu::composeScreenPixel(int x, int y, bool subScreenPixel) const
-{
-    Pixel best;
-    best.layer = 5;
-    best.color = cgram[0];
-    best.opaque = true;
-
-    for (size_t bg = 0; bg < 4; ++bg) {
-        Pixel pixel = sampleBackground(bg, x, y, subScreenPixel);
-        if (pixel.opaque && pixel.priority >= best.priority) {
-            best = pixel;
-        }
-    }
-
-    Pixel sprite = sampleSpriteLayer(x, y, subScreenPixel);
-    if (sprite.opaque && sprite.priority >= best.priority) {
-        best = sprite;
-    }
-
-    return best;
-}
-
-Ppu::Pixel Ppu::sampleBackground(size_t bg, int x, int y, bool subScreenPixel) const
-{
-    const uint8_t screenMask = subScreenPixel ? subScreen : mainScreen;
-    if ((screenMask & (1u << bg)) == 0 || layerWindowMasked(static_cast<uint8_t>(bg), x, subScreenPixel)) {
-        return {};
-    }
-
-    if ((bgmode & 0x07) == 7) {
-        return sampleMode7(bg, x, y, subScreenPixel);
-    }
-
-    if (bg >= 4) {
-        return {};
-    }
-
-    const uint8_t bpp = bppForBg(bg);
-    if (bpp == 0) {
-        return {};
-    }
-
-    const BgState& state = bgState[bg];
-    int sampleX = x;
-    int sampleY = y;
-    const int mosaicSize = ((mosaic >> 4) & 0x0f) + 1;
-    if ((mosaic & (1u << bg)) != 0 && mosaicSize > 1) {
-        sampleX -= sampleX % mosaicSize;
-        sampleY -= sampleY % mosaicSize;
-    }
-
-    const int worldX = (sampleX + state.hscroll) & 0x03ff;
-    const int worldY = (sampleY + state.vscroll) & 0x03ff;
-    const bool largeTiles = (bgmode & (0x10u << bg)) != 0;
-    const int tileSize = largeTiles ? 16 : 8;
-    const int tileX = worldX / tileSize;
-    const int tileY = worldY / tileSize;
-    const uint16_t entry = tilemapEntry(bg, tileX, tileY);
-    const uint16_t baseTile = entry & 0x03ff;
-    const uint8_t palette = static_cast<uint8_t>((entry >> 10) & 0x07);
-    const bool priorityBit = (entry & 0x2000) != 0;
-    const bool hflip = (entry & 0x4000) != 0;
-    const bool vflip = (entry & 0x8000) != 0;
-
-    int pixelX = worldX & (tileSize - 1);
-    int pixelY = worldY & (tileSize - 1);
-    uint16_t tile = baseTile;
-    if (largeTiles) {
-        if (pixelX >= 8) {
-            tile += 1;
-            pixelX -= 8;
-        }
-        if (pixelY >= 8) {
-            tile += 16;
-            pixelY -= 8;
-        }
-    }
-
-    const uint8_t pixel = decodeTilePixel(tile, bpp, pixelX, pixelY, hflip, vflip, chrBase(bg));
-    if (pixel == 0) {
-        return {};
-    }
-
-    Pixel result;
-    result.paletteIndex = cgramIndexForPixel(bg, bpp, palette, pixel);
-    result.color = ((cgwsel & 0x01) != 0 && bpp == 8) ? directColor(palette, pixel) : cgram[result.paletteIndex];
-    result.priority = bgPriorityValue(bg, priorityBit);
-    result.layer = static_cast<uint8_t>(bg);
-    result.opaque = true;
-    return result;
-}
-
-Ppu::Pixel Ppu::sampleMode7(size_t bg, int x, int y, bool subScreenPixel) const
+// Window masking is intentionally not applied here: the line buffers hold
+// unmasked pixels and composeFromBuffers masks per screen (main vs sub).
+Ppu::Pixel Ppu::sampleMode7(size_t bg, int x, int y) const
 {
     if (bg > 1 || (bg == 1 && !extBg())) {
-        return {};
-    }
-    if (layerWindowMasked(static_cast<uint8_t>(bg), x, subScreenPixel)) {
         return {};
     }
 
@@ -1098,63 +1020,6 @@ Ppu::Pixel Ppu::sampleMode7(size_t bg, int x, int y, bool subScreenPixel) const
     result.layer = static_cast<uint8_t>(bg);
     result.opaque = true;
     return result;
-}
-
-Ppu::Pixel Ppu::sampleSpriteLayer(int x, int y, bool subScreenPixel) const
-{
-    const uint8_t screenMask = subScreenPixel ? subScreen : mainScreen;
-    if ((screenMask & 0x10) == 0 || layerWindowMasked(4, x, subScreenPixel)) {
-        return {};
-    }
-
-    Pixel best;
-    int bestSprite = 128;
-    int spritesOnLine = 0;
-    int tilesOnLine = 0;
-
-    for (size_t sprite = 0; sprite < 128; ++sprite) {
-        int spriteY = 0;
-        int width = 0;
-        int height = 0;
-        if (!spriteVisibleOnLine(sprite, y, spriteY, width, height)) {
-            continue;
-        }
-
-        if (spritesOnLine >= 32) {
-            spriteTimeOver = true;
-            continue;
-        }
-        ++spritesOnLine;
-
-        const int spriteTiles = std::max(1, width / 8);
-        if (tilesOnLine + spriteTiles > 34) {
-            spriteRangeOver = true;
-            continue;
-        }
-        tilesOnLine += spriteTiles;
-
-        int spriteX = 0;
-        int fullY = 0;
-        int fullWidth = 0;
-        int fullHeight = 0;
-        if (!spriteBounds(sprite, spriteX, fullY, fullWidth, fullHeight)) {
-            continue;
-        }
-        if (x < spriteX || x >= spriteX + fullWidth) {
-            continue;
-        }
-
-        Pixel pixel = sampleSpritePixel(sprite, x - spriteX, y - spriteY);
-        if (!pixel.opaque) {
-            continue;
-        }
-        if (!best.opaque || pixel.priority > best.priority || (pixel.priority == best.priority && static_cast<int>(sprite) < bestSprite)) {
-            best = pixel;
-            bestSprite = static_cast<int>(sprite);
-        }
-    }
-
-    return best;
 }
 
 bool Ppu::spriteBounds(size_t sprite, int& x, int& y, int& width, int& height) const
@@ -1264,7 +1129,6 @@ uint16_t Ppu::chrBase(size_t bg) const
 
 uint16_t Ppu::offsetMapEntry(int tileCol, int row) const
 {
-    const BgState& bg3 = bgState[2];
     const uint16_t base = tilemapBase(2);
 
     const int mapY = row & 0x1f;
@@ -1281,22 +1145,22 @@ uint16_t Ppu::tilemapEntry(size_t bg, int tileX, int tileY) const
     const bool tall = (screen & 0x02) != 0;
     const int mapX = wide ? tileX & 0x3f : tileX & 0x1f;
     const int mapY = tall ? tileY & 0x3f : tileY & 0x1f;
-        const int quadrantX = mapX / 32;
-        const int quadrantY = mapY / 32;
-        const int localX = mapX & 0x1f;
-        const int localY = mapY & 0x1f;
-        int quadrant;
-        if (wide && tall) {
-            quadrant = quadrantX + quadrantY * 2;
-        } else if (wide) {
-            quadrant = quadrantX;
-        } else if (tall) {
-            // 32x64: the lower 32x32 screen immediately follows the upper
-            // one at base + $400 (unlike 64x64 where rows are at +$800).
-            quadrant = quadrantY;
-        } else {
-            quadrant = 0;
-        }
+    const int quadrantX = mapX / 32;
+    const int quadrantY = mapY / 32;
+    const int localX = mapX & 0x1f;
+    const int localY = mapY & 0x1f;
+    int quadrant;
+    if (wide && tall) {
+        quadrant = quadrantX + quadrantY * 2;
+    } else if (wide) {
+        quadrant = quadrantX;
+    } else if (tall) {
+        // 32x64: the lower 32x32 screen immediately follows the upper
+        // one at base + $400 (unlike 64x64 where rows are at +$800).
+        quadrant = quadrantY;
+    } else {
+        quadrant = 0;
+    }
     const uint16_t address = static_cast<uint16_t>(tilemapBase(bg) + quadrant * 0x400 + localY * 32 + localX);
     return vram[address & 0x7fff];
 }

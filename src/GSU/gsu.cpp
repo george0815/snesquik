@@ -49,7 +49,6 @@ void Gsu::power()
 void Gsu::attachRom(std::span<const uint8_t> romBytes)
 {
     rom = romBytes;
-    romMask = rom.empty() ? 0 : static_cast<uint32_t>(rom.size() - 1);
 }
 
 void Gsu::setRamSize(size_t bytes)
@@ -92,30 +91,40 @@ void Gsu::step(uint32_t cycles)
             writeMemory(0x700000 + (static_cast<uint32_t>(rambr) << 16) + ramar, ramdr);
         }
     }
-    // The budget is in master clocks; one GSU cycle is 2 master clocks at
-    // 10.7 MHz (CLSR=0) or 1 at 21.4 MHz (CLSR=1).
-    budget -= static_cast<int64_t>(cycles) * (clsr ? 1 : 2);
+    // The budget and all step costs are in master clocks. The cost constants
+    // used by callers (`clsr ? 1 : 2` per internal cycle, `clsr ? 5 : 6` per
+    // memory access, matching bsnes) already encode the CLSR clock select —
+    // one GSU cycle is 2 master clocks at 10.7 MHz (CLSR=0) or 1 at 21.4 MHz
+    // (CLSR=1) — so no further conversion happens here. (A second `* (clsr ?
+    // 1 : 2)` here used to double-charge everything in CLSR=0 mode, running
+    // Star Fox's GSU at half speed; CLSR=1 games like Star Fox 2 and DOOM
+    // were unaffected because the multiplier was 1.)
+    budget -= static_cast<int64_t>(cycles);
 }
 
 uint8_t Gsu::readMemory(uint32_t address)
 {
     address &= 0xffffff;
     const uint8_t bank = static_cast<uint8_t>(address >> 16);
+    // Use modulo, not a bitwise mask, to mirror the ROM: sizes are not always
+    // a power of two (e.g. Star Fox 2 = 0xFFEC3 bytes) and `& (size-1)` would
+    // corrupt the offset, fetching garbage as code. The division only runs on
+    // the rare out-of-range access.
+    const auto mirrored = [this](size_t offset) {
+        return rom[offset < rom.size() ? offset : offset % rom.size()];
+    };
     if (bank <= 0x3f) {
         // LoROM view of the game pack ROM.
         if (rom.empty()) {
             return 0;
         }
-        // Use modulo, not a bitwise mask: ROM sizes are not always a power of
-        // two (e.g. Star Fox 2 = 0xFFEC3 bytes) and `& (size-1)` would corrupt
-        // the offset, fetching garbage as code. (% == & for power-of-two sizes.)
-        return rom[((((address & 0x3f0000) >> 1) | (address & 0x7fff))) % rom.size()];
+        return mirrored(((address & 0x3f0000) >> 1) | (address & 0x7fff));
     }
     if (bank <= 0x5f) {
         if (rom.empty()) {
             return 0;
         }
-        return rom[address % rom.size()];
+        return mirrored(address);
     }
     if (bank <= 0x7f) {
         if (ram.empty()) {

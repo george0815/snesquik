@@ -450,9 +450,13 @@ ProbeResult runProbe(const ProbeOptions& options)
             }
             cpu.setIrqLine(bus.irqFlag() || bus.gsuIrqPending() || bus.sa1IrqPending());
 
-            if (ppu.verticalCounter() != lastLine) {
+            // Process every scanline crossed by this step (a large DMA can
+            // span several lines); HDMA pre-empts DMA per line on hardware.
+            // Must match the main loop in snesquik.cpp.
+            const uint16_t currentLine = ppu.verticalCounter();
+            while (lastLine != currentLine) {
                 const uint16_t completedLine = lastLine;
-                lastLine = ppu.verticalCounter();
+                lastLine = static_cast<uint16_t>((lastLine + 1) % ppu::Ppu::ntscScanlines);
                 if (completedLine < static_cast<uint16_t>(ppu.visibleHeight())) {
                     ppu.renderScanline(completedLine);
                 }

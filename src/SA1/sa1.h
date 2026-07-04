@@ -76,7 +76,13 @@ private:
     uint32_t mmcRom(uint32_t address) const;
     uint8_t readRom(uint32_t cartOffset) const
     {
-        return rom.empty() ? 0xff : rom[cartOffset & romMask];
+        // Mirror by modulo, not a bitwise mask: ROM sizes are not always a
+        // power of two, and `& (size-1)` would corrupt those offsets. The
+        // division only runs on the rare out-of-range access.
+        if (rom.empty()) {
+            return 0xff;
+        }
+        return rom[cartOffset < rom.size() ? cartOffset : cartOffset % rom.size()];
     }
     uint8_t readBwBlock(uint32_t block, uint16_t offset) const;
     void writeBwBlock(uint32_t block, uint16_t offset, uint8_t value);
@@ -97,7 +103,6 @@ private:
     cpu_r5a22::CPU sa1Cpu;
 
     std::span<const uint8_t> rom;
-    uint32_t romMask = 0;
     std::vector<uint8_t> bwram;
     uint32_t bwramMask = 0;
     std::array<uint8_t, 0x800> iram{};

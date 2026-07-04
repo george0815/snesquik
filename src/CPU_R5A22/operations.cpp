@@ -380,7 +380,7 @@ void ora(CPU& cpu, const Operand& operand)
 }
 
 void pea(CPU& cpu, const Operand& operand) { cpu.push16NoWrap(static_cast<uint16_t>(operand.address)); }
-void pei(CPU& cpu, const Operand& operand) { cpu.push16NoWrap(cpu.read16(operand.address)); }
+void pei(CPU& cpu, const Operand& operand) { cpu.push16NoWrap(cpu.read16BankWrap(0, static_cast<uint16_t>(operand.address))); }
 void per(CPU& cpu, const Operand& operand) { cpu.push16NoWrap(static_cast<uint16_t>(cpu.registers().pc + static_cast<int16_t>(operand.value))); }
 
 void pha(CPU& cpu, const Operand&)

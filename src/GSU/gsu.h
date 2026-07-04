@@ -177,7 +177,6 @@ private:
 
     std::span<const uint8_t> rom;
     std::vector<uint8_t> ram;
-    uint32_t romMask = 0;
     uint32_t ramMask = 0;
 
     // Cycle budget in GSU clocks for the current run() slice.

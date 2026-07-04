@@ -103,10 +103,7 @@ private:
     uint8_t objPriorityValue(uint8_t objPri) const;
     void writeBgScroll(size_t bg, bool vertical, uint8_t value);
     void writeMode7Pair(uint16_t& target, uint8_t value);
-    Pixel composeScreenPixel(int x, int y, bool subScreenPixel) const;
-    Pixel sampleBackground(size_t bg, int x, int y, bool subScreenPixel) const;
-    Pixel sampleMode7(size_t bg, int x, int y, bool subScreenPixel) const;
-    Pixel sampleSpriteLayer(int x, int y, bool subScreenPixel) const;
+    Pixel sampleMode7(size_t bg, int x, int y) const;
     Pixel sampleSpritePixel(size_t sprite, int x, int y) const;
     bool spriteBounds(size_t sprite, int& x, int& y, int& width, int& height) const;
     bool spriteVisibleOnLine(size_t sprite, int line, int& y, int& width, int& height) const;

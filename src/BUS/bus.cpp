@@ -1,5 +1,3 @@
-#include <cstdio>
-#include <cstdlib>
 #include "BUS/bus.h"
 
 #include <cstring>
@@ -45,7 +43,9 @@ std::optional<size_t> wrapRomOffset(size_t offset, size_t size)
     if (size == 0) {
         return std::nullopt;
     }
-    return offset % size;
+    // ROM sizes need not be powers of two, so mirroring must be modulo; the
+    // division is skipped on the common in-range path.
+    return offset < size ? offset : offset % size;
 }
 
 } // namespace
@@ -67,7 +67,7 @@ uint8_t CartridgeRom::read(size_t offset) const
     if (rom.empty()) {
         return 0xff;
     }
-    return rom[offset % rom.size()];
+    return rom[offset < rom.size() ? offset : offset % rom.size()];
 }
 
 uint8_t CartridgeRom::readSram(size_t offset) const
@@ -75,7 +75,7 @@ uint8_t CartridgeRom::readSram(size_t offset) const
     if (sram.empty()) {
         return 0xff;
     }
-    return sram[offset % sram.size()];
+    return sram[offset < sram.size() ? offset : offset % sram.size()];
 }
 
 void CartridgeRom::writeSram(size_t offset, uint8_t value)
@@ -83,7 +83,7 @@ void CartridgeRom::writeSram(size_t offset, uint8_t value)
     if (sram.empty()) {
         return;
     }
-    sram[offset % sram.size()] = value;
+    sram[offset < sram.size() ? offset : offset % sram.size()] = value;
 }
 
 std::optional<size_t> CartridgeRom::mapCpuAddress(uint32_t address) const
@@ -185,6 +185,81 @@ std::optional<size_t> CartridgeRom::headerOffset(CartridgeMap map, size_t romSiz
 }
 
 
+// GSU (Super FX) decode shared by all four bus access paths. `value` arrives
+// holding the open-bus value and is only overwritten when the GSU actually
+// drives the data lines (RAM/ROM not CPU-visible leaves it untouched).
+bool SnesBus::gsuMapRead(uint32_t address, uint8_t& value)
+{
+    const uint8_t bank = static_cast<uint8_t>(address >> 16);
+    const uint16_t offset = static_cast<uint16_t>(address);
+    if (bank == 0x7e || bank == 0x7f) {
+        return false; // system WRAM
+    }
+    const uint8_t lowBank = bank & 0x7f; // $00-$3F mirrors $80-$BF
+    if (lowBank <= 0x3f) {
+        if (offset >= 0x3000 && offset <= 0x34ff) {
+            value = gsuCore.readIo(offset);
+            return true;
+        }
+        if (offset >= 0x6000 && offset <= 0x7fff) {
+            if (gsuCore.cpuCanSeeRam()) {
+                value = gsuCore.readRam(offset & 0x1fff);
+            }
+            return true;
+        }
+        if (offset >= 0x8000 && !gsuCore.cpuCanSeeRom()) {
+            value = gsuCore.cpuRomConflictValue(address);
+            return true;
+        }
+        return false;
+    }
+    if (lowBank <= 0x6f) {
+        // $40-$5F: linear (HiROM-style) view of the game pack ROM; $60-$6F
+        // continues it (mask to 2MB wraps $60->$00 — DOOM streams the shotgun
+        // sound off the top of $40-$5F into $60).
+        value = gsuCore.cpuCanSeeRom() ? cart.read(address & 0x1fffff)
+                                       : gsuCore.cpuRomConflictValue(address);
+        return true;
+    }
+    if (lowBank >= 0x70 && lowBank <= 0x7d) {
+        if (gsuCore.cpuCanSeeRam()) {
+            value = gsuCore.readRam(((lowBank & 1) << 16) | offset);
+        }
+        return true;
+    }
+    return false;
+}
+
+bool SnesBus::gsuMapWrite(uint32_t address, uint8_t value)
+{
+    const uint8_t bank = static_cast<uint8_t>(address >> 16);
+    const uint16_t offset = static_cast<uint16_t>(address);
+    if (bank == 0x7e || bank == 0x7f) {
+        return false;
+    }
+    const uint8_t lowBank = bank & 0x7f;
+    if (lowBank <= 0x3f) {
+        if (offset >= 0x3000 && offset <= 0x34ff) {
+            gsuCore.writeIo(offset, value);
+            return true;
+        }
+        if (offset >= 0x6000 && offset <= 0x7fff) {
+            if (gsuCore.cpuCanSeeRam()) {
+                gsuCore.writeRam(offset & 0x1fff, value);
+            }
+            return true;
+        }
+        return false;
+    }
+    if (lowBank >= 0x70 && lowBank <= 0x7d) {
+        if (gsuCore.cpuCanSeeRam()) {
+            gsuCore.writeRam(((lowBank & 1) << 16) | offset, value);
+        }
+        return true;
+    }
+    return false;
+}
+
 uint8_t SnesBus::read8(uint32_t address)
 {
     address = mask24(address);
@@ -197,43 +272,9 @@ uint8_t SnesBus::read8(uint32_t address)
     }
 
     if (gsuPresent) {
-        const uint8_t lowBank = bank & 0x7f;
-        if (lowBank <= 0x3f) {
-            if (offset >= 0x3000 && offset <= 0x34ff) {
-                openBusValue = gsuCore.readIo(offset);
-                return openBusValue;
-            }
-            if (offset >= 0x6000 && offset <= 0x7fff) {
-                if (gsuCore.cpuCanSeeRam()) {
-                    openBusValue = gsuCore.readRam(offset & 0x1fff);
-                }
-                return openBusValue;
-            }
-            if (offset >= 0x8000 && !gsuCore.cpuCanSeeRom()) {
-                openBusValue = gsuCore.cpuRomConflictValue(address);
-                return openBusValue;
-            }
-        } else if (lowBank <= 0x5f) {
-            // Linear (HiROM-style) view of the game pack ROM.
-            if (!gsuCore.cpuCanSeeRom()) {
-                openBusValue = gsuCore.cpuRomConflictValue(address);
-            } else {
-                openBusValue = cart.read(address & 0x1fffff);
-            }
-            return openBusValue;
-        } else if (lowBank <= 0x6f) {
-            // $60-$6F: linear ROM continuation (mask to 2MB wraps $60->$00).
-            // DOOM streams the shotgun sound off the top of $40-$5F into $60.
-            if (!gsuCore.cpuCanSeeRom()) {
-                openBusValue = gsuCore.cpuRomConflictValue(address);
-            } else {
-                openBusValue = cart.read(address & 0x1fffff);
-            }
-            return openBusValue;
-        } else if (lowBank >= 0x70 && lowBank <= 0x7d) {
-            if (gsuCore.cpuCanSeeRam()) {
-                openBusValue = gsuCore.readRam(((lowBank & 1) << 16) | offset);
-            }
+        uint8_t value = openBusValue;
+        if (gsuMapRead(address, value)) {
+            openBusValue = value;
             return openBusValue;
         }
     }
@@ -341,29 +382,8 @@ void SnesBus::write8(uint32_t address, uint8_t value)
     address = mask24(address);
     openBusValue = value;
 
-    if (gsuPresent) {
-        const uint8_t bank = static_cast<uint8_t>(address >> 16);
-        const uint16_t offset = static_cast<uint16_t>(address);
-        const uint8_t lowBank = bank & 0x7f;
-        if (bank != 0x7e && bank != 0x7f) {
-            if (lowBank <= 0x3f) {
-                if (offset >= 0x3000 && offset <= 0x34ff) {
-                    gsuCore.writeIo(offset, value);
-                    return;
-                }
-                if (offset >= 0x6000 && offset <= 0x7fff) {
-                    if (gsuCore.cpuCanSeeRam()) {
-                        gsuCore.writeRam(offset & 0x1fff, value);
-                    }
-                    return;
-                }
-            } else if (lowBank >= 0x70 && lowBank <= 0x7d) {
-                if (gsuCore.cpuCanSeeRam()) {
-                    gsuCore.writeRam(((lowBank & 1) << 16) | offset, value);
-                }
-                return;
-            }
-        }
+    if (gsuPresent && gsuMapWrite(address, value)) {
+        return;
     }
 
     if (sa1Present && sa1MapWrite(address, value)) {
@@ -380,10 +400,6 @@ void SnesBus::write8(uint32_t address, uint8_t value)
 
     if (auto mapped = mapWram(address)) {
         wram[*mapped] = value;
-        if (*mapped == 0x05B4) {
-            gameFlagLog.writeCount++;
-            gameFlagLog.lastValueWritten = value;
-        }
         return;
     }
 
@@ -529,7 +545,6 @@ void SnesBus::setTraceListener(TraceListener* listener)
 
 void SnesBus::beginFrame()
 {
-    gameFlagLog.reset();
     const uint8_t channelMask = mmio[0x420c - 0x2000];
     for (uint8_t channel = 0; channel < 8; ++channel) {
         HdmaChannel& state = hdma[channel];
@@ -827,36 +842,9 @@ uint8_t SnesBus::readRaw(uint32_t address)
 {
     address = mask24(address);
     if (gsuPresent) {
-        const uint8_t bank = static_cast<uint8_t>(address >> 16);
-        const uint16_t offset = static_cast<uint16_t>(address);
-        const uint8_t lowBank = bank & 0x7f;
-        if (bank != 0x7e && bank != 0x7f) {
-            if (lowBank <= 0x3f) {
-                if (offset >= 0x3000 && offset <= 0x34ff) {
-                    return gsuCore.readIo(offset);
-                }
-                if (offset >= 0x6000 && offset <= 0x7fff) {
-                    return gsuCore.cpuCanSeeRam() ? gsuCore.readRam(offset & 0x1fff) : openBusValue;
-                }
-                if (offset >= 0x8000 && !gsuCore.cpuCanSeeRom()) {
-                    return gsuCore.cpuRomConflictValue(address);
-                }
-            } else if (lowBank <= 0x5f) {
-                // Linear (HiROM-style) ROM view.
-                if (!gsuCore.cpuCanSeeRom()) {
-                    return gsuCore.cpuRomConflictValue(address);
-                }
-                return cart.read(address & 0x1fffff);
-            } else if (lowBank <= 0x6f) {
-                // $60-$6F: linear ROM continuation (see read8).
-                if (!gsuCore.cpuCanSeeRom()) {
-                    return gsuCore.cpuRomConflictValue(address);
-                }
-                return cart.read(address & 0x1fffff);
-            } else if (lowBank >= 0x70 && lowBank <= 0x7d) {
-                return gsuCore.cpuCanSeeRam() ? gsuCore.readRam(((lowBank & 1) << 16) | offset)
-                                              : openBusValue;
-            }
+        uint8_t value = openBusValue;
+        if (gsuMapRead(address, value)) {
+            return value;
         }
     }
     if (sa1Present) {
@@ -925,29 +913,8 @@ uint8_t SnesBus::readRaw(uint32_t address)
 void SnesBus::writeRaw(uint32_t address, uint8_t value)
 {
     address = mask24(address);
-    if (gsuPresent) {
-        const uint8_t bank = static_cast<uint8_t>(address >> 16);
-        const uint16_t offset = static_cast<uint16_t>(address);
-        const uint8_t lowBank = bank & 0x7f;
-        if (bank != 0x7e && bank != 0x7f) {
-            if (lowBank <= 0x3f) {
-                if (offset >= 0x3000 && offset <= 0x34ff) {
-                    gsuCore.writeIo(offset, value);
-                    return;
-                }
-                if (offset >= 0x6000 && offset <= 0x7fff) {
-                    if (gsuCore.cpuCanSeeRam()) {
-                        gsuCore.writeRam(offset & 0x1fff, value);
-                    }
-                    return;
-                }
-            } else if (lowBank >= 0x70 && lowBank <= 0x7d) {
-                if (gsuCore.cpuCanSeeRam()) {
-                    gsuCore.writeRam(((lowBank & 1) << 16) | offset, value);
-                }
-                return;
-            }
-        }
+    if (gsuPresent && gsuMapWrite(address, value)) {
+        return;
     }
     if (sa1Present && sa1MapWrite(address, value)) {
         return;

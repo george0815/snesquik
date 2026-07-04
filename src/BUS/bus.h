@@ -11,9 +11,9 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
-#include <fstream>
 #include <optional>
 #include <span>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -202,17 +202,15 @@ public:
     void resetApuPortLog() { apuPortLog.reset(); }
     const ApuPortLog& getApuPortLog() const { return apuPortLog; }
 
-    struct GameFlagLog {
-        uint32_t writeCount = 0;
-        uint8_t lastValueWritten = 0;
-        void reset() { writeCount = 0; lastValueWritten = 0; }
-    };
-    void resetGameFlagLog() { gameFlagLog.reset(); }
-    const GameFlagLog& getGameFlagLog() const { return gameFlagLog; }
-
 private:
     std::optional<size_t> mapWram(uint32_t address) const;
     std::optional<size_t> mapMmio(uint32_t address) const;
+    // GSU (Super FX) address decode shared by read8/write8/readRaw/writeRaw.
+    // Returns true when the GSU owns the address; `value` must be initialized
+    // to the current open-bus value by the caller (it is left untouched when
+    // the GSU claims the address but the shared RAM is not CPU-visible).
+    bool gsuMapRead(uint32_t address, uint8_t& value);
+    bool gsuMapWrite(uint32_t address, uint8_t value);
     // SA-1 address decode shared by read8/write8/readRaw/writeRaw. Returns
     // true (and sets `value` on read) when the SA-1 owns the address; false
     // means the access falls through to the normal S-CPU map (WRAM / PPU /
@@ -298,7 +296,6 @@ private:
     uint32_t pendingDmaDots = 0;
 
     ApuPortLog apuPortLog;
-    GameFlagLog gameFlagLog;
 };
 
 } // namespace snesquik::bus

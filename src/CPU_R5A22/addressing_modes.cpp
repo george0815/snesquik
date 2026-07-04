@@ -315,7 +315,7 @@ Operand stackRelativeIndirectY(CPU& cpu)
     Operand operand;
     operand.hasAddress = true;
     operand.size = cpu.accumulatorWidth();
-    operand.address = bankedIndexed(r.db, cpu.read16(pointer), r.y);
+    operand.address = bankedIndexed(r.db, cpu.read16BankWrap(0, pointer), r.y);
     return operand;
 }
 

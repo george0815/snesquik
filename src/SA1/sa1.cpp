@@ -89,7 +89,6 @@ void Sa1::power()
 void Sa1::attachRom(std::span<const uint8_t> romBytes)
 {
     rom = romBytes;
-    romMask = rom.empty() ? 0 : static_cast<uint32_t>(rom.size() - 1);
 }
 
 void Sa1::setBwRamSize(size_t bytes)

@@ -332,9 +332,13 @@ void CPU::interrupt(Interrupt type)
 
     uint8_t pushed = r.p;
     if (r.emulation) {
-        pushed |= Memory8 | Index8;
+        // Emulation-mode P pushes: bit 5 is always 1; bit 4 is the B flag,
+        // set only for BRK (clear for IRQ/NMI so handlers can tell them apart).
+        pushed |= Memory8;
         if (type == Interrupt::BRK) {
             pushed |= 0x10;
+        } else {
+            pushed &= static_cast<uint8_t>(~0x10);
         }
     }
     push8(pushed);
