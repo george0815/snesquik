@@ -5,9 +5,13 @@
 #include "MAIN/sdl_gl_renderer.h"
 #include "S-PPU/ppu.h"
 #include "STATE/savestate.h"
-
 #include <SDL.h>
 #include <SDL_keycode.h>
+#include <boost/program_options.hpp>
+#include <boost/program_options/detail/parsers.hpp>
+#include <boost/program_options/options_description.hpp>
+#include <boost/program_options/variables_map.hpp>
+#include <nlohmann/json.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -18,9 +22,11 @@
 #include <fstream>
 #include <iostream>
 #include <optional>
-#include <span>
 #include <string>
-#include <vector>
+
+using namespace std;
+using namespace boost::program_options;
+using namespace nlohmann;
 
 namespace {
 
@@ -36,8 +42,63 @@ struct InputContext {
   bool loadStateRequested = false;
 };
 
+enum SHADER {
+
+};
+
+enum RESOLUTION {
+
+};
+
 uint32_t frameNumber = 0;
 std::ofstream logFile;
+
+// Translates special non-printable keys from Terminal.GUI's format to SDL2's
+// format
+int convert_special_key(int keyval) {
+
+  switch (keyval) {
+  case 10: // ENTER
+    return 13;
+  case 1048576: // UP
+    return 1073741906;
+  case 1048577: // DOWN
+    return 1073741905;
+  case 1048578: // LEFT
+    return 1073741904;
+  case 1048579: // RIGHT
+    return 1073741903;
+
+  // F1 - F12
+  case 1048588: // F1
+    return 1073741882;
+  case 1048589: // F2
+    return 1073741883;
+  case 1048590: // F3
+    return 1073741884;
+  case 1048591: // F4
+    return 1073741885;
+  case 1048592: // F5
+    return 1073741886;
+  case 1048593: // F6
+    return 1073741887;
+  case 1048594: // F7
+    return 1073741888;
+  case 1048595: // F8
+    return 1073741889;
+  case 1048596: // F9
+    return 1073741890;
+  case 1048597: // F10
+    return 1073741891;
+  case 1048598: // F11
+    return 1073741892;
+  case 1048599: // F12
+    return 1073741893;
+
+  default:
+    return keyval;
+  }
+};
 
 void logEvent(const std::string &text) {
   if (!logFile.is_open()) {
@@ -334,13 +395,12 @@ void logFrameState(snesquik::ppu::Ppu &ppu, snesquik::bus::SnesBus &bus,
   // Mode 7 registers ($211B-$2120 are write-twice pairs; the readback here is
   // the last byte written to each, logged for coarse diagnostics only).
   logFile << "  M7A=$" << std::hex << static_cast<int>(ppu.readRegister(0x211b))
-          << " M7B=$" << static_cast<int>(ppu.readRegister(0x211c))
-          << " M7C=$" << static_cast<int>(ppu.readRegister(0x211d))
-          << " M7D=$" << static_cast<int>(ppu.readRegister(0x211e))
-          << " M7X=$" << static_cast<int>(ppu.readRegister(0x211f))
-          << " M7Y=$" << static_cast<int>(ppu.readRegister(0x2120))
-          << " M7SEL=$" << static_cast<int>(ppu.readRegister(0x211a))
-          << std::dec << '\n';
+          << " M7B=$" << static_cast<int>(ppu.readRegister(0x211c)) << " M7C=$"
+          << static_cast<int>(ppu.readRegister(0x211d)) << " M7D=$"
+          << static_cast<int>(ppu.readRegister(0x211e)) << " M7X=$"
+          << static_cast<int>(ppu.readRegister(0x211f)) << " M7Y=$"
+          << static_cast<int>(ppu.readRegister(0x2120)) << " M7SEL=$"
+          << static_cast<int>(ppu.readRegister(0x211a)) << std::dec << '\n';
 
   // Debug flags
   logFile << "  debugFlags=$" << std::hex
@@ -481,6 +541,80 @@ int main(int argc, char **argv) {
                  "[--trace-steps n] [--snapshot-every n]\n";
     return 1;
   }
+
+  // Settings struct
+
+  typedef struct {
+    SDL_KeyCode SAVE;
+    SDL_KeyCode LOAD;
+    SDL_KeyCode STOP;
+    SDL_KeyCode A;
+    SDL_KeyCode B;
+    SDL_KeyCode START;
+    SDL_KeyCode SELECT;
+    SDL_KeyCode UP;
+    SDL_KeyCode DOWN;
+    SDL_KeyCode LEFT;
+    SDL_KeyCode RIGHT;
+  } Controls;
+  typedef struct {
+    SHADER shader;
+    RESOLUTION resolution;
+    string log_path;
+    string sram_path;
+    string state_path;
+    Controls controls;
+    bool logging;
+
+  } Settings;
+
+  Settings settings;
+
+  options_description desc("Allowed options");
+
+  desc.add_options()("rom", value<string>(), "path to rom");
+
+  variables_map vm;
+
+  store(parse_command_line(argc, argv, desc), vm);
+  notify(vm);
+
+  string rom_path = "";
+  rom_path = vm["rom"].as<string>();
+
+  ifstream settings_file("./cfg.json");
+
+  json settingsData = json::parse(settings_file);
+
+  // Set settings
+  settings.log_path = settingsData["LogPath"];
+  settings.sram_path = settingsData["SramPath"];
+  settings.state_path = settingsData["StatePath"];
+  settings.logging = settingsData["DetailedLogging"];
+  // settings.shader = settingsData["Shader"];
+  // settings.resolution = settingsData["Resolution"];
+  settings.controls.START = static_cast<SDL_KeyCode>(
+      convert_special_key(settingsData["Controls"]["START"].get<int>()));
+  settings.controls.SELECT = static_cast<SDL_KeyCode>(
+      convert_special_key(settingsData["Controls"]["SELECT"].get<int>()));
+  settings.controls.A = static_cast<SDL_KeyCode>(
+      convert_special_key(settingsData["Controls"]["A"].get<int>()));
+  settings.controls.B = static_cast<SDL_KeyCode>(
+      convert_special_key(settingsData["Controls"]["B"].get<int>()));
+  settings.controls.UP = static_cast<SDL_KeyCode>(
+      convert_special_key(settingsData["Controls"]["UP"].get<int>()));
+  settings.controls.DOWN = static_cast<SDL_KeyCode>(
+      convert_special_key(settingsData["Controls"]["DOWN"].get<int>()));
+  settings.controls.LEFT = static_cast<SDL_KeyCode>(
+      convert_special_key(settingsData["Controls"]["LEFT"].get<int>()));
+  settings.controls.RIGHT = static_cast<SDL_KeyCode>(
+      convert_special_key(settingsData["Controls"]["RIGHT"].get<int>()));
+  settings.controls.SAVE = static_cast<SDL_KeyCode>(
+      convert_special_key(settingsData["Controls"]["SaveState"].get<int>()));
+  settings.controls.LOAD = static_cast<SDL_KeyCode>(
+      convert_special_key(settingsData["Controls"]["LoadState"].get<int>()));
+  settings.controls.STOP = static_cast<SDL_KeyCode>(
+      convert_special_key(settingsData["Controls"]["StopRom"].get<int>()));
 
   snesquik::debug::ProbeOptions probeOptions;
   probeOptions.romPath = argv[1];
@@ -802,8 +936,8 @@ int main(int argc, char **argv) {
       const uint16_t currentLine = ppu.verticalCounter();
       while (lastLine != currentLine) {
         const uint16_t completedLine = lastLine;
-        lastLine = static_cast<uint16_t>(
-            (lastLine + 1) % snesquik::ppu::Ppu::ntscScanlines);
+        lastLine = static_cast<uint16_t>((lastLine + 1) %
+                                         snesquik::ppu::Ppu::ntscScanlines);
         const uint16_t vh = static_cast<uint16_t>(ppu.visibleHeight());
         if (completedLine < vh) {
           ppu.renderScanline(completedLine);

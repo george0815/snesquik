@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.20)
 
 project(snesquik LANGUAGES CXX)
 
+find_package(nlohmann_json 3.12.0 REQUIRED)
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -64,6 +66,9 @@ add_library(snesquik_bus
 target_include_directories(snesquik_bus PUBLIC src)
 target_link_libraries(snesquik_bus PUBLIC snesquik_cpu snesquik_ppu snesquik_apu snesquik_gsu snesquik_sa1 snesquik_dsp snesquik_sdd1)
 
+
+set (BOOST_REQUIRED_COMPONENTS program_options)
+
 add_library(snesquik_cartridge
     src/CART/rom_parser.cpp
 )
@@ -79,6 +84,8 @@ target_link_libraries(snesquik_debug PUBLIC snesquik_cartridge snesquik_cpu snes
 if (SNESQUIK_BUILD_RENDERER)
     find_package(SDL2)
     find_package(OpenGL)
+    find_package(Boost ${BOOST_MIN_VERSION} REQUIRED
+  COMPONENTS ${BOOST_REQUIRED_COMPONENTS})
     if (SDL2_FOUND AND OpenGL_FOUND)
         add_library(snesquik_renderer
             src/MAIN/sdl_gl_renderer.cpp
@@ -87,7 +94,7 @@ if (SNESQUIK_BUILD_RENDERER)
         target_link_libraries(snesquik_renderer PUBLIC ${SDL2_LIBRARIES} OpenGL::GL)
 
         add_executable(snesquik src/MAIN/snesquik.cpp)
-        target_link_libraries(snesquik PRIVATE snesquik_renderer snesquik_debug snesquik_cartridge snesquik_cpu)
+        target_link_libraries(snesquik PRIVATE snesquik_renderer snesquik_debug snesquik_cartridge snesquik_cpu nlohmann_json::nlohmann_json Boost::program_options)
     else()
         message(STATUS "SDL2 or OpenGL not found; skipping snesquik_renderer")
     endif()
