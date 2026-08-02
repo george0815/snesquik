@@ -1,3 +1,6 @@
+// TODO: switch out snesquik_log.txt for actual path
+// TODO: connect controls to settings
+
 #include "BUS/bus.h"
 #include "CART/rom_parser.h"
 #include "CPU_R5A22/core.h"
@@ -7,6 +10,8 @@
 #include "STATE/savestate.h"
 #include <SDL.h>
 #include <SDL_keycode.h>
+#include <boost/filesystem.hpp>
+#include <boost/filesystem/path.hpp>
 #include <boost/program_options.hpp>
 #include <boost/program_options/detail/parsers.hpp>
 #include <boost/program_options/options_description.hpp>
@@ -232,7 +237,8 @@ std::string resolveDspRomPath() {
   return std::string();
 }
 
-std::optional<snesquik::bus::ControllerButton> keyToButton(int key) {
+std::optional<snesquik::bus::ControllerButton>
+keyToButton(int key) { // TODO MAP CONTROLS HERE
   using snesquik::bus::ControllerButton;
   switch (key) {
   case SDLK_z:
@@ -536,11 +542,6 @@ void handleKey(void *userData, int key, bool pressed) {
 } // namespace
 
 int main(int argc, char **argv) {
-  if (argc < 2) {
-    std::cerr << "usage: snesquik <rom.sfc> [--probe outdir] [--frames n] "
-                 "[--trace-steps n] [--snapshot-every n]\n";
-    return 1;
-  }
 
   // Settings struct
 
@@ -582,7 +583,17 @@ int main(int argc, char **argv) {
   string rom_path = "";
   rom_path = vm["rom"].as<string>();
 
+  boost::filesystem::path fullpath(rom_path);
+
+  boost::filesystem::path rom_name = fullpath.stem();
+
   ifstream settings_file("./cfg.json");
+
+  if (!vm.count("rom")) {
+    std::cerr << "usage: snesquik <rom.sfc> [--probe outdir] [--frames n] "
+                 "[--trace-steps n] [--snapshot-every n]\n";
+    return 1;
+  }
 
   json settingsData = json::parse(settings_file);
 
@@ -617,7 +628,7 @@ int main(int argc, char **argv) {
       convert_special_key(settingsData["Controls"]["StopRom"].get<int>()));
 
   snesquik::debug::ProbeOptions probeOptions;
-  probeOptions.romPath = argv[1];
+  probeOptions.romPath = rom_path;
   bool probeMode = false;
   uint32_t logFromFrame = UINT32_MAX;
   for (int i = 2; i < argc; ++i) {
@@ -706,9 +717,9 @@ int main(int argc, char **argv) {
     return 0;
   }
 
-  const std::vector<uint8_t> file = readFile(argv[1]);
+  const std::vector<uint8_t> file = readFile(rom_path.c_str());
   if (file.empty()) {
-    std::cerr << "failed to read ROM: " << argv[1] << '\n';
+    std::cerr << "failed to read ROM: " << rom_path << '\n';
     return 1;
   }
 
@@ -759,7 +770,8 @@ int main(int argc, char **argv) {
   // Battery-backed save RAM persistence (<rom>.srm). SA-1 carts keep their
   // save in BW-RAM; everyone else (standard / DSP / S-DD1) in the cartridge
   // SRAM. Restore it now; debounced write-back happens in the frame loop.
-  const std::string sramPath = std::string(argv[1]) + ".srm";
+  const std::string sramPath = settings.sram_path + rom_name.c_str() + ".srm";
+
   std::vector<uint8_t> *saveRam = nullptr;
   if (parsed->header.hasBattery()) {
     if (bus.hasSa1() && bus.getSa1().bwRamSize() > 0) {
@@ -794,7 +806,8 @@ int main(int argc, char **argv) {
             << '\n';
   std::cout << "F1=color math  F2=windows  F3=BG3 only  F4=force BG3  F5=log  "
                "F6=save state  F7=load state\n";
-  const std::string statePath = std::string(argv[1]) + ".state";
+  const std::string statePath =
+      settings.state_path + rom_name.c_str() + ".state";
 
   snesquik::platform::SdlGlRenderer renderer;
   if (!renderer.initialize("snesquik", snesquik::ppu::Ppu::screenWidth,

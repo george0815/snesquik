@@ -67,7 +67,7 @@ target_include_directories(snesquik_bus PUBLIC src)
 target_link_libraries(snesquik_bus PUBLIC snesquik_cpu snesquik_ppu snesquik_apu snesquik_gsu snesquik_sa1 snesquik_dsp snesquik_sdd1)
 
 
-set (BOOST_REQUIRED_COMPONENTS program_options)
+set (BOOST_REQUIRED_COMPONENTS program_options filesystem)
 
 add_library(snesquik_cartridge
     src/CART/rom_parser.cpp
@@ -94,7 +94,7 @@ if (SNESQUIK_BUILD_RENDERER)
         target_link_libraries(snesquik_renderer PUBLIC ${SDL2_LIBRARIES} OpenGL::GL)
 
         add_executable(snesquik src/MAIN/snesquik.cpp)
-        target_link_libraries(snesquik PRIVATE snesquik_renderer snesquik_debug snesquik_cartridge snesquik_cpu nlohmann_json::nlohmann_json Boost::program_options)
+        target_link_libraries(snesquik PRIVATE snesquik_renderer snesquik_debug snesquik_cartridge snesquik_cpu nlohmann_json::nlohmann_json Boost::program_options Boost::filesystem)
     else()
         message(STATUS "SDL2 or OpenGL not found; skipping snesquik_renderer")
     endif()

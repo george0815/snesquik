@@ -1,0 +1,534 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!-- 
+    Microsoft ResX Schema 
+    
+    Version 2.0
+    
+    The primary goals of this format is to allow a simple XML format 
+    that is mostly human readable. The generation and parsing of the 
+    various data types are done through the TypeConverter classes 
+    associated with the data types.
+    
+    Example:
+    
+    ... ado.net/XML headers & schema ...
+    <resheader name="resmimetype">text/microsoft-resx</resheader>
+    <resheader name="version">2.0</resheader>
+    <resheader name="reader">System.Resources.ResXResourceReader, System.Windows.Forms, ...</resheader>
+    <resheader name="writer">System.Resources.ResXResourceWriter, System.Windows.Forms, ...</resheader>
+    <data name="Name1"><value>this is my long string</value><comment>this is a comment</comment></data>
+    <data name="Color1" type="System.Drawing.Color, System.Drawing">Blue</data>
+    <data name="Bitmap1" mimetype="application/x-microsoft.net.object.binary.base64">
+        <value>[base64 mime encoded serialized .NET Framework object]</value>
+    </data>
+        <value>[base64 mime encoded string representing a byte array form of the .NET Framework object]</value>
+    <data name="Icon1" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
+        <comment>This is a comment</comment>
+    </data>
+                
+    There are any number of "resheader" rows that contain simple 
+    name/value pairs.
+    
+    Each data row contains a name, and value. The row also contains a 
+    type or mimetype. Type corresponds to a .NET class that support 
+    text/value conversion through the TypeConverter architecture. 
+    Classes that don't support this are serialized and stored with the 
+    mimetype set.
+    
+    The mimetype is used for serialized objects, and tells the 
+    ResXResourceReader how to depersist the object. This is currently not 
+    extensible. For a given mimetype the value must be set accordingly:
+    
+    Note - application/x-microsoft.net.object.binary.base64 is the format 
+    that the ResXResourceWriter will generate, however the reader can 
+    read any of the formats listed below.
+    
+    mimetype: application/x-microsoft.net.object.binary.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
+            : and then encoded with base64 encoding.
+    
+    mimetype: application/x-microsoft.net.object.soap.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Soap.SoapFormatter
+            : and then encoded with base64 encoding.
+
+    mimetype: application/x-microsoft.net.object.bytearray.base64
+    value   : The object must be serialized into a byte array 
+            : using a System.ComponentModel.TypeConverter
+            : and then encoded with base64 encoding.
+    -->
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <data name="Controls" xml:space="preserve">
+    <value>コントロール</value>
+  </data>
+  <data name="START" xml:space="preserve">
+    <value>スタート: </value>
+  </data>
+  <data name="SELECT" xml:space="preserve">
+    <value>セレクト: </value>
+  </data>
+  <data name="A" xml:space="preserve">
+    <value>A: </value>
+  </data>
+  <data name="B" xml:space="preserve">
+    <value>B: </value>
+  </data>
+  <data name="UP" xml:space="preserve">
+    <value>上: </value>
+  </data>
+  <data name="DOWN" xml:space="preserve">
+    <value>下: </value>
+  </data>
+  <data name="RIGHT" xml:space="preserve">
+    <value>右: </value>
+  </data>
+  <data name="LEFT" xml:space="preserve">
+    <value>左: </value>
+  </data>
+  <data name="Cannothavethesamekey" xml:space="preserve">
+    <value>複数のボタンに同じキーを設定することはできません。</value>
+  </data>
+  <data name="Controlssavedsuccessfully" xml:space="preserve">
+    <value>設定を正常に保存しました。</value>
+  </data>
+  <data name="Controlssaved" xml:space="preserve">
+    <value>コントロールを保存しました。</value>
+  </data>
+
+
+
+
+  <data name="SaveStates" xml:space="preserve">
+    <value>セーブステート</value>
+  </data>
+  <data name="Created" xml:space="preserve">
+    <value>作成日</value>
+  </data>
+  <data name="Size" xml:space="preserve">
+    <value>サイズ</value>
+  </data>
+
+
+
+  <data name="SRAMFiles" xml:space="preserve">
+    <value>SRAMファイル</value>
+  </data>
+
+
+
+
+
+  <data name="Saves" xml:space="preserve">
+    <value>セーブ</value>
+  </data>
+  <data name="SRAM" xml:space="preserve">
+    <value>SRAM</value>
+  </data>
+
+
+
+  <data name="Path" xml:space="preserve">
+    <value>パス</value>
+  </data>
+  <data name="Sramdatapath" xml:space="preserve">
+    <value>SRAMデータパス</value>
+  </data>
+  <data name="Romstarted" xml:space="preserve">
+    <value>ROMを起動しました: </value>
+  </data>
+
+
+
+  <data name="Rompaths" xml:space="preserve">
+    <value>ROMパス:</value>
+  </data>
+  <data name="Defaultrompath" xml:space="preserve">
+    <value>デフォルトROMパス:</value>
+  </data>
+  <data name="Srampath" xml:space="preserve">
+    <value>SRAMパス: </value>
+  </data>
+  <data name="Savestatepath" xml:space="preserve">
+    <value>セーブステートパス:</value>
+  </data>
+  <data name="Selectfolderforlog" xml:space="preserve">
+    <value>ログファイル用のフォルダーを選択してください。</value>
+  </data>
+  <data name="Selectsramfolder" xml:space="preserve">
+    <value>SRAMフォルダーを選択</value>
+  </data>
+  <data name="Selectfolderforsram" xml:space="preserve">
+    <value>SRAMセーブファイル用のフォルダーを選択してください。</value>
+  </data>
+  <data name="Selectsavestatefolder" xml:space="preserve">
+    <value>セーブステートフォルダーを選択</value>
+  </data>
+  <data name="Selectfolderforsavestatefiles" xml:space="preserve">
+    <value>セーブステートファイル用のフォルダーを選択してください。</value>
+  </data>
+  <data name="Selectdefaultromfolder" xml:space="preserve">
+    <value>デフォルトROMフォルダーを選択</value>
+  </data>
+  <data name="Selectthefolderthatsakura" xml:space="preserve">
+    <value>サクラが起動時にROMを検索するフォルダーを選択してください。</value>
+  </data>
+  <data name="Rompathcannotbeempty" xml:space="preserve">
+    <value>ROMパスを空にすることはできません。</value>
+  </data>
+  <data name="Rompathdoesnotexist" xml:space="preserve">
+    <value>ROMパスが存在しません。作成しますか？</value>
+  </data>
+  <data name="Srampathcannotbeempty" xml:space="preserve">
+    <value>SRAMパスを空にすることはできません。</value>
+  </data>
+  <data name="Savestatepathcannotbeempty" xml:space="preserve">
+    <value>セーブステートパスを空にすることはできません。</value>
+  </data>
+
+
+
+  <data name="Errorinitializingthesakuracore" xml:space="preserve">
+    <value>サクラのコアの初期化中にエラーが発生しました: </value>
+  </data>
+
+
+
+
+  <data name="Waitingforinput" xml:space="preserve">
+    <value>入力待機中</value>
+  </data>
+  <data name="Inputkey" xml:space="preserve">
+    <value>キー入力</value>
+  </data>
+
+
+
+  <data name="Romadded" xml:space="preserve">
+    <value>ロムを追加しました: </value>
+  </data>
+
+
+
+
+
+  <data name="Startrom" xml:space="preserve">
+    <value>ロム起動: </value>
+  </data>
+  <data name="Stoprom" xml:space="preserve">
+    <value>ロム停止: </value>
+  </data>
+  <data name="Savestate" xml:space="preserve">
+    <value>ステート保存: </value>
+  </data>
+  <data name="Loadstate" xml:space="preserve">
+    <value>ステート読み込み: </value>
+  </data>
+  <data name="Openromfolder" xml:space="preserve">
+    <value>ロムフォルダーを開く: </value>
+  </data>
+  <data name="Opensramfolder" xml:space="preserve">
+    <value>ロムフォルダーを開く: </value>
+  </data>
+
+
+
+
+
+
+
+
+
+
+  <data name="Roms" xml:space="preserve">
+    <value>ロム</value>
+  </data>
+  <data name="File/Folder" xml:space="preserve">
+    <value>ファイル/フォルダ：</value>
+  </data>
+  <data name="Selectfolder" xml:space="preserve">
+    <value>フォルダを選択</value>
+  </data>
+  <data name="Selectthefolderthatcontainsyourfiles" xml:space="preserve">
+    <value>ファイルが含まれるフォルダを選択してください。</value>
+  </data>
+  <data name="Error" xml:space="preserve">
+    <value>エラー</value>
+  </data>
+  <data name="Invalidfile/folderpath" xml:space="preserve">
+    <value>ファイル/フォルダのパスが無効です。</value>
+  </data>
+  <data name="OK" xml:space="preserve">
+    <value>OK</value>
+  </data>
+  <data name="Outputpathdoesnotexist" xml:space="preserve">
+    <value>出力先が存在しません。</value>
+  </data>
+  <data name="Success" xml:space="preserve">
+    <value>成功</value>
+  </data>
+  <data name="Unexpectederror" xml:space="preserve">
+    <value>予期しないエラー：</value>
+  </data>
+  <data name="MissingDirectory" xml:space="preserve">
+    <value>ディレクトリが見つかりません</value>
+  </data>
+  <data name="Yes" xml:space="preserve">
+    <value>はい</value>
+  </data>
+  <data name="No" xml:space="preserve">
+    <value>いいえ</value>
+  </data>
+  <data name="Stop" xml:space="preserve">
+    <value>停止：</value>
+  </data>
+  <data name="Delete" xml:space="preserve">
+    <value>削除:：</value>
+  </data>
+  <data name="Log" xml:space="preserve">
+    <value>ログ</value>
+  </data>
+  <data name="Black" xml:space="preserve">
+    <value>黒</value>
+  </data>
+  <data name="Blue" xml:space="preserve">
+    <value>青</value>
+  </data>
+  <data name="Green" xml:space="preserve">
+    <value>緑</value>
+  </data>
+  <data name="Cyan" xml:space="preserve">
+    <value>シアン</value>
+  </data>
+  <data name="Red" xml:space="preserve">
+    <value>赤</value>
+  </data>
+  <data name="Magenta" xml:space="preserve">
+    <value>マゼンタ</value>
+  </data>
+  <data name="Brown" xml:space="preserve">
+    <value>茶色</value>
+  </data>
+  <data name="Gray" xml:space="preserve">
+    <value>灰色</value>
+  </data>
+  <data name="DarkGray" xml:space="preserve">
+    <value>濃い灰色</value>
+  </data>
+  <data name="BrightBlue" xml:space="preserve">
+    <value>明るい青</value>
+  </data>
+  <data name="BrightGreen" xml:space="preserve">
+    <value>明るい緑</value>
+  </data>
+  <data name="BrightCyan" xml:space="preserve">
+    <value>明るいシアン</value>
+  </data>
+  <data name="BrightRed" xml:space="preserve">
+    <value>明るい赤</value>
+  </data>
+  <data name="BrightMagenta" xml:space="preserve">
+    <value>明るいマゼンタ</value>
+  </data>
+  <data name="BrightYellow" xml:space="preserve">
+    <value>明るい黄色</value>
+  </data>
+  <data name="White" xml:space="preserve">
+    <value>白</value>
+  </data>
+  <data name="Settings" xml:space="preserve">
+    <value>設定</value>
+  </data>
+  <data name="Disablecoloredhotkeyinformation" xml:space="preserve">
+    <value>カラーホットキー情報を無効にする</value>
+  </data>
+  <data name="Enabledetailedlogging" xml:space="preserve">
+    <value>詳細ログを有効にする</value>
+  </data>
+  <data name="Usesystemconsole" xml:space="preserve">
+    <value>システムコンソールを使用する</value>
+  </data>
+  <data name="Hidetextcursor" xml:space="preserve">
+    <value>テキストカーソルを非表示</value>
+  </data>
+  <data name="LogPath" xml:space="preserve">
+    <value>ログのパス：</value>
+  </data>
+  <data name="SettingsPath" xml:space="preserve">
+    <value>設定のパス：</value>
+  </data>
+  <data name="Backgroundcolor" xml:space="preserve">
+    <value>背景色：</value>
+  </data>
+  <data name="Textcolor" xml:space="preserve">
+    <value>テキスト色：</value>
+  </data>
+  <data name="Focusbackgroundcolor" xml:space="preserve">
+    <value>フォーカス背景色：</value>
+  </data>
+  <data name="Focustextcolor" xml:space="preserve">
+    <value>フォーカステキスト色：</value>
+  </data>
+  <data name="Hotkeytextcolor" xml:space="preserve">
+    <value>ホットキーテキスト色：</value>
+  </data>
+  <data name="ASCIIcolor" xml:space="preserve">
+    <value>ASCII色：</value>
+  </data>
+  <data name="DisableASCII" xml:space="preserve">
+    <value>ASCIIを無効にする</value>
+  </data>
+  <data name="Save" xml:space="preserve">
+    <value>保存</value>
+  </data>
+  <data name="Selectlogfilepath" xml:space="preserve">
+    <value>ログファイルのパスを選択</value>
+  </data>
+  <data name="Selectfilenameforthelogfile" xml:space="preserve">
+    <value>ログファイルのファイル名を選択してください。</value>
+  </data>
+  <data name="Selectconfigfilepath" xml:space="preserve">
+    <value>設定ファイルのパスを選択</value>
+  </data>
+  <data name="Selectfilenamefortheconfigfile" xml:space="preserve">
+    <value>設定ファイルのファイル名を選択してください。</value>
+  </data>
+  <data name="Downloadpathcannotbeempty" xml:space="preserve">
+    <value>ダウンロード先を空にすることはできません。</value>
+  </data>
+  <data name="Logpathcannotbeempty" xml:space="preserve">
+    <value>ログのパスを空にすることはできません。</value>
+  </data>
+  <data name="Settingspathcannotbeempty" xml:space="preserve">
+    <value>設定のパスを空にすることはできません。</value>
+  </data>
+  <data name="FatalError" xml:space="preserve">
+    <value>致命的なエラー</value>
+  </data>
+  <data name="Name" xml:space="preserve">
+    <value>名前</value>
+  </data>
+  <data name="Unknown" xml:space="preserve">
+    <value>不明</value>
+  </data>
+  <data name="ChooseColor" xml:space="preserve">
+    <value>色を選択</value>
+  </data>
+  <data name="Invalidpath" xml:space="preserve">
+    <value>パスが無効です。</value>
+  </data>
+  <data name="InvalidFile" xml:space="preserve">
+    <value>ファイルが無効</value>
+  </data>
+  <data name="Selectedfiledoesnotexist" xml:space="preserve">
+    <value>選択されたファイルが存在しません。</value>
+  </data>
+  <data name="InvalidFolder" xml:space="preserve">
+    <value>フォルダが無効</value>
+  </data>
+  <data name="Selectedfolderdoesnotexist" xml:space="preserve">
+    <value>選択されたフォルダが存在しません。</value>
+  </data>
+  <data name="Exit" xml:space="preserve">
+    <value>終了</value>
+  </data>
+  <data name="Exit?" xml:space="preserve">
+    <value>終了しますか?</value>
+  </data>
+  <data name="Cancel" xml:space="preserve">
+    <value>キャンセル</value>
+  </data>
+  <data name="ErrorsavingsettingsexMessage" xml:space="preserve">
+    <value>設定の保存中にエラーが発生しました：</value>
+  </data>
+  <data name="ErrorloadingsettingsexMessage" xml:space="preserve">
+    <value>設定の読み込み中にエラーが発生しました：</value>
+  </data>
+  <data name="Settingssavedsuccessfully" xml:space="preserve">
+    <value>設定が正常に保存されました。
+一部の変更は再起動後に有効になります。</value>
+  </data>
+  <data name="Settingssaved" xml:space="preserve">
+    <value>設定が保存されました。</value>
+  </data>
+  <data name="Date" xml:space="preserve">
+    <value>日付</value>
+  </data>
+  <data name="Other" xml:space="preserve">
+    <value>その他</value>
+  </data>
+  <data name="Unknownerror" xml:space="preserve">
+    <value>不明なエラー</value>
+  </data>
+  <data name="Errors" xml:space="preserve">
+    <value>エラー</value>
+  </data>
+  <data name="Errorwrittentolog" xml:space="preserve">
+    <value>ギドラの初期化中にエラーが発生しました。詳細はログを確認してください。</value>
+  </data>
+  <data name="Help" xml:space="preserve">
+    <value>ヘルプ</value>
+  </data>
+  <data name="Folderslashfilepath" xml:space="preserve">
+    <value>ファイル/フォルダ</value>
+  </data>
+</root>
