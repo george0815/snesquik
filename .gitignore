@@ -27,3 +27,28 @@ disasm_loop.py
 snesquik_log.txt
 doom_shotgun_glitch.md
 *.srm
+# Local runtime settings (contains machine-specific absolute paths);
+# UI/cfg.json stays tracked as the project default.
+/cfg.json
+# CMake-generated files from an in-source build (alongside CMakeFiles/ above).
+/Makefile
+/CTestTestfile.cmake
+# In-source build output: emulator and per-component test binaries.
+/snesquik
+/cpu_r5a22_instruction_tests
+/dsp_tests
+/gsu_tests
+/ppu_tests
+/rom_parser_tests
+/sa1_tests
+/sdd1_tests
+/snes_bus_tests
+# .NET build output for the UI project, plus the native cores copied beside it.
+UI/bin/
+UI/obj/
+UI/snesquik_core
+UI/sakura_core
+# Runtime logs written next to the UI.
+UI/log.txt
+UI/cpu_log.txt
+UI/ppu_log.txt
