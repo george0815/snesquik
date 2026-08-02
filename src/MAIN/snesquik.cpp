@@ -584,23 +584,25 @@ int main(int argc, char **argv) {
 
   variables_map vm;
 
-  store(parse_command_line(argc, argv, desc), vm);
+  // The probe/debug switches below are parsed by hand, so boost must tolerate
+  // options it does not know about instead of throwing on them.
+  store(command_line_parser(argc, argv).options(desc).allow_unregistered().run(),
+        vm);
   notify(vm);
-
-  string rom_path = "";
-  rom_path = vm["rom"].as<string>();
-
-  boost::filesystem::path fullpath(rom_path);
-
-  boost::filesystem::path rom_name = fullpath.stem();
-
-  ifstream settings_file("./cfg.json");
 
   if (!vm.count("rom")) {
     std::cerr << "usage: snesquik <rom.sfc> [--probe outdir] [--frames n] "
                  "[--trace-steps n] [--snapshot-every n]\n";
     return 1;
   }
+
+  string rom_path = vm["rom"].as<string>();
+
+  boost::filesystem::path fullpath(rom_path);
+
+  boost::filesystem::path rom_name = fullpath.stem();
+
+  ifstream settings_file("./cfg.json");
 
   json settingsData = json::parse(settings_file);
 

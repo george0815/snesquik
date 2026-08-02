@@ -8,8 +8,29 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# An unconfigured build type means no -O flag at all, which costs roughly 5x on
+# the interpreter cores. Default to Release; -DCMAKE_BUILD_TYPE=Debug still works.
+if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS
+        Debug Release RelWithDebInfo MinSizeRel)
+endif()
+
 option(SNESQUIK_BUILD_RENDERER "Build SDL2/OpenGL renderer target" ON)
 option(SNESQUIK_BUILD_TESTS "Build test executables" ON)
+option(SNESQUIK_LTO "Enable link-time optimization on optimized builds" ON)
+
+# The cores are split across libraries that call into each other every emulated
+# cycle, so cross-library inlining is worth roughly another 15% on top of -O3.
+if (SNESQUIK_LTO AND NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
+    include(CheckIPOSupported)
+    check_ipo_supported(RESULT ipo_supported OUTPUT ipo_error)
+    if (ipo_supported)
+        set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
+    else()
+        message(STATUS "LTO not supported, skipping: ${ipo_error}")
+    endif()
+endif()
 
 add_library(snesquik_cpu
     src/CPU_R5A22/addressing_modes.cpp
