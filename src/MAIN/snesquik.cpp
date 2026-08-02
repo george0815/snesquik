@@ -591,7 +591,10 @@ int main(int argc, char **argv) {
   notify(vm);
 
   if (!vm.count("rom")) {
-    std::cerr << "usage: snesquik <rom.sfc> [--probe outdir] [--frames n] "
+    // The rom path is a named option, not positional; argv[0] because this same
+    // binary also ships beside the UI as snesquik_core.
+    std::cerr << "usage: " << argv[0]
+              << " --rom <rom.sfc> [--probe outdir] [--frames n] "
                  "[--trace-steps n] [--snapshot-every n]\n";
     return 1;
   }
