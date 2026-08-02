@@ -11,7 +11,7 @@
     "/home/Hunter/Documents/Github/sakura/roms",
     "/home/Hunter/Documents/Github/snesquik/tests/roms"
   ],
-  "LogPath": "./",
+  "LogPath": "./logs/",
   "SettingsPath": "./cfg.json",
   "BackgroundColor": 0,
   "TextColor": 15,
@@ -32,6 +32,10 @@
     "A": 122,
     "B": 120,
     "UP": 1048576,
+    "L": 104,
+    "R": 106,
+    "X": 107,
+    "Y": 108,
     "DOWN": 1048577,
     "LEFT": 1048578,
     "RIGHT": 1048579

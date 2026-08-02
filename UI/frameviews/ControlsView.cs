@@ -360,6 +360,133 @@ namespace sakura.frameviews
             scroll.Add(bButton);
             y += 2;
 
+            // X
+            scroll.Add(new Label(Resources.X) { X = 1, Y = y });
+            myKey = Settings.Current.Controls.X;
+            var xButton = new Button()
+            {
+                X = 30,
+                Y = y,
+                Width = 3,
+                Height = 1,
+                Text = myKey.ToString()
+            };
+
+            xButton.Clicked += () =>
+            {
+                // Pick color from grid dialog
+                int tmp = DialogHelpers.PickKey();
+                Settings.Current.Controls.X = (Key)tmp;
+
+                // Update button label to reflect selection
+                char tmpChr = (char)tmp;
+                string tmpString = tmpChr.ToString();
+                xButton.Text = ((Key)tmp).ToString();
+
+                // Force redraw
+                xButton.SetNeedsDisplay();
+                scroll.SetNeedsDisplay();
+            };
+
+            scroll.Add(xButton);
+            y += 2;
+
+
+            // Y
+            scroll.Add(new Label(Resources.Y) { X = 1, Y = y });
+            myKey = Settings.Current.Controls.Y;
+            var yButton = new Button()
+            {
+                X = 30,
+                Y = y,
+                Width = 3,
+                Height = 1,
+                Text = myKey.ToString()
+            };
+
+            yButton.Clicked += () =>
+            {
+                // Pick color from grid dialog
+                int tmp = DialogHelpers.PickKey();
+                Settings.Current.Controls.Y = (Key)tmp;
+
+                // Update button label to reflect selection
+                char tmpChr = (char)tmp;
+                string tmpString = tmpChr.ToString();
+                yButton.Text = ((Key)tmp).ToString();
+
+                // Force redraw
+                yButton.SetNeedsDisplay();
+                scroll.SetNeedsDisplay();
+            };
+
+            scroll.Add(yButton);
+            y += 2;
+
+
+            // L
+            scroll.Add(new Label(Resources.L) { X = 1, Y = y });
+            myKey = Settings.Current.Controls.L;
+            var lButton = new Button()
+            {
+                X = 30,
+                Y = y,
+                Width = 3,
+                Height = 1,
+                Text = myKey.ToString()
+            };
+
+            lButton.Clicked += () =>
+            {
+                // Pick color from grid dialog
+                int tmp = DialogHelpers.PickKey();
+                Settings.Current.Controls.L = (Key)tmp;
+
+                // Update button label to reflect selection
+                char tmpChr = (char)tmp;
+                string tmpString = tmpChr.ToString();
+                lButton.Text = ((Key)tmp).ToString();
+
+                // Force redraw
+                lButton.SetNeedsDisplay();
+                scroll.SetNeedsDisplay();
+            };
+
+            scroll.Add(lButton);
+            y += 2;
+
+
+            // R
+            scroll.Add(new Label(Resources.R) { X = 1, Y = y });
+            myKey = Settings.Current.Controls.R;
+            var rButton = new Button()
+            {
+                X = 30,
+                Y = y,
+                Width = 3,
+                Height = 1,
+                Text = myKey.ToString()
+            };
+
+            rButton.Clicked += () =>
+            {
+                // Pick color from grid dialog
+                int tmp = DialogHelpers.PickKey();
+                Settings.Current.Controls.R = (Key)tmp;
+
+                // Update button label to reflect selection
+                char tmpChr = (char)tmp;
+                string tmpString = tmpChr.ToString();
+                rButton.Text = ((Key)tmp).ToString();
+
+                // Force redraw
+                rButton.SetNeedsDisplay();
+                scroll.SetNeedsDisplay();
+            };
+
+            scroll.Add(rButton);
+            y += 2;
+
             // UP
             scroll.Add(new Label(Resources.UP) { X = 1, Y = y });
             myKey = Settings.Current.Controls.UP;
@@ -510,6 +637,10 @@ namespace sakura.frameviews
                           Settings.Current.Controls.StopRom,
                           Settings.Current.Controls.START,
                           Settings.Current.Controls.SELECT,
+                          Settings.Current.Controls.X,
+                          Settings.Current.Controls.Y,
+                          Settings.Current.Controls.L,
+                          Settings.Current.Controls.R,
                           Settings.Current.Controls.A,
                           Settings.Current.Controls.B,
                           Settings.Current.Controls.UP,

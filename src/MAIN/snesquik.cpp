@@ -1,4 +1,3 @@
-// TODO: switch out snesquik_log.txt for actual path
 // TODO: connect controls to settings
 
 #include "BUS/bus.h"
@@ -54,6 +53,36 @@ enum SHADER {
 enum RESOLUTION {
 
 };
+// Settings struct
+typedef struct {
+  SDL_KeyCode SAVE;
+  SDL_KeyCode LOAD;
+  SDL_KeyCode STOP;
+  SDL_KeyCode A;
+  SDL_KeyCode B;
+  SDL_KeyCode X;
+  SDL_KeyCode Y;
+  SDL_KeyCode L;
+  SDL_KeyCode R;
+  SDL_KeyCode START;
+  SDL_KeyCode SELECT;
+  SDL_KeyCode UP;
+  SDL_KeyCode DOWN;
+  SDL_KeyCode LEFT;
+  SDL_KeyCode RIGHT;
+} Controls;
+typedef struct {
+  SHADER shader;
+  RESOLUTION resolution;
+  string log_path;
+  string sram_path;
+  string state_path;
+  Controls controls;
+  bool logging;
+
+} Settings;
+
+Settings settings;
 
 uint32_t frameNumber = 0;
 std::ofstream logFile;
@@ -239,36 +268,36 @@ std::string resolveDspRomPath() {
 
 std::optional<snesquik::bus::ControllerButton>
 keyToButton(int key) { // TODO MAP CONTROLS HERE
+
   using snesquik::bus::ControllerButton;
-  switch (key) {
-  case SDLK_z:
+  if (key == settings.controls.B) {
     return ControllerButton::B;
-  case SDLK_x:
+  } else if (key == settings.controls.A) {
     return ControllerButton::A;
-  case SDLK_a:
+  } else if (key == settings.controls.Y) {
     return ControllerButton::Y;
-  case SDLK_s:
+  } else if (key == settings.controls.X) {
     return ControllerButton::X;
-  case SDLK_q:
+  } else if (key == settings.controls.L) {
     return ControllerButton::L;
-  case SDLK_w:
+  } else if (key == settings.controls.R) {
     return ControllerButton::R;
-  case SDLK_RETURN:
+  } else if (key == settings.controls.START) {
     return ControllerButton::Start;
-  case SDLK_BACKSPACE:
+  } else if (key == settings.controls.SELECT) {
     return ControllerButton::Select;
-  case SDLK_UP:
+  } else if (key == settings.controls.UP) {
     return ControllerButton::Up;
-  case SDLK_DOWN:
+  } else if (key == settings.controls.DOWN) {
     return ControllerButton::Down;
-  case SDLK_LEFT:
+  } else if (key == settings.controls.LEFT) {
     return ControllerButton::Left;
-  case SDLK_RIGHT:
+  } else if (key == settings.controls.RIGHT) {
     return ControllerButton::Right;
-  default:
-    return std::nullopt;
+  } else {
+    return nullopt;
   }
-}
+};
 
 uint16_t joypadMaskForName(std::string name) {
   using namespace snesquik::bus;
@@ -449,9 +478,11 @@ void logFrameState(snesquik::ppu::Ppu &ppu, snesquik::bus::SnesBus &bus,
 }
 
 void toggleLogging(InputContext &input) {
+
   input.logActive = !input.logActive;
   if (input.logActive) {
-    logFile.open("snesquik_log.txt", std::ios::out | std::ios::trunc);
+    logFile.open(settings.log_path + "snesquik_log.txt",
+                 std::ios::out | std::ios::trunc);
     if (logFile.is_open()) {
       std::cout << "Logging ON -> snesquik_log.txt\n";
     } else {
@@ -542,34 +573,6 @@ void handleKey(void *userData, int key, bool pressed) {
 } // namespace
 
 int main(int argc, char **argv) {
-
-  // Settings struct
-
-  typedef struct {
-    SDL_KeyCode SAVE;
-    SDL_KeyCode LOAD;
-    SDL_KeyCode STOP;
-    SDL_KeyCode A;
-    SDL_KeyCode B;
-    SDL_KeyCode START;
-    SDL_KeyCode SELECT;
-    SDL_KeyCode UP;
-    SDL_KeyCode DOWN;
-    SDL_KeyCode LEFT;
-    SDL_KeyCode RIGHT;
-  } Controls;
-  typedef struct {
-    SHADER shader;
-    RESOLUTION resolution;
-    string log_path;
-    string sram_path;
-    string state_path;
-    Controls controls;
-    bool logging;
-
-  } Settings;
-
-  Settings settings;
 
   options_description desc("Allowed options");
 
@@ -874,7 +877,8 @@ int main(int argc, char **argv) {
   uint32_t dotRemainder = 0;
   uint32_t dotsSincePoll = 0;
   if (logFromFrame < UINT32_MAX) {
-    logFile.open("snesquik_log.txt", std::ios::out | std::ios::trunc);
+    logFile.open(settings.log_path + "snesquik_log.txt",
+                 std::ios::out | std::ios::trunc);
     if (logFile.is_open()) {
       std::cout << "Auto-logging from frame " << logFromFrame
                 << " -> snesquik_log.txt\n";
@@ -884,6 +888,7 @@ int main(int argc, char **argv) {
     }
   }
   constexpr uint32_t pollInterval = 341;
+  cout << "LOGTEST" << settings.log_path;
   while (running) {
     uint32_t dotsThisFrame = 0;
     bool nmiRequested = false;

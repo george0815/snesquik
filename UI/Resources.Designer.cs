@@ -109,6 +109,64 @@ namespace sakura
                 return ResourceManager.GetString("A", resourceCulture);
             }
         }
+
+
+        /// <summary>
+        ///   Looks up a localized string similar to L.
+        /// </summary>
+        internal static string L
+        {
+            get
+            {
+                return ResourceManager.GetString("L", resourceCulture);
+            }
+        }
+
+
+
+        /// <summary>
+        ///   Looks up a localized string similar to A.
+        /// </summary>
+        internal static string R
+        {
+            get
+            {
+                return ResourceManager.GetString("R", resourceCulture);
+            }
+        }
+
+
+
+        /// <summary>
+        ///   Looks up a localized string similar to X.
+        /// </summary>
+        internal static string X
+        {
+            get
+            {
+                return ResourceManager.GetString("X", resourceCulture);
+            }
+        }
+
+
+
+        /// <summary>
+        ///   Looks up a localized string similar to Y.
+        /// </summary>
+        internal static string Y
+        {
+            get
+            {
+                return ResourceManager.GetString("Y", resourceCulture);
+            }
+        }
+
+
+
+
+
+
+
         /// <summary>
         ///   Looks up a localized string similar to B.
         /// </summary>

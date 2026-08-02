@@ -133,6 +133,18 @@
   <data name="B" xml:space="preserve">
     <value>B: </value>
   </data>
+  <data name="L" xml:space="preserve">
+    <value>L: </value>
+  </data>
+  <data name="R" xml:space="preserve">
+    <value>R: </value>
+  </data>
+  <data name="X" xml:space="preserve">
+    <value>X: </value>
+  </data>
+  <data name="Y" xml:space="preserve">
+    <value>Y: </value>
+  </data>
   <data name="UP" xml:space="preserve">
     <value>上: </value>
   </data>

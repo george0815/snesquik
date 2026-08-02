@@ -87,6 +87,35 @@ namespace sakura.helpers
 
 
         /// <summary>
+        /// L button
+        /// Default is h.
+        /// </summary>
+        public Key L { get; set; } = Key.h;
+
+
+        /// <summary>
+        /// R button
+        /// Default is j.
+        /// </summary>
+        public Key R { get; set; } = Key.j;
+
+
+        /// <summary>
+        /// X button
+        /// Default is k.
+        /// </summary>
+        public Key X { get; set; } = Key.k;
+
+
+        /// <summary>
+        /// Y button
+        /// Default is l.
+        /// </summary>
+        public Key Y { get; set; } = Key.l;
+
+
+
+        /// <summary>
         /// Up button
         /// Default is down arrow.
         /// </summary>

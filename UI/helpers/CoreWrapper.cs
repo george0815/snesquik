@@ -40,7 +40,7 @@ namespace sakura.helpers
             {
                 FileName = ExeFileName,
                 Arguments =
-                    $"\"{args.RomPath}\"",
+                    $"--rom \"{args.RomPath}\"",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
