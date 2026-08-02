@@ -501,6 +501,16 @@ void toggleLogging(InputContext &input) {
 bool handleSystemKey(InputContext &input, int key, bool pressed) {
   using Ppu = snesquik::ppu::Ppu;
 
+  if (key == settings.controls.SAVE) {
+    input.saveStateRequested = true;
+    return true;
+  } else if (key == settings.controls.LOAD) {
+    input.loadStateRequested = true;
+    return true;
+  } else if (key == settings.controls.STOP) {
+    exit(0);
+  }
+
   if (key == SDLK_F5) {
     if (pressed) {
       if (!input.f5WasDown) {
@@ -536,12 +546,6 @@ bool handleSystemKey(InputContext &input, int key, bool pressed) {
     if (input.ppu)
       input.ppu->setDebugFlags(input.ppu->debugFlagsMask() ^
                                Ppu::DebugForceBG3);
-    return true;
-  case SDLK_F6:
-    input.saveStateRequested = true;
-    return true;
-  case SDLK_F7:
-    input.loadStateRequested = true;
     return true;
   default:
     return false;
@@ -611,6 +615,14 @@ int main(int argc, char **argv) {
       convert_special_key(settingsData["Controls"]["START"].get<int>()));
   settings.controls.SELECT = static_cast<SDL_KeyCode>(
       convert_special_key(settingsData["Controls"]["SELECT"].get<int>()));
+  settings.controls.X = static_cast<SDL_KeyCode>(
+      convert_special_key(settingsData["Controls"]["X"].get<int>()));
+  settings.controls.Y = static_cast<SDL_KeyCode>(
+      convert_special_key(settingsData["Controls"]["Y"].get<int>()));
+  settings.controls.L = static_cast<SDL_KeyCode>(
+      convert_special_key(settingsData["Controls"]["L"].get<int>()));
+  settings.controls.R = static_cast<SDL_KeyCode>(
+      convert_special_key(settingsData["Controls"]["R"].get<int>()));
   settings.controls.A = static_cast<SDL_KeyCode>(
       convert_special_key(settingsData["Controls"]["A"].get<int>()));
   settings.controls.B = static_cast<SDL_KeyCode>(
